@@ -1,0 +1,85 @@
+# App Folder & Files Structure
+
+altar-scheduler/
+├── backup/                           # 🔹 데이터/설정 백업용
+│   └── sample_data/                  # 🔹 일회성 import 샘플 데이터(CSV 등)
+├── dist/                             # 🔹 빌드 결과물 (vite, tsc 등)
+├── emulator-data/                    # 🔹 Firebase Emulator 데이터(Firestore/Auth 등)
+├── functions/                        # 🔹 Firebase Functions (서버 사이드)
+│   ├── lib/
+│   ├── node_modules/
+│   ├── scripts/                      # 데이터 import/export, 마이그레이션/시드
+│   ├── src/
+│   │   ├── index.ts
+│   │   ├── roles/                    # 권한 관련 CF (grant/revoke/approve 등)
+│   │   │   ├── grantPlanner.ts
+│   │   │   ├── revokePlanner.ts
+│   │   │   └── approveParishManager.ts
+│   │   ├── dev/                      # 에뮬레이터 전용 개발 헬퍼(프로덕션 차단)
+│   │   │   └── devGrantRole.ts
+│   │   └── utils/                    # 공용 유틸/타입
+│   └── types/                        # 타입 선언 (예: csv-parser.d.ts)
+├── node_modules/
+├── public/                           # 정적 리소스 (favicon, index.html 등)
+├── src/                              # React 프론트엔드
+│   ├── assets/                       # 이미지, 아이콘, 폰트
+│   ├── config/
+│   │   └── parishes.ts               # 기초정보 - 본당 카탈로그(JSON) — parish_code SSOT
+│   ├── lib/
+│   │   ├── firebase.ts               # Firebase 초기화 (현재 안씀)
+│   │   ├── firestore.ts              # 공통 쿼리 래퍼/인덱스 키/쿼리 헬퍼
+│   │   ├── auth.ts                   # 로그인 유틸, 토큰 갱신 등
+│   │   └── rules-helpers.md          # (문서) Rules와 연계되는 쿼리 제약 모음
+│   ├── state/
+│   │   ├── session.ts                # useSession (isAdmin, managerParishes, groupRoles, currentServerGroupId)
+│   │   └── ui.ts                     # UI 관련 전역 상태(다크모드 등)
+│   ├── types/
+│   │   ├── auth.ts                   # Role/세션 타입 (admin/manager/planner/server)
+│   │   ├── firestore.ts              # system_roles/parish_roles/memberships/server_groups 등 문서 타입
+│   │   └── index.ts                  # 타입 re-export
+│   ├── pages/
+│   │   ├── Login.tsx
+│   │   ├── Dashboard.tsx             # 관리자/플래너 메인
+│   │   ├── ServerGroupWizard.tsx     # ✅ 복사단 생성/설정 마법사 (구 ParishWizard 대체)
+│   │   ├── ServerMain.tsx            # 복사용 메인
+│   │   ├── ServersList.tsx           # 복사 명단 관리
+│   │   ├── MassEventPlanner.tsx      # 미사 일정/설문/배정 (2.6 섹션)
+│   │   ├── SelectServerGroup.tsx     # 복수 소속 시 복사단 선택
+│   │   ├── SelectParish.tsx          # manager-only 본당 선택(복사단 리스트 뷰로 이동)
+│   │   └── components/
+│   │       ├── MyInfoCard.tsx
+│   │       ├── ServerStats.tsx
+│   │       ├── NextMonthPlan.tsx
+│   │       ├── MassCalendar.tsx
+│   │       ├── EventDetailDrawer.tsx
+│   │       └── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
+│   ├── dev/                          # 개발모드 전용 UI/유틸(프로덕션 미노출)
+│   │   ├── DevRoleSwitcher.tsx       # 역할 스위처(에뮬/개발 전용)
+│   │   └── QuickSignIn.tsx           # 테스트 계정 빠른 로그인
+│   ├── routes/
+│   │   └── AppRoutes.tsx             # `/:serverGroupId/...` 경로 정의
+│   ├── styles/
+│   │   └── globals.css
+│   └── main.tsx
+├── tests/                            # Jest/RTL 단위/통합, Cypress e2e(선택)
+│   ├── e2e/                          # Cypress: 역할별 접근/버튼/쓰기 권한 스모크
+│   └── unit/
+├── docs/                             # PRD/아키/운영가이드
+│   ├── PRD-Altar Scheduler.md
+│   ├── Firestore Collections Structure.txt
+│   └── Folder Structure of App.txt
+├── scripts/                          # 루트 실행 스크립트(배포/시드/마이그레이션)
+│   ├── seedRoles.ts                  # admin/manager/planner/server + 샘플 SG
+│   ├── migrateToServerGroups.ts      # parish → server_groups 마이그레이션
+│   └── export-import.ts
+├── config/                           # 환경/품질 세팅
+│   ├── firebase.json
+│   ├── firestore.rules               # Rules (권한 SSOT 기준)
+│   ├── firestore.indexes.json
+│   ├── .eslintrc.cjs
+│   ├── tsconfig.json
+│   └── vite.config.ts
+├── .github/workflows/                # CI/CD 파이프라인 (GitHub Actions)
+├── package.json
+└── README.md
+

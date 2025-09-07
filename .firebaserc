@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "altar-scheduler-dev",
+    "prod": "altar-scheduler-prod"
+  }
+}

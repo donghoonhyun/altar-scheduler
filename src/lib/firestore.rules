@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+
+    function memberDoc(parishId) {
+      return get(/databases/$(db)/documents/parishes/$(parishId)/members/$(request.auth.uid));
+    }
+    function isMember(parishId) {
+      return isSignedIn() && exists(/databases/$(db)/documents/parishes/$(parishId)/members/$(request.auth.uid));
+    }
+    function role(parishId) {
+      return isMember(parishId) ? memberDoc(parishId).data.role : null;
+    }
+
+    // Parish 루트: 직접 생성 금지(Functions로만 생성)
+    match /parishes/{parishId} {
+      allow read: if isMember(parishId);
+      allow create: if false;
+      allow update, delete: if role(parishId) == "ADMIN";
+
+      // 멤버 문서
+      match /members/{userId} {
+        allow read: if isMember(parishId);
+        allow create: if false; // 최초 생성은 Functions에서
+        allow update, delete: if false;
+      }
+
+      // 서버/복사 프로필 & 링크는 추후 단계에서 강화
+      match /servers/{serverId} {
+        allow read: if isMember(parishId);
+        allow create, update, delete: if role(parishId) == "ADMIN";
+      }
+
+      match /massEvents/{massId} {
+        allow read: if isMember(parishId);
+        allow create, update, delete: if role(parishId) == "ADMIN";
+
+        match /availabilities/{aid} {
+          allow read: if isMember(parishId);
+          allow create, update: if isMember(parishId);
+          allow delete: if role(parishId) == "ADMIN";
+        }
+
+        match /assignments/{asId} {
+          allow read: if isMember(parishId);
+          allow create, update, delete: if role(parishId) == "ADMIN";
+        }
+
+        match /swapRequests/{swapId} {
+          allow read: if isMember(parishId);
+          allow create, update: if isMember(parishId);
+          allow delete: if role(parishId) == "ADMIN";
+        }
+      }
+    }
+  }
+}
