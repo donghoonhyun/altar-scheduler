@@ -24,12 +24,12 @@
 2. 미사별 복사 pool 선정(플래너) : 해당 미사에 설문할 복사 pool을 선택하여 선정
 3. 차월 미사 확정(플래너)
 4. 설문조사 공유(플래너) : 확정된 미사스케쥴에 대해 설문 페이지 URL 주소를 복사들에게 공유(카톡 등 SNS)
-5. 설문조사 실시(복사) : 각 복사들은 해당 설문(달력형태)에 미사별 가능여부(Availability)를 가능(AVAILABLE)/선호(PREFERRED)/불가(UNAVAILABLE) 중에 하나 선택
+5. 설문조사 실시(복사) : 각 복사들은 해당 설문(달력형태)에 미사별 가능여부(Availability)를 가능(AVAILABLE)/불가(UNAVAILABLE) 둘 중에 하나 선택
 6. 자동배정 실시(플래너) : 설문조사가 끝나면 설문확정('SURVEY-CONFIRMED'상태)하고 , 플래너가 '자동 배정' 버튼을 눌러 배정로직에 따라 자동배정함
 7. 미세조정(플래너) : 자동배정된 현황을 보고, 관리자가 미세조정 후에 최종 확정('FINAL-CONFIRMED'상태)함
 8. 최종결과 공유(플래너) : 확정된 내용을 복사들에게 결과 페이지 주소 링크를 보내거나 pdf 파일을 보냄 (카톡 등 SNS)
-9. 긴급조정(플래너) : 이후, 복사가 긴급으로 변경 요청을 해 오면, 관리자는 전체 스케쥴 현황을 달력으로 보며 쉽게 다른 복사와 교체할 수 있어야 함
-10. 다음달 작업을 진행할 때 플래너가 쉽게 세팅할 수 있도록 이전 달 정보를 최대한 활용할 수 있도록 '복사' 또는 '사전세팅' 같은 preset 기능이 필요함
+9. 긴급조정(플래너) : -> 일단 조정기능은 시스템에 반영하지 않음
+10. 다음달 작업을 진행할 때 플래너가 쉽게 세팅할 수 있도록 이전 달 정보를 최대한 활용할 수 있도록 '전달 복사' 또는 '사전세팅' 같은 preset 기능이 필요함
 
 ## 2. 주요 기능(Main Functions)
 
@@ -118,8 +118,14 @@
 - 기능 : 복사 명단 리스트/검색 지원
 - 권한관리 : manager(본당 단위) 또는 해당 복사단의 planner 권한자
 - Firebase Store Collection : pk='name_kor||baptismal_name' <- 이후 중복 체크시 한국이름과 세례명을 합쳐서 체크함, 동명이인은 이름에 숫자등을 넣어서 구분함
-- 필수입력 Collection field : name_kor, baptismal_name, grade(학년, value=E1/E2~E6/M1/M2/M3/H1/H2/H3), create_at, updated_at
-- optoinal field : , phone_guardian, phone_student, notes(비고)
+- 필수입력 Collection field : name_kor, baptismal_name, grade(학년, value=E1/E2/E3/E4/E5/E6/M1/M2/M3/H1/H2/H3), create_at, updated_at
+- optoinal field : uid (users/{uid}와 연결될 경우), phone_guardian, phone_student, notes(비고)
+- 중복 체크 기준:
+  . 동일 성당 내에서는 name_kor + baptismal_name 조합으로 중복 방지
+  . 이메일(users/{uid}.email)은 로그인 계정 중복 체크에 사용
+- 등록 기능:
+  . CSV 일괄 업로드 지원 (replace 모드, 주의문구 표시, 템플릿 제공)
+  . 리스트 화면에서 개별 add/modify/delete 가능
 
 #### 2.5.1 복사 리스트 표형태로 표시
 
@@ -155,8 +161,7 @@
 
 #### 2.6.3 필요 인원 설정
 
-- 조건 : 0~6까지 radio button으로 선택, default=미선택
-- 인원이 0인 경우 : 복사가 필요없으므로 <2.6 가용성설문>에 표시되지 않음
+- 조건 : 1~6까지 radio button으로 선택, default=미선택
 
 #### 2.6.4 차월 미사 일정 확정
 
@@ -175,30 +180,82 @@
 
 ### 2.7 복사 가용성 설문 (Availability)
 
-- 기능 : 복사(또는 학부모)가 미사 일정별 가용성을 표시해서 제출
-- 권한관리 : 해당 본당의 관리자와 복사 둘다 접근 가능하나, 본인의 가용성 정보만 표시해야함
-- 가용성의 세가지 상태 관리 : 'PREFERRED'(선호) / 'AVAILABLE'(가능) / 'UNAVAILABLE'(불가)
-- 모든 미사 일정이 있는 날짜에 3가지 상태중 하나를 지정해야 최종 '확정제출' 할 수 있음
-- 주로 모바일UI에서 본인의 설문을 입력하므로, UI를 모바일에 맞게 디자인 되어야 함(아이콘과 색상을 주로 활용)
+- 기능 : 복사(또는 학부모)가 **해당 월의 각 미사 일정(event_id)** 별로 자신의 가용 여부를 입력하고 제출한다.  
+  제출된 응답은 이후 자동 배정(2.8)과 플래너의 수동 조정에 활용된다.
+- 권한관리 : 본당 관리자(manager), 복사(server) 모두 접근 가능. 단, 복사는 본인 응답만 수정 가능
+- 미사별 일자별 가용성의 2가지 상태 관리 : 'AVAILABLE'(가능) / 'UNAVAILABLE'(불가)
+- **데이터 저장 구조 (Firestore)**  
+
+  ```ts
+  server_groups/{sg}/availability_surveys/{month_id}/responses/{member_id}
+    responses: {
+      [event_id: string]: "AVAILABLE" | "UNAVAILABLE"
+    }
+    created_at: timestamp
+    updated_at: timestamp
+  ```
+
+  (예시:)
+  {
+    "responses": {
+      "event_20250915_1900": "AVAILABLE",
+      "event_20250916_0900": "UNAVAILABLE",
+      "event_20250917_1100": "AVAILABLE"
+    },
+    "created_at": "2025-09-01T10:00:00Z",
+    "updated_at": "2025-09-01T10:15:00Z"
+  }
+
+- 모든 미사 일정이 있는 날짜에 2가지 상태중 하나를 지정해야 최종 '확정제출' 할 수 있음
+- 확정 제출 조건
+  . 응답자가 해당 월의 모든 미사 이벤트에 대해 상태를 지정해야만 최종 “확정 제출” 가능
+  . 제출 이후에도 마감('SURVEY-CONFIRMED') 전까지는 '제출취소' 후에 수정 허용
+- UI/UX 고려사항
+  . 모바일 우선 달력 UI 제공 (아이콘/색상 활용)
+  . 해당 월에서 이벤트가 있는 날짜에 대해 두 가지 상태 중 하나를 직관적으로 선택 가능해야 함
 
 ### 2.8 자동 배정 (Auto Assignment) 로직
 
-- Cloud Function 기반 자동 배정 로직으로 구현
-- 배정 알고리즘 : 아래 번호순 조건으로 배정
-  (1) 주복사(Main) 1명 필수
-  (2) Rookie는 기본적으로 Main 배제 (주복사가 부족한 경우 예외 허용)
-  (3) 공정성 고려 (특정 복사에게 과도한 배정 방지)
-  (4) 선호설문 최대한 존중 : 'PREFERRED'(선호) > 'AVAILABLE'(가능) 가중치 반영
-- 자동 배정된 결과를 보고 관리자가 검토/수정 후 최종 확정
+- **구현 방식**  
+  Cloud Function 기반 자동 배정 로직으로 구현한다.  
+  복사들의 가용성 설문(2.7)을 기반으로 각 미사 이벤트에 필요한 인원을 자동 배정한다.
 
-### 2.9 교체 요청
+- **배정 조건**  
+  1. 각 미사 이벤트(event_id)에는 주복사(Main) 1명 이상이 반드시 배정되어야 한다.  
+  2. Rookie(신입 복사)는 기본적으로 Main 배정에서 제외하되, 필수 인원이 부족할 경우 보완적으로 포함할 수 있다.  
+  3. 공정성을 고려하여, 동일 복사에게 과도하게 편중되지 않도록 한다.  
+  4. 가용성은 **`AVAILABLE`(가능) / `UNAVAILABLE`(불가)** 두 가지 값만 사용한다.  
+     - `UNAVAILABLE` → 절대 배정하지 않는다.  
+     - `AVAILABLE` → 배정 가능 대상으로 고려한다.  
 
-- 시스템 아닌 구두로만 요청 : 배정 확정 후에도 긴급 사정이 생길 경우 복사가 교체 요청 가능
-- 관리자 승인시 : <2.2 관리자 메인> 화면에서 직접 수정
-- 교체 내역 로그 기록 : 향후 평가 자료에 활용할 수 있음
+- **데이터 저장 구조 (Firestore)**  
+
+  ```ts
+  server_groups/{sg}/schedules/{month_id}
+    assignments: {
+      [event_id: string]: string[]   // event_id별 배정된 member_id 배열
+    }
+  ```
+  
+  (예시:)
+  {
+    "assignments": {
+      "event_20250915_1900": ["member_001", "member_002"],
+      "event_20250916_0900": ["member_003", "member_004"],
+      "event_20250917_1100": ["member_005"]
+    }
+  }
+
+- 플래너 검토 단계
+  . 자동 배정 후, 플래너가 결과를 확인하고 필요 시 수동 조정 가능
+  . 최종 확정 시 FINAL-CONFIRMED 상태로 변경
+
+### 2.9 교체 요청 (<- 일단 기능 구현 안함)
 
 ### 2.10 공유/알림 (향후계획)
 
+- 기능: 복사/관리자에게 배정 관련 메시지 전달
+- 위치: server_groups/{sg}/notifications/{notif_id}
 - 배정표 PDF/이미지 생성 및 공유
 - 알림(Notification): 앱 내, 이메일, 또는 메시지
 
@@ -229,6 +286,7 @@
 
 - IDE OS : windows 11
 - IDE : visual code studio
+    ESLint/TS 규칙
 - brower : chrome
 - Firebase Emulator local 환경
 

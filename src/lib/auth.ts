@@ -1,38 +1,70 @@
 // src/lib/auth.ts
-import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  connectAuthEmulator,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  type User,
 } from "firebase/auth";
-import type { User } from "firebase/auth";
 
-import { firebaseConfig } from "../config/firebaseConfig";
+import { app } from "./firebase";
 
-// Firebase 초기화
-const app = initializeApp(firebaseConfig);
+// Auth 인스턴스
 export const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
 
-/** Google 로그인 (Popup) */
+// ✅ 개발 환경이면 Auth Emulator 연결
+if (import.meta.env.DEV) {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099");
+  console.log("✅ Auth Emulator 연결됨");
+}
+
+// Google Provider
+const googleProvider = new GoogleAuthProvider();
+
+/* ---------------- Google ---------------- */
 export async function signInWithGoogle(): Promise<User | null> {
   try {
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
-    console.error("Google Sign-In error:", error);
+  } catch (err) {
+    console.warn("Popup 실패, redirect로 시도:", err);
+    await signInWithRedirect(auth, googleProvider);
     return null;
   }
 }
 
-/** 로그아웃 */
-export async function signOutUser(): Promise<void> {
+export async function checkRedirectResult(): Promise<User | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user ?? null;
+  } catch (err) {
+    console.error("Redirect 로그인 에러:", err);
+    return null;
+  }
+}
+
+/* ---------------- Email/Password ---------------- */
+export async function signInWithEmail(email: string, password: string) {
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
+}
+
+export async function signUpWithEmail(email: string, password: string) {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  return result.user;
+}
+
+/* ---------------- Session & Logout ---------------- */
+export async function signOutUser() {
   await signOut(auth);
 }
 
-/** Auth 상태 구독 */
 export function subscribeAuthState(callback: (user: User | null) => void) {
   return onAuthStateChanged(auth, callback);
 }
