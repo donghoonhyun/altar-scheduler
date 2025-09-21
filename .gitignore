@@ -13,14 +13,16 @@ dist-ssr
 *.local
 
 emulator-data/
+firebase-export-*
 backup/
+
+# critical files
 .env
 .env.local
 
 # Firebase config
 src/config/firebaseConfig.ts
 firebase-debug.log
-
 
 # Editor directories and files
 .vscode/*

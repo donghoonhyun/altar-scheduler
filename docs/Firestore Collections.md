@@ -13,7 +13,7 @@ server_groups/{server_group_id}
   name: string
   timezone: string
   locale: string
-  active: boolean
+  active: boolean            # true/false (사용/미사용)
   created_at: timestamp
   updated_at: timestamp
 

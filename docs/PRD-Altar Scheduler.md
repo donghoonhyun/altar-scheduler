@@ -54,7 +54,7 @@
   ② 권한이 없으면 본당 선택 또는 접근 불가 페이지로 안내.
 - 상태 보존: 사용자가 마지막으로 선택한 복사단은 저장해 두어, 다음 로그인 시 기본 진입 지점으로 사용.
 
-### 2.2 권한관리
+### 2.2 역할 및 권한 구조
 
 - 모든 기능은 사용자의 스코프(본당/복사단) 내 데이터에만 접근 가능: admin(전역) / manager(본당 단위) / planner(복사단 단위) / server(복사 본인정보와 일부 복사단 내 정보).
 
@@ -81,19 +81,23 @@
 
 - 권한관리 : home url로 접근시 플래너 메인 페이지와 그 외 복사 메인 페이지를 분리해야함.
 
-#### 2.3.1 복사단 생성
+#### 2.3.1 복사단(server group) 생성
 
+- 경로: `/parish/${parishCode}/server-groups/new`
 - 실제적으로 최상위 운영 담위임(server_groups 컬렉션)
 - 권한: Admin 또는 해당 본당 Manager
-- 경로: server_groups/{server_group_id}
-- 필드: parish_code(카탈로그 선택), name, timezone, locale, active, created_at, updated_at
+- 필드: parish_code(카탈로그 선택), name, timezone, locale, active(사용/미사용), created_at, updated_at
 - 본당 코드(parish_code)는 자동채번 금지, src/config/parishes.ts 카탈로그에서 선택
-(도큐 모델 표기는 현행 유지)
 
-#### 2.3.2 본당별 관리자(manager) 지정
+##### 2.3.2 복사단(server group) 코드 채번
 
-- admin이 최초 1회 일단 수작업으로 지정해줌, 본당별 여러명일 수 있음
-- parish_roles/{uid}_{parish_code} 문서 구조, Admin 직권 등록 또는 승인 워크플로우 추가.
+- 형식: "SG" + zero-padding(5자리) → SG00001, SG00002 … SG99999
+- 운영 단계: 전역(Global) 시퀀스 증가 방식
+  . server_group_counters/global 문서에 last_seq 보관
+  . 새 그룹 생성 시 Firestore 트랜잭션으로 last_seq + 1 → SG00XXX 발급
+- 확장성: 최대 99,999개 그룹 (SG99999)
+- 코드 예시:
+  SG00001 → SG00002 → SG00003 … (본당 구분 없이 전역 고유)
 
 #### 2.3.3 복사단별 플래너(planner) 지정
 
@@ -263,6 +267,11 @@
 
 - 신규 본당 추가 = 카탈로그(parishes.ts) 업데이트 + parish_roles 문서 생성
 
+#### 2.11.1 본당별 관리자(manager) 지정
+
+- admin이 최초 1회 일단 수작업으로 지정, 본당별 여러명일 수 있음.
+- parish_roles/{uid}_{parish_code} 문서 구조, Admin 직권 등록 또는 승인 워크플로우 추가.
+
 ### 2.12 App UI & UX
 
 - 반응형 웹 : 모바일이 기본이므로 작은 모바일 화면에 표현되도록 UI설계해야함. 추가로 PC브라우저에서도 깨지지 않게 반응해야함.
@@ -272,9 +281,8 @@
 
 ### 3.1 App 환경
 
-- dev env. : SPA(Single Page Architecture) + vite + react.js
-- front-end env. : TailWind
-- Google platform Firebase 기반
+- front end : SPA(Single Page Architecture) + vite + react.js + TailWind CSS
+- back end : Google platform Firebase 기반
 - data storage : Firestore (NoSQL)
 - hosting/deploy: Google Firebase Hosting, Functions, Auth
 - Localization: 여러 성당에서 사용 가능 (parish_code로 구분)
@@ -290,14 +298,51 @@
 - brower : chrome
 - Firebase Emulator local 환경
 
+#### 3.2.1 TypeScript import 규칙
+
+- TypeScript 4.5 이상에서는 타입 전용 import(import type) 규칙을 반드시 따른다.
+- interface, type alias, enum 등 런타임에 필요 없는 타입 선언은 다음과 같이 가져온다:
+  예) import type { CreateServerGroupRequest, CreateServerGroupResponse } from "../types/firestore";
+- 런타임 코드에서 실제로 쓰이는 객체/함수(firebase, react, zustand 등)는 일반 import를 사용한다.
+
+#### 3.2.2 타입 관리 원칙
+
+- Cloud Functions의 요청/응답 타입은 공용 타입 파일(src/types/firestore.ts)에 정의하고,
+  프론트엔드 페이지/컴포넌트에서는 반드시 import type 으로 참조한다.
+- ESLint/TS 규칙에서 no-explicit-any를 활성화하여, 타입 안정성을 유지한다.
+- 새 Cloud Function 추가 시 반드시 Request / Response 타입을 정의하여 문서화한다.
+
 ### 3.3 Test
 
 - 개발 중에 admin / manager / planner / server 역할을 오가며 재빨리 테스트 할수 있어야 함
+- test user : 역할에 따른 테스트 유저
+  . admin user : <admin@test.com>
+  . manager user : <manager@test.com>
+  . planner user : <planner@test.com>
+  . server user : <server@test.com>
 - 운영 환경에서는 차단, 개발 환경에서만 허용.
 - 개발 중 역할 테스트:
-① 에뮬레이터 시드 스크립트(admin/manager/planner/server + 샘플 서버그룹)
-② Dev 전용 Role Switcher UI(개발 모드 한정)
-③ Quick Sign-in 버튼(개발 모드 한정)
+  ① 에뮬레이터 시드 스크립트(admin/manager/planner/server + 샘플 서버그룹)
+  ② Dev 전용 Role Switcher UI(개발 모드 한정)
+  ③ Quick Sign-in 버튼(개발 모드 한정)
+
+#### 3.3.1 시드(Seed) 데이터 전략
+
+- 개발/테스트 환경에서는 **Firebase Admin SDK 기반 seed 스크립트** 제공
+- 시드 스크립트 동작:
+  . Auth Emulator에 테스트 계정 4개 생성 (admin, manager, planner, server)
+  . Firestore에 대응 문서 자동 생성
+    system_roles, parish_roles, memberships, users, server_groups
+- 테스트 기본 값:
+  . parish_code: `"DAEGU-BEOMEO"`
+  . server_group_id: `"SG0001"`
+- 예시:  
+
+  . `system_roles/admin-test-uid` → `{ role: "admin" }`  
+  . `parish_roles/manager-test-uid_DAEGU-BEOMEO` → `{ parish_code: "DAEGU-BEOMEO", role: "manager" }`  
+  . `memberships/planner-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "planner" }`  
+  . `memberships/server-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "server" }`  
+  . `server_groups/SG0001` → `{ parish_code: "DAEGU-BEOMEO", name: "범어성당 복사단 1그룹" }`  
 
 ### 3.4 Google Firebase app config
 

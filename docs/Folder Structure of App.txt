@@ -47,12 +47,17 @@ altar-scheduler/
 │   │   ├── SelectServerGroup.tsx     # 복수 소속 시 복사단 선택
 │   │   ├── SelectParish.tsx          # manager-only 본당 선택(복사단 리스트 뷰로 이동)
 │   │   └── components/
+│   │       ├── Layout.tsx            # 상단바 구성
 │   │       ├── MyInfoCard.tsx
 │   │       ├── ServerStats.tsx
 │   │       ├── NextMonthPlan.tsx
 │   │       ├── MassCalendar.tsx
 │   │       ├── EventDetailDrawer.tsx
-│   │       └── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
+│   │       ├── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
+│   │       └── Forbidden.tsx
+│   └── components/                   # 공통 컴포넌트
+│   │   └── common/
+│   │       └── LoadingSpinner.tsx    # 공통 스피너
 │   ├── dev/                          # 개발모드 전용 UI/유틸(프로덕션 미노출)
 │   │   ├── DevRoleSwitcher.tsx       # 역할 스위처(에뮬/개발 전용)
 │   │   └── QuickSignIn.tsx           # 테스트 계정 빠른 로그인
