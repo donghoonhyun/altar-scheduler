@@ -28,7 +28,7 @@ export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
 // ✅ 개발 환경이면 Emulator 연결
-if (import.meta.env.DEV) {
+if (location.hostname === "localhost" || import.meta.env.DEV) {
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
   connectFunctionsEmulator(functions, "127.0.0.1", 5001); // ✅ 추가

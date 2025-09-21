@@ -1,11 +1,15 @@
-// src/pages/components/Layout.tsx
 import { Outlet, useParams } from "react-router-dom";
 import { useSession } from "../../state/session";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { PARISHES } from "../../config/parishes";
+import type { ReactNode } from "react";
 
-export default function Layout() {
+interface LayoutProps {
+  children?: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
   const session = useSession();
   const { parishCode } = useParams(); // URL에 본당 코드가 있을 때만 표시
 
@@ -73,7 +77,7 @@ export default function Layout() {
 
       {/* 페이지 컨텐츠 */}
       <main style={{ padding: "16px" }}>
-        <Outlet />
+        {children || <Outlet />}
       </main>
     </div>
   );

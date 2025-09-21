@@ -1,4 +1,3 @@
-// src/pages/components/RoleGuard.tsx
 import { Navigate } from "react-router-dom";
 import { useSession } from "../../state/session";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -6,8 +5,8 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 interface RoleGuardProps {
   children: React.ReactNode;
   require?: "admin" | "manager" | "planner" | "server";
-  parishCode?: string; // Manager 전용
-  serverGroupId?: string; // Planner/Server 전용
+  parishCode?: string;       // Manager 전용
+  serverGroupId?: string;    // Planner/Server 전용
 }
 
 export default function RoleGuard({
@@ -18,18 +17,19 @@ export default function RoleGuard({
 }: RoleGuardProps) {
   const session = useSession();
 
-  // 아직 세션 로딩 중이면 Forbidden 보내지 않고 안전하게 block
+  // 1. 세션 로딩 중
   if (session.loading) {
     console.log("⏳ RoleGuard: 세션 로딩 중 → Forbidden 차단");
     return <LoadingSpinner label="권한 확인 중..." />;
   }
 
+  // 2. 로그인 안 된 경우
   if (!session.user) {
     console.warn("❌ RoleGuard: 로그인 안 됨 → /login");
     return <Navigate to="/login" replace />;
   }
 
-  // 권한 판정
+  // 3. 권한 판정
   switch (require) {
     case "admin":
       if (!session.isAdmin) {
@@ -48,15 +48,23 @@ export default function RoleGuard({
       }
       break;
 
-    case "planner":
-      if (!serverGroupId || session.groupRoles[serverGroupId] !== "planner") {
-        console.warn("❌ RoleGuard: Planner 권한 없음", {
+    case "planner": {
+      const isPlanner =
+        serverGroupId && session.groupRoles[serverGroupId] === "planner";
+      const isManagerOfParish =
+        parishCode && session.managerParishes.includes(parishCode);
+
+      if (!isPlanner && !isManagerOfParish) {
+        console.warn("❌ RoleGuard: Planner/Manager 권한 없음", {
           serverGroupId,
           groupRoles: session.groupRoles,
+          parishCode,
+          managerParishes: session.managerParishes,
         });
         return <Navigate to="/forbidden" replace />;
       }
       break;
+    }
 
     case "server":
       if (!serverGroupId || session.groupRoles[serverGroupId] !== "server") {
@@ -69,7 +77,7 @@ export default function RoleGuard({
       break;
 
     default:
-      // require가 없으면 모두 통과
+      // require 없으면 모두 통과
       break;
   }
 

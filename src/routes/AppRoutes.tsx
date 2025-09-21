@@ -12,12 +12,13 @@ import ServerMain from "../pages/ServerMain";
 import SelectServerGroup from "../pages/SelectServerGroup";
 import SelectParish from "../pages/SelectParish";
 import ServerGroupWizard from "../pages/ServerGroupWizard";
+import ServerGroupsList from "../pages/ServerGroupsList";   // ✅ 신규 추가
 import Forbidden from "../pages/components/Forbidden";
 
 export default function AppRoutes() {
   const session = useSession();
 
-  // ✅ 세션 로딩 중일 때는 분기하지 않고 무조건 로딩 표시  
+  // ✅ 세션 로딩 중일 때는 분기하지 않고 무조건 로딩 표시
   if (session.loading) {
     return <LoadingSpinner label="세션 초기화 중..." size="lg" />;
   }
@@ -39,6 +40,17 @@ export default function AppRoutes() {
     return (
       <RoleGuard require="manager" parishCode={parishCode}>
         <ServerGroupWizard />
+      </RoleGuard>
+    );
+  };
+
+  // 동적 parishCode 전달용 Wrapper (리스트 페이지)
+  const ParishServerGroupsListWrapper = () => {
+    const { parishCode } = useParams();
+    if (session.loading) return <div>Loading...</div>;
+    return (
+      <RoleGuard require="manager" parishCode={parishCode}>
+        <ServerGroupsList />
       </RoleGuard>
     );
   };
@@ -86,6 +98,12 @@ export default function AppRoutes() {
                 </RoleGuard>
               }
             />
+            {/* ✅ 복사단 리스트 */}
+            <Route
+              path="/parish/:parishCode/server-groups"
+              element={<ParishServerGroupsListWrapper />}
+            />
+            {/* ✅ 복사단 생성 */}
             <Route
               path="/parish/:parishCode/server-groups/new"
               element={<ParishServerGroupWizardWrapper />}

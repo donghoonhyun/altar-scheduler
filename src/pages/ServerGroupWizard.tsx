@@ -29,7 +29,6 @@ export default function ServerGroupWizard() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,19 +47,20 @@ export default function ServerGroupWizard() {
       setLoading(true);
       setError(null);
 
-      // ✅ 타입 안전한 Cloud Function 호출
+      // ✅ Cloud Function 호출 - 스키마 맞춤
       const result = await createServerGroup({
         parishCode,
         name,
         timezone: "Asia/Seoul",
         locale: "ko-KR",
-        description,
+        active: true, // 🔹 필수 필드 추가
       });
 
       const newGroupId = result.data.serverGroupId;
       console.log("✅ 복사단 생성 완료:", newGroupId);
 
-      navigate(`/server-group/${newGroupId}`);
+      // ✅ 생성 후 리스트 페이지로 리다이렉트
+      navigate(`/parish/${parishCode}/server-groups`);
     } catch (err: unknown) {
       if (err instanceof Error) {
         console.error("❌ 복사단 생성 실패:", err.message);
@@ -90,16 +90,6 @@ export default function ServerGroupWizard() {
             className="w-full p-2 border rounded"
             placeholder="예: 제1복사단"
             required
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1">설명 (선택)</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 border rounded"
-            placeholder="복사단 설명을 입력하세요."
           />
         </div>
 

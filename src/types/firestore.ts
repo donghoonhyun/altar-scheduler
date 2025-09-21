@@ -1,41 +1,40 @@
+import type { Timestamp } from "firebase/firestore";
+
 // ===============================
 // 🔹 Users (users/{uid})
 // ===============================
 export interface UserDoc {
-  parish_id?: string; // 소속 본당 ID
-  name?: string; // 사용자 이름
-  role: "manager" | "server" | "admin";
-  created_at?: string;
-  updated_at?: string;
-}
-
-// ===============================
-// 🔹 Parishes (parishes/{parishId})
-// ===============================
-export interface ParishDoc {
-  name: string; // 본당 이름
-  time_zone: string; // "Asia/Seoul" 등
-  created_at?: string;
-  updated_at?: string;
-}
-
-// ===============================
-// 🔹 Managers (managers/{uid})
-// ===============================
-export interface ManagerDoc {
-  parish_id: string;
-  name: string;
+  uid: string;
   email: string;
-  created_at?: string;
-  updated_at?: string;
+  display_name: string;
+  managerParishes?: string[]; // 캐시용
+  role?: "manager" | "server" | "admin"; // (구버전 호환)
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
 }
 
 // ===============================
-// 🔹 Servers (parishes/{parishId}/servers/{serverId})
+// 🔹 Server Groups (server_groups/{serverGroupId})
 // ===============================
-export interface ServerDoc {
-  name_kor: string; // 이름 (한글)
-  baptismal_name: string; // 세례명
+export interface ServerGroupDoc {
+  id: string;             // Firestore document id
+  parish_code: string;    // 본당 코드
+  name: string;           // 복사단 이름
+  timezone: string;       // ex) "Asia/Seoul"
+  locale: string;         // ex) "ko-KR"
+  active: boolean;        // 사용 여부
+  created_at: Timestamp;  // 생성 시각
+  updated_at: Timestamp;  // 수정 시각
+}
+
+// ===============================
+// 🔹 Members (server_groups/{sg}/members/{memberId})
+// ===============================
+export interface MemberDoc {
+  id: string;
+  uid?: string; // 연결된 user_id (optional)
+  name_kor: string;
+  baptismal_name: string;
   grade:
     | "E1"
     | "E2"
@@ -48,16 +47,29 @@ export interface ServerDoc {
     | "M3"
     | "H1"
     | "H2"
-    | "H3"; // 학년
+    | "H3";
   phone_guardian?: string;
   phone_student?: string;
   notes?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 // ===============================
-// 🔹 Mass Events (parishes/{parishId}/mass_events/{eventId})
+// 🔹 Memberships (memberships/{uid}_{serverGroupId})
+// ===============================
+export interface MembershipDoc {
+  id: string; // uid_serverGroupId
+  uid: string;
+  server_group_id: string;
+  parish_code: string;
+  role: "planner" | "server";
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+// ===============================
+// 🔹 Mass Events (server_groups/{sg}/mass_events/{eventId})
 // ===============================
 export type MassStatus =
   | "MASS-NOTCONFIRMED"
@@ -66,21 +78,55 @@ export type MassStatus =
   | "FINAL-CONFIRMED";
 
 export interface MassEventDoc {
-  title: string; // 미사명
-  date: string; // YYYY-MM-DD
-  month: number; // 달력 필터용
-  requiredServers: number; // 필요 인원
-  servers: string[]; // 배정된 복사 ID 또는 이름
+  id: string;
+  title: string;         // 미사명
+  date: Timestamp;       // 미사 시간
+  required_servers: number;
   status: MassStatus;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 // ===============================
-// 🔹 Availability (parishes/{parishId}/availability/{serverId})
+// 🔹 Availability Surveys (server_groups/{sg}/availability_surveys/{monthId}/responses/{memberId})
 // ===============================
-export type AvailabilityStatus = "PREFERRED" | "AVAILABLE" | "UNAVAILABLE";
+export type AvailabilityResponse = "AVAILABLE" | "UNAVAILABLE";
 
-export interface AvailabilityDoc {
-  availability: Record<string, AvailabilityStatus>; // key = date (YYYY-MM-DD)
-  server_name: string; // 복사 이름
-  submitted: boolean; // 제출 여부
+export interface AvailabilitySurveyResponseDoc {
+  id: string; // memberId
+  responses: Record<string, AvailabilityResponse>; // eventId → 상태
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+// ===============================
+// 🔹 Schedules (server_groups/{sg}/schedules/{monthId})
+// ===============================
+export interface ScheduleDoc {
+  id: string; // monthId
+  assignments: Record<string, string[]>; // eventId → memberIds[]
+}
+
+// ===============================
+// 🔹 Replacement Requests (server_groups/{sg}/replacement_requests/{reqId})
+// ===============================
+export type ReplacementStatus = "pending" | "approved" | "rejected";
+
+export interface ReplacementRequestDoc {
+  id: string;
+  requester_uid: string;
+  target_event_id: string;
+  status: ReplacementStatus;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+// ===============================
+// 🔹 Notifications (server_groups/{sg}/notifications/{notifId})
+// ===============================
+export interface NotificationDoc {
+  id: string;
+  type: string;
+  message: string;
+  created_at: Timestamp;
 }

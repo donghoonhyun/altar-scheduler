@@ -18,8 +18,9 @@ export default function SelectParish() {
     return <div>권한이 없습니다.</div>;
   }
 
+  // ✅ 복사단 "리스트" 페이지로 이동하도록 수정
   const handleSelect = (parishCode: string) => {
-    navigate(`/parish/${parishCode}/server-groups/new`);
+    navigate(`/parish/${parishCode}/server-groups`);
   };
 
   return (

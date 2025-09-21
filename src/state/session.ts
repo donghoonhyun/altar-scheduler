@@ -1,6 +1,5 @@
-// src/state/session.ts
 import { useEffect, useState } from "react";
-import { auth, db } from "../lib/firebase"; // firebase.ts에서 export한 auth/db
+import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
 import {
@@ -67,8 +66,8 @@ export function useSession(): Session {
         // ✅ parish_roles 체크 (Manager 여부)
         const parishQuery = query(
           collection(db, "parish_roles"),
-          where("role", "==", "manager"),
-          where("parish_code", "!=", null)
+          where("uid", "==", user.uid), // 🔑 uid 매칭
+          where("role", "==", "manager")
         );
         const parishSnap = await getDocs(parishQuery);
         const parishes: string[] = [];
@@ -95,9 +94,24 @@ export function useSession(): Session {
             }
           }
         });
+
+        // ✅ Manager → 자동 Planner 권한 부여
+        if (parishes.length > 0) {
+          const sgSnap = await getDocs(collection(db, "server_groups"));
+          sgSnap.forEach((d) => {
+            const data = d.data();
+            if (data.parish_code && parishes.includes(data.parish_code)) {
+              // 아직 역할이 안 들어간 그룹이면 자동 planner 부여
+              if (!roles[d.id]) {
+                roles[d.id] = "planner";
+              }
+            }
+          });
+        }
+
         newSession.groupRoles = roles;
 
-        // ✅ 기본 currentServerGroupId 설정 (첫 번째 그룹)
+        // ✅ 기본 currentServerGroupId 설정
         if (Object.keys(roles).length > 0) {
           newSession.currentServerGroupId = Object.keys(roles)[0];
         }
