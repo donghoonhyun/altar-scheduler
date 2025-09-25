@@ -1,19 +1,13 @@
 // src/types/auth.ts
 
-// 전역 관리자
-export interface SystemRole {
-  uid: string;
-}
+// ✅ 복사단 단위 권한 (Planner/Server)
+export type Role = "planner" | "server";
 
-// 본당 단위 매니저
-export interface ParishRole {
-  uid: string;
-  parish_code: string;
-}
-
-// 복사단 단위 권한 (Planner/Server)
 export interface Membership {
   uid: string;
-  server_group_id: string;
-  role: "planner" | "server";
+  server_group_id: string;   // SG00001 같은 복사단 ID
+  parish_code: string;       // 소속 본당 코드
+  role: Role;                // "planner" | "server"
+  created_at: string;        // ISO Timestamp
+  updated_at: string;        // ISO Timestamp
 }

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import Layout from "./components/Layout";
 import MyInfoCard from "./components/MyInfoCard";
 import ServerStats from "./components/ServerStats";
 import NextMonthPlan from "./components/NextMonthPlan";
@@ -11,16 +10,13 @@ import { getFirestore, collection, getDocs } from "firebase/firestore";
 
 interface MassEvent {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   title: string;
   servers: string[];
 }
 
 const Dashboard: React.FC = () => {
-  const { parishCode, serverGroupId } = useParams<{
-    parishCode: string;
-    serverGroupId: string;
-  }>();
+  const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const session = useSession();
   const [events, setEvents] = useState<MassEvent[]>([]);
 
@@ -37,9 +33,9 @@ const Dashboard: React.FC = () => {
           id: doc.id,
           date: d.date?.toDate
             ? d.date.toDate().toISOString().substring(0, 10)
-            : d.date, // timestamp → YYYY-MM-DD
+            : d.date,
           title: d.title,
-          servers: d.assigned_servers || [], // schedules와 조합 필요시 확장
+          servers: d.assigned_servers || [],
         };
       });
       setEvents(list);
@@ -47,31 +43,36 @@ const Dashboard: React.FC = () => {
     fetchEvents();
   }, [serverGroupId]);
 
-  if (!parishCode || !serverGroupId) {
+  if (!serverGroupId) {
     return <div className="p-4">잘못된 경로입니다.</div>;
   }
 
   return (
-    <RoleGuard require="planner" serverGroupId={serverGroupId} parishCode={parishCode}>
-      <Layout>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <MyInfoCard parishCode={parishCode} serverGroupId={serverGroupId} />
-            <ServerStats parishCode={parishCode} serverGroupId={serverGroupId} />
-          </div>
+    <RoleGuard require="planner" serverGroupId={serverGroupId}>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold">
+          안녕하세요, {session.user?.displayName} 플래너님 👋
+        </h2>
+        <p className="text-gray-600 mt-1">이번 달 배정 일정을 확인하세요.</p>
+      </div>
 
-          <div className="flex flex-col gap-4">
-            <NextMonthPlan parishCode={parishCode} serverGroupId={serverGroupId} />
-          </div>
-
-          <div className="md:col-span-2">
-            <MassCalendar
-              events={events}
-              highlightServerName={session?.user?.displayName || ""}
-            />
-          </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <MyInfoCard parishCode="" serverGroupId={serverGroupId} />
+          <ServerStats parishCode="" serverGroupId={serverGroupId} />
         </div>
-      </Layout>
+
+        <div className="flex flex-col gap-4">
+          <NextMonthPlan parishCode="" serverGroupId={serverGroupId} />
+        </div>
+
+        <div className="md:col-span-2">
+          <MassCalendar
+            events={events}
+            highlightServerName={session?.user?.displayName || ""}
+          />
+        </div>
+      </div>
     </RoleGuard>
   );
 };

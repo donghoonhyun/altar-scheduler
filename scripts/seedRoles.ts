@@ -13,34 +13,8 @@ const TEST_PARISH_CODE = "DAEGU-BEOMEO";
 // ⚡ 테스트용 서버그룹 코드 (5자리 zero-padding)
 const TEST_SERVER_GROUP_ID = "SG00001";
 
-// 샘플 유저 정의
+// 샘플 유저 정의 (Planner / Server 전용)
 const USERS = [
-  {
-    uid: "admin-test-uid",
-    email: "admin@test.com",
-    password: "123456",
-    displayName: "Admin User",
-    roleDocs: [
-      {
-        collection: "system_roles",
-        docId: "admin-test-uid",
-        data: { role: "admin" },
-      },
-    ],
-  },
-  {
-    uid: "manager-test-uid",
-    email: "manager@test.com",
-    password: "123456",
-    displayName: "Manager User",
-    roleDocs: [
-      {
-        collection: "parish_roles",
-        docId: `manager-test-uid_${TEST_PARISH_CODE}`,
-        data: { parish_code: TEST_PARISH_CODE, role: "manager" },
-      },
-    ],
-  },
   {
     uid: "planner-test-uid",
     email: "planner@test.com",
@@ -51,6 +25,7 @@ const USERS = [
         collection: "memberships",
         docId: `planner-test-uid_${TEST_SERVER_GROUP_ID}`,
         data: {
+          uid: "planner-test-uid",
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
           role: "planner",
@@ -68,6 +43,7 @@ const USERS = [
         collection: "memberships",
         docId: `server-test-uid_${TEST_SERVER_GROUP_ID}`,
         data: {
+          uid: "server-test-uid",
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
           role: "server",
@@ -95,11 +71,12 @@ async function seed() {
       console.log(`✅ Auth 사용자 생성: ${u.email}`);
     }
 
-    // 2. roles 문서 생성
+    // 2. memberships 문서 생성
     for (const r of u.roleDocs) {
       await db.collection(r.collection).doc(r.docId).set({
         ...r.data,
         created_at: new Date(),
+        updated_at: new Date(),
       });
       console.log(`✅ Firestore 문서 생성: ${r.collection}/${r.docId}`);
     }
@@ -119,7 +96,9 @@ async function seed() {
     server_group_id: TEST_SERVER_GROUP_ID,
     parish_code: TEST_PARISH_CODE,
     name: "범어성당 복사단 1그룹",
-    active: true, // ✅ 활성화 여부 필드 추가
+    timezone: "Asia/Seoul",
+    locale: "ko-KR",
+    active: true,
     created_at: new Date(),
     updated_at: new Date(),
   });

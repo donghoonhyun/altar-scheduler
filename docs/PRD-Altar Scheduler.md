@@ -7,7 +7,7 @@
 - 배경 및 현재 문제점 : 현재 미사 일정 별 복사 배정은 담당수녀 등 관리자가 수작업으로 개별 연락하며 스케쥴링하고 있음. 복사의 인원이 많아지면서 한계에 이르고 있어 시스템(모바일앱 또는 PC웹)에 의한 자동화가 필요함
 - 목적 및 개선방향 : 성당에서 매달 진행되는 미사 일정에 맞춰 복사들을 공정하고 효율적으로 배정하고, 변경 요청까지 손쉽게 처리할 수 있도록 지원함. 매달 반복적이므로 최대한 이전 데이터를 활용해서 중복 작업을 없애야 함.
 
-- 대상 사용자(역할) : admin > manager > planner > server 네가지로 구분
+- 대상 사용자(역할) : Planner > Server 두가지로 구분
 - 성공 지표(Success Metrics) : 플래너는 쉽게 미사스케쥴과 복사를 등록하고 일정변경요창에도 쉽게 대응 할 수 있어야 하고,
   복사들도 자신의 스케쥴을 쉽게 알수 있어야 함
 
@@ -36,19 +36,17 @@
 ### 2.1 사용자 인증
 
 - 구글 계정을 통한 로그인 (Redirect / Popup 지원) : Android / iOS 둘다 지원해야함, 이후 kakao 등 확대 예정
-- 역할 기반 접근 제어: Admin / Manager / Planner / Server
+- 역할 기반 접근 제어: Planner / Server
 
 #### 2.1.1 사용자 진입 routing
 
 - root URL 진입 시, 로그인 여부와 사용자 역할/소속에 따라 초기 화면을 분기한다.
 - 로그인 안 된 경우 → 로그인 페이지(/login)로 이동.
 - 로그인 된 경우:
-  ① Admin → 바로 대시보드 또는 본당/복사단 선택 화면.
-  ② Manager → 담당 본당 선택 후 해당 복사단 리스트 진입.
-  ③ Planner/Server:
+  ① Planner/Server:
     소속 복사단이 1개면 바로 해당 복사단 대시보드.
     복수 소속이면 복사단 선택 화면(/select-server-group).
-  ④ 권한 없음 → 접근 불가 안내 페이지(/forbidden).
+  ② 권한 없음 → 접근 불가 안내 페이지(/forbidden).
 - 딥링크로 복사단 URL(/:serverGroupId/...) 접근 시:
   ① 해당 복사단에 대한 권한이 있으면 그대로 접근.
   ② 권한이 없으면 본당 선택 또는 접근 불가 페이지로 안내.
@@ -56,22 +54,10 @@
 
 ### 2.2 역할 및 권한 구조
 
-- 모든 기능은 사용자의 스코프(본당/복사단) 내 데이터에만 접근 가능: admin(전역) / manager(본당 단위) / planner(복사단 단위) / server(복사 본인정보와 일부 복사단 내 정보).
+- 모든 기능은 사용자의 스코프(본당/복사단) 내 데이터에만 접근 가능: planner(복사단 단위) / server(복사 본인정보와 일부 복사단 내 정보).
 
 #### 2.2.1 역할(role)정의
 
-- Admin:
-  . 전역, 시스템 모든 권한.
-  . 모든 본당/복사단 접근 가능.
-- Manager:
-  . parish_code 단위 권한.
-  . 해당 본당의 모든 복사단(server_groups)에 대한 관리 권한을 가짐.
-  . 1명 또는 최소인원으로 관리.
-  . 본당 소속 복사단의 Planner 권한을 자동으로 포함한다.
-  . 즉, Manager는 복사단 대시보드/미사 계획/배정 기능에 기본적으로 접근 가능하다.
-  . 필요 시 특정 복사단에 대해 Planner 역할을 추가 지정할 수도 있다(병행 수행).
-    즉, manager는 parish_roles/{uid}_{parishCode} 에서 Manager 권한이 있고
-    memberships/{uid}_{serverGroupId} 여러 개에 role: "planner" 로 등록 가능.
 - Planner:
   . server_group_id 단위 권한.
   . 특정 복사단에서 미사 일정 등록, 가용성 설문 관리, 자동 배정, 최종 확정 기능 수행.
@@ -82,23 +68,15 @@
 
 #### 2.2.2 권한 구조 (다음 3가지 컬렉션으로 분리)
 
-- 권한 SSOT는 Firestore 컨렉션:
-  (1) system_roles/{uid} → 전역 admin
-  (2) parish_roles/{uid}_{parish_code} → manager
-  (3) memberships/{uid}_{server_group_id} → planner/server
-- 권한 판정의 SSOT는 system_roles, parish_roles, 전역 memberships이며,
+- 권한 SSOT는 Firestore 컨렉션:  
+  . memberships/{uid}_{server_group_id} → planner/server
+- 권한 판정의 SSOT는 전역 memberships이며,
   server_groups/{sg}/memberships는 선택적 미러(표시/캐시)로 사용한다.
-- 세션(session.ts) 로딩 시:
-  . Manager는 해당 본당 소속 모든 복사단에 대해 자동 Planner 권한을 부여받는다.
-  . 동시에, memberships 에 등록된 복수의 Planner/Server 권한도 그대로 반영된다.
-  . 따라서 한 사용자가 Manager + 여러 Planner 권한을 동시에 가질 수 있다.
 
 #### 2.2.3 보안 규칙
 
 - 접근 조건:
-  isAdmin()
-  ∨ isManagerOfParish(parish_code)         // Manager → 본당 소속 모든 그룹 Planner 권한 포함
-  ∨ isPlanner(server_group_id)              // 특정 그룹 Planner
+  isPlanner(server_group_id)              // 특정 그룹 Planner
   ∨ isServer(server_group_id)               // 복사 본인
 
 ### 2.3 플래너 메인 관리 (Dashboard)
@@ -115,7 +93,7 @@
   ① 본당 선택(/select-parish) → 복사단 리스트(/parish/:parishCode/server-groups) 진입
   ② 리스트에서 기존 복사단 목록 확인 가능
   ③ [복사단 생성] 버튼 클릭 시 복사단 생성 마법사(/server-groups/new) 실행
-- 권한: Admin 또는 해당 본당 Manager
+- 권한: Planner
 - 필드: parish_code(카탈로그 선택), name, timezone, locale, active(사용/미사용), created_at, updated_at
 - 본당 코드(parish_code)는 자동채번 금지, src/config/parishes.ts 카탈로그에서 선택
 
@@ -314,19 +292,18 @@
 - 배정표 PDF/이미지 생성 및 공유
 - 알림(Notification): 앱 내, 이메일, 또는 메시지
 
-### 2.11 시스템 Admin 관리기능
-
-- 신규 본당 추가 = 카탈로그(parishes.ts) 업데이트 + parish_roles 문서 생성
-
-#### 2.11.1 본당별 관리자(manager) 지정
-
-- admin이 최초 1회 일단 수작업으로 지정, 본당별 여러명일 수 있음.
-- parish_roles/{uid}_{parish_code} 문서 구조, Admin 직권 등록 또는 승인 워크플로우 추가.
+### 2.11 시스템 Admin 관리기능 (삭제 -> 향후 고려)
 
 ### 2.12 App UI & UX
 
 - 반응형 웹 : 모바일이 기본이므로 작은 모바일 화면에 표현되도록 UI설계해야함. 추가로 PC브라우저에서도 깨지지 않게 반응해야함.
 - dark mode / white mode 모두 감안하여 css color 고려해야함
+
+#### 2.12.1 Layout 구조
+
+- 상단 공통 헤더: 사용자 이름 + 이메일 + 로그아웃 버튼 표시
+- 페이지 본문은 Layout의 Outlet 영역에서만 표시 (중복 방지)
+- 따라서 각 화면(Dashboard, ServerMain)에서는 별도의 Layout 래핑 제거
 
 ### 2.13 공통기능(Counters, functions  등)
 
@@ -381,15 +358,13 @@
 
 ### 3.3 Test
 
-- 개발 중에 admin / manager / planner / server 역할을 오가며 재빨리 테스트 할수 있어야 함
+- 개발 중에 planner / server 역할을 오가며 재빨리 테스트 할수 있어야 함
 - test user : 역할에 따른 테스트 유저
-  . admin user : <admin@test.com>
-  . manager user : <manager@test.com>
   . planner user : <planner@test.com>
   . server user : <server@test.com>
 - 운영 환경에서는 차단, 개발 환경에서만 허용.
 - 개발 중 역할 테스트:
-  ① 에뮬레이터 시드 스크립트(admin/manager/planner/server + 샘플 서버그룹)
+  ① 에뮬레이터 시드 스크립트(planner/server + 샘플 서버그룹)
   ② Dev 전용 Role Switcher UI(개발 모드 한정)
   ③ Quick Sign-in 버튼(개발 모드 한정)
 
@@ -397,16 +372,13 @@
 
 - 개발/테스트 환경에서는 **Firebase Admin SDK 기반 seed 스크립트** 제공
 - 시드 스크립트 동작:
-  . Auth Emulator에 테스트 계정 4개 생성 (admin, manager, planner, server)
+  . Auth Emulator에 테스트 계정 2개 생성 (planner, server)
   . Firestore에 대응 문서 자동 생성
-    system_roles, parish_roles, memberships, users, server_groups
+    memberships, users, server_groups
 - 테스트 기본 값:
   . parish_code: `"DAEGU-BEOMEO"`
   . server_group_id: `"SG0001"`
-- 예시:  
-
-  . `system_roles/admin-test-uid` → `{ role: "admin" }`  
-  . `parish_roles/manager-test-uid_DAEGU-BEOMEO` → `{ parish_code: "DAEGU-BEOMEO", role: "manager" }`  
+- 예시:
   . `memberships/planner-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "planner" }`  
   . `memberships/server-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "server" }`  
   . `server_groups/SG0001` → `{ parish_code: "DAEGU-BEOMEO", name: "범어성당 복사단 1그룹" }`  
