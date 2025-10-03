@@ -20,13 +20,15 @@ server_groups/{server_group_id}
 ### 2.1 Members
   
   server_groups/{sg}/members/{member_id}  
-    uid: string                # 연결된 user_id (optional)
+    uid: string                # 연결된 Firebase Auth UID
+    email : string
     name_kor: string
     baptismal_name: string
     grade: string              # E1~E6 / M1~M3 / H1~H3
     phone_guardian?: string
     phone_student?: string
     notes?: string
+    active : boolean           # 기본 false → 관리자 승인 필요
     created_at: timestamp
     updated_at: timestamp
 

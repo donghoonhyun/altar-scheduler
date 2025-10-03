@@ -1,4 +1,4 @@
-# App Folder & Files Structure
+# App Folder & Files Structure (Folder Structure of App.txt 파일)
 
 altar-scheduler/
 ├── backup/                           # 🔹 데이터/설정 백업용
@@ -50,7 +50,7 @@ altar-scheduler/
 │   │   ├── ServerGroupList.tsx       # 복사단 리스트(for manager)
 │   │   ├── ServerGroupWizard.tsx     # 복사단 생성/설정 마법사 (구 ParishWizard 대체)
 │   │   ├── ServerMain.tsx            # 복사용 메인
-│   │   ├── ServersList.tsx           # 복사 명단 관리
+│   │   ├── ServerList.tsx            # 복사 명단 관리
 │   │   ├── MassEventPlanner.tsx      # 미사 일정/설문/배정 (2.6 섹션)
 │   │   ├── SelectServerGroup.tsx     # 복수 소속 시 복사단 선택
 │   │   ├── SelectParish.tsx          # manager-only 본당 선택(복사단 리스트 뷰로 이동)

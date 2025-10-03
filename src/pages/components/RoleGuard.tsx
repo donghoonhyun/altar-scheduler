@@ -1,11 +1,11 @@
 // src/pages/components/RoleGuard.tsx
-import React from "react";
-import { Navigate } from "react-router-dom";
-import { useSession } from "../../state/session";
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useSession } from '../../state/session';
 
 interface RoleGuardProps {
   children: React.ReactNode;
-  require?: "planner" | "server"; // ✅ Admin/Manager 제거
+  require?: 'planner' | 'server'; // ✅ Admin/Manager 제거
   serverGroupId?: string;
 }
 
@@ -15,16 +15,12 @@ interface RoleGuardProps {
  * - require = "planner" → 해당 그룹 플래너만 접근 가능
  * - require = "server"  → 해당 그룹 복사만 접근 가능
  */
-export default function RoleGuard({
-  children,
-  require,
-  serverGroupId,
-}: RoleGuardProps) {
+export default function RoleGuard({ children, require, serverGroupId }: RoleGuardProps) {
   const session = useSession();
 
-  // 아직 세션 로딩 중이면 아무것도 렌더링하지 않음
+  // 세션 로딩 중
   if (session.loading) {
-    return null;
+    return <div className="p-4">세션 로딩 중...</div>;
   }
 
   // 로그인 안 된 경우 → 로그인 페이지로
@@ -33,12 +29,15 @@ export default function RoleGuard({
   }
 
   // 권한 체크
-  if (require && serverGroupId) {
+  if (require) {
+    if (!serverGroupId) {
+      console.warn(`🚫 접근 거부: serverGroupId 누락 (require=${require})`);
+      return <Navigate to="/forbidden" replace />;
+    }
+
     const role = session.groupRoles[serverGroupId];
     if (role !== require) {
-      console.warn(
-        `🚫 접근 거부: ${session.user.email} → require=${require}, actual=${role}`
-      );
+      console.warn(`🚫 접근 거부: ${session.user.email} → require=${require}, actual=${role}`);
       return <Navigate to="/forbidden" replace />;
     }
   }

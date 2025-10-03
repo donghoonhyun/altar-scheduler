@@ -1,15 +1,17 @@
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
-import { useSession } from "../state/session";
-import RoleGuard from "../pages/components/RoleGuard";
-import Layout from "../pages/components/Layout";
-import LoadingSpinner from "../components/common/LoadingSpinner";
+// src/routes/AppRoutes.tsx
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { useSession } from '../state/session';
+import Layout from '../pages/components/Layout';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 // 페이지
-import Login from "../pages/Login";
-import Dashboard from "../pages/Dashboard";
-import ServerMain from "../pages/ServerMain";
-import SelectServerGroup from "../pages/SelectServerGroup";
-import Forbidden from "../pages/components/Forbidden";
+import Login from '../pages/Login';
+import Dashboard from '../pages/Dashboard';
+import ServerMain from '../pages/ServerMain';
+import ServerGroupList from '../pages/ServerGroupList'; // 복사단 리스트(for manager/planner)
+import ServerList from '../pages/ServerList'; // 복사 명단 관리
+import ServerGroupWizard from '../pages/ServerGroupWizard';
+import Forbidden from '../pages/components/Forbidden';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -27,25 +29,17 @@ export default function AppRoutes() {
     );
   }
 
-  // 동적 Wrapper
+  // ✅ 동적 Wrapper (중복 RoleGuard 제거)
   const ServerMainWrapper = () => {
-    const { serverGroupId } = useParams();
+    const { serverGroupId } = useParams<{ serverGroupId: string }>();
     if (session.loading) return <div>Loading...</div>;
 
-    const role = session.groupRoles[serverGroupId || ""];
+    const role = serverGroupId ? session.groupRoles[serverGroupId] : null;
 
-    if (role === "planner") {
-      return (
-        <RoleGuard require="planner" serverGroupId={serverGroupId}>
-          <Dashboard />
-        </RoleGuard>
-      );
-    } else if (role === "server") {
-      return (
-        <RoleGuard require="server" serverGroupId={serverGroupId}>
-          <ServerMain />
-        </RoleGuard>
-      );
+    if (role === 'planner') {
+      return <Dashboard />;
+    } else if (role === 'server') {
+      return <ServerMain />;
     } else {
       return <Navigate to="/forbidden" replace />;
     }
@@ -54,25 +48,28 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        {/* Planner / Server 공통 */}
         {Object.keys(session.groupRoles).length > 0 && (
           <>
-            <Route
-              path="/select-server-group"
-              element={
-                <RoleGuard>
-                  <SelectServerGroup />
-                </RoleGuard>
-              }
-            />
-            <Route path="/:serverGroupId/*" element={<ServerMainWrapper />} />
+            {/* 복사단 리스트 (manager/planner) */}
+            <Route path="/server-groups" element={<ServerGroupList />} />
+
+            {/* 복사 명단 관리 */}
+            <Route path="/server-groups/:serverGroupId/servers" element={<ServerList />} />
+
+            {/* 복사단 생성 마법사 */}
+            <Route path="/server-groups/new" element={<ServerGroupWizard />} />
+
+            {/* 복사단별 메인 (planner → Dashboard, server → ServerMain) */}
+            <Route path="/server-groups/:serverGroupId/*" element={<ServerMainWrapper />} />
+
+            {/* 초기 진입 분기 */}
             <Route
               path="/"
               element={
                 session.currentServerGroupId ? (
-                  <Navigate to={`/${session.currentServerGroupId}`} replace />
+                  <Navigate to={`/server-groups/${session.currentServerGroupId}`} replace />
                 ) : (
-                  <Navigate to="/select-server-group" replace />
+                  <Navigate to="/server-groups" replace />
                 )
               }
             />

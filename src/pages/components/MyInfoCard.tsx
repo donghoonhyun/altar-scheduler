@@ -1,23 +1,17 @@
-import React from "react";
 import { useSession } from "../../state/session";
-import { PARISHES } from "../../config/parishes";
 
 interface MyInfoCardProps {
-  parishCode: string;
   serverGroupId: string;
 }
 
-const MyInfoCard: React.FC<MyInfoCardProps> = ({ parishCode, serverGroupId }) => {
-  const session = useSession(); // { user, groupRoles, currentServerGroupId ... }
-
-  const parishName =
-    PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
+const MyInfoCard: React.FC<MyInfoCardProps> = ({ serverGroupId }) => {
+  const session = useSession();
 
   if (!session?.user) {
     return <div className="p-4">로그인이 필요합니다.</div>;
   }
 
-  // ✅ 현재 그룹에서의 역할 확인
+  const groupInfo = session.serverGroups[serverGroupId];
   const role = session.groupRoles[serverGroupId] || "server";
   const roleLabel = role === "planner" ? "플래너" : "복사";
 
@@ -35,7 +29,7 @@ const MyInfoCard: React.FC<MyInfoCardProps> = ({ parishCode, serverGroupId }) =>
         </p>
         <p>
           <span className="font-medium">본당: </span>
-          {parishName}
+          {groupInfo?.parishName || groupInfo?.parishCode || "-"}
         </p>
         <p>
           <span className="font-medium">복사단 코드: </span>
