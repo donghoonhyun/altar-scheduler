@@ -1,12 +1,11 @@
 // src/pages/components/RoleGuard.tsx
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useSession } from '../../state/session';
 
 interface RoleGuardProps {
   children: React.ReactNode;
-  require?: 'planner' | 'server'; // ✅ Admin/Manager 제거
-  serverGroupId?: string;
+  require?: 'planner' | 'server'; // ✅ Admin/Manager는 제외
 }
 
 /**
@@ -15,7 +14,8 @@ interface RoleGuardProps {
  * - require = "planner" → 해당 그룹 플래너만 접근 가능
  * - require = "server"  → 해당 그룹 복사만 접근 가능
  */
-export default function RoleGuard({ children, require, serverGroupId }: RoleGuardProps) {
+export default function RoleGuard({ children, require }: RoleGuardProps) {
+  const { serverGroupId } = useParams<{ serverGroupId: string }>(); // ✅ 라우트 파라미터 직접 읽음
   const session = useSession();
 
   // 세션 로딩 중

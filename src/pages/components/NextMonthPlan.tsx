@@ -1,27 +1,22 @@
 // src/pages/components/NextMonthPlan.tsx
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 
-interface NextMonthPlanProps {
-  parishCode: string;
+interface Props {
   serverGroupId: string;
 }
 
-const NextMonthPlan: React.FC<NextMonthPlanProps> = ({ parishCode, serverGroupId }) => {
+const NextMonthPlan: React.FC<Props> = ({ serverGroupId }) => {
   const navigate = useNavigate();
 
-  const handleClick = () => {
-    navigate(`/parish/${parishCode}/server-groups/${serverGroupId}/mass-events`);
-  };
-
   return (
-    <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">
-      <h2 className="text-lg font-semibold mb-2">차월 계획</h2>
+    <div className="p-4 border rounded shadow">
+      <h3 className="text-lg font-bold mb-2">차월 계획</h3>
+      <p className="text-gray-600 mb-3">다음달 미사 일정을 등록하고 복사단 설문을 준비하세요.</p>
       <button
-        onClick={handleClick}
-        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        onClick={() => navigate(`/server-groups/${serverGroupId}/mass-events`)}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
       >
-        미사 일정 계획하기
+        미사일정 계획하기
       </button>
     </div>
   );

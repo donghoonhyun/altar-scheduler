@@ -8,10 +8,12 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import ServerMain from '../pages/ServerMain';
-import ServerGroupList from '../pages/ServerGroupList'; // 복사단 리스트(for manager/planner)
-import ServerList from '../pages/ServerList'; // 복사 명단 관리
+import ServerGroupList from '../pages/ServerGroupList';
+import ServerList from '../pages/ServerList';
 import ServerGroupWizard from '../pages/ServerGroupWizard';
 import Forbidden from '../pages/components/Forbidden';
+import MassEventPlanner from '../pages/MassEventPlanner';
+import RoleGuard from '../pages/components/RoleGuard';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -29,7 +31,7 @@ export default function AppRoutes() {
     );
   }
 
-  // ✅ 동적 Wrapper (중복 RoleGuard 제거)
+  // ✅ 서버 메인 Wrapper
   const ServerMainWrapper = () => {
     const { serverGroupId } = useParams<{ serverGroupId: string }>();
     if (session.loading) return <div>Loading...</div>;
@@ -50,7 +52,7 @@ export default function AppRoutes() {
       <Route element={<Layout />}>
         {Object.keys(session.groupRoles).length > 0 && (
           <>
-            {/* 복사단 리스트 (manager/planner) */}
+            {/* 복사단 리스트 */}
             <Route path="/server-groups" element={<ServerGroupList />} />
 
             {/* 복사 명단 관리 */}
@@ -58,6 +60,16 @@ export default function AppRoutes() {
 
             {/* 복사단 생성 마법사 */}
             <Route path="/server-groups/new" element={<ServerGroupWizard />} />
+
+            {/* ✅ 미사일정 플래너 페이지 (planner 전용) */}
+            <Route
+              path="/server-groups/:serverGroupId/mass-events"
+              element={
+                <RoleGuard require="planner">
+                  <MassEventPlanner />
+                </RoleGuard>
+              }
+            />
 
             {/* 복사단별 메인 (planner → Dashboard, server → ServerMain) */}
             <Route path="/server-groups/:serverGroupId/*" element={<ServerMainWrapper />} />

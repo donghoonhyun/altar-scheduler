@@ -1,4 +1,4 @@
-# 📌 Altar Scheduler PRD
+# 📚Altar Scheduler PRD
 
 ## 🎯1. 개요(Overview)
 
@@ -11,14 +11,14 @@
 - 성공 지표(Success Metrics) : 플래너는 쉽게 미사스케쥴과 복사를 등록하고 일정변경요창에도 쉽게 대응 할 수 있어야 하고,
   복사들도 자신의 스케쥴을 쉽게 알수 있어야 함
 
-### 1.1 현재의 '복사 스케쥴링' 프로세스(AS-IS)
+### 📍1.1 현재의 '복사 스케쥴링' 프로세스(AS-IS)
 
 1. 플래너(주로 수녀님)가 다음달 미사 스케쥴을 달력에 확정 표시
 2. 다음달 미사스케쥴을 복사들(또는 복사의 부모)에게 구글설문으로 보내서 각자 가능한 날과 안되는 날을 입력하게 함
 3. 설문이 완료되면 해당 내용으로 스케쥴링을 시작하고 배정 결과를 복사들에게 통보함
 4. 해당 달 운영중에 복사의 급한 사정으로, 복사가 관리자에게 변경 요청을 할 수 있음
 
-### 1.2 개발할 앱의 '복사 스케쥴링' TO-Be 프로세스(TO-BE)
+### 📍1.2 개발할 앱의 '복사 스케쥴링' TO-Be 프로세스(TO-BE)
 
 1. 미사일정 등록(플래너) : 플래너가 다음달 달력에 미사(MASS) 일정 등록
 2. 미사별 복사 pool 선정(플래너) : 해당 미사에 설문할 복사 pool을 선택하여 선정
@@ -33,7 +33,7 @@
 
 ## 🎯2. 주요 기능(Main Functions)
 
-### 2.1 사용자 인증
+### 📍2.1 사용자 인증
 
 - 구글 계정을 통한 로그인 (Redirect / Popup 지원) : Android / iOS 둘다 지원해야함, 이후 kakao 등 확대 예정
 - 역할 기반 접근 제어: Planner / Server
@@ -52,7 +52,7 @@
   ② 권한이 없으면 본당 선택 또는 접근 불가 페이지로 안내.
 - 상태 보존: 사용자가 마지막으로 선택한 복사단은 저장해 두어, 다음 로그인 시 기본 진입 지점으로 사용.
 
-### 2.2 역할 및 권한 구조
+### 📍2.2 역할 및 권한 구조
 
 - 모든 기능은 사용자의 스코프(본당/복사단) 내 데이터에만 접근 가능: planner(복사단 단위) / server(복사 본인정보와 일부 복사단 내 정보).
 
@@ -79,7 +79,7 @@
   isPlanner(server_group_id)              // 특정 그룹 Planner
   ∨ isServer(server_group_id)               // 복사 본인
 
-### 2.3 플래너 메인 관리
+### 📍2.3 플래너 메인 관리
 
 - 권한관리 : home url로 접근시 플래너 메인 페이지와 그 외 복사 메인 페이지를 분리해야함.
 
@@ -147,7 +147,7 @@
 - 복사 리스트에서 직접 modify/add/delete 가능
 - add 등록시 중복 체크 : email_id로 체크
 
-### 2.4 미사 일정 관리 (MassEvent)
+### 📍2.4 미사 일정 관리 (MassEvent)
 
 - 기능 : 매월 반복되는 미사 일정 등록
 - 권한관리 : 해당본당 관리자만 권한있음, manager only
@@ -213,7 +213,7 @@
 - 버튼클릭시 : "자동배정을 실행하면 기존 복사배정정보가 삭제됩니다" 경고 메세지 표시 후 <2.7 자동배정> 로직으로 function 처리,
   기존 복사배정(Assign)정보만 삭제하고 미사일정정보(massevent)는 삭제하지 않음
 
-### 2.5 복사 가용성 설문 (Availability)
+### 📍2.5 복사 가용성 설문 (Availability)
 
 - 기능 : 복사(또는 학부모)가 **해당 월의 각 미사 일정(event_id)** 별로 자신의 가용 여부를 입력하고 제출한다.  
   제출된 응답은 이후 자동 배정(2.8)과 플래너의 수동 조정에 활용된다.
@@ -249,7 +249,7 @@
   . 모바일 우선 달력 UI 제공 (아이콘/색상 활용)
   . 해당 월에서 이벤트가 있는 날짜에 대해 두 가지 상태 중 하나를 직관적으로 선택 가능해야 함
 
-### 2.6 자동 배정 (Auto Assignment) 로직
+### 📍2.6 자동 배정 (Auto Assignment) 로직
 
 - **구현 방식**  
   Cloud Function 기반 자동 배정 로직으로 구현한다.  
@@ -285,7 +285,7 @@
   . 자동 배정 후, 플래너가 결과를 확인하고 필요 시 수동 조정 가능
   . 최종 확정 시 FINAL-CONFIRMED 상태로 변경
 
-### 2.7 복사 메인 페이지 (ServerMain.tsx)
+### 📍2.7 복사 메인 페이지 (ServerMain.tsx)
 
 - home url로 접근시 관리자가 아닌 경우, 복사 메인 페이지로 이동해서 표시함
 - 표시내용 :
@@ -293,7 +293,7 @@
   . 본인 미사는 강조 표시함
   . 설문이 시작 된 경우 '설문 참여' 링크 표시하고 클릭시 <2.6 가용성설문> 페이지로 이동
 
-### 2.9 사용자 등록 & 권한 관리
+### 📍2.9 사용자 등록 & 권한 관리
 
 ### 2.9.1 복사단원(Server) 신규 등록 흐름
 
@@ -324,16 +324,16 @@
   . uid 와 active: true 를 동시에 만족해야 server 권한 부여.
   . active: false 인 경우 → 로그인 가능하지만 Forbidden 페이지로 이동.
 
-### 2.11 공유/알림 (향후계획)
+### 📍2.11 공유/알림 (향후계획)
 
 - 기능: 복사/관리자에게 배정 관련 메시지 전달
 - 위치: server_groups/{sg}/notifications/{notif_id}
 - 배정표 PDF/이미지 생성 및 공유
 - 알림(Notification): 앱 내, 이메일, 또는 메시지
 
-### 2.12 시스템 Admin 관리기능 (삭제 -> 향후 고려)
+### 📍2.12 시스템 Admin 관리기능 (삭제 -> 향후 고려)
 
-### 2.13 App UI & UX
+### 📍2.13 App UI & UX
 
 - 반응형 웹 : 모바일이 기본이므로 작은 모바일 화면에 표현되도록 UI설계해야함. 추가로 PC브라우저에서도 깨지지 않게 반응해야함.
 - dark mode / white mode 모두 감안하여 css color 고려해야함
@@ -344,9 +344,9 @@
 - 페이지 본문은 Layout의 Outlet 영역에서만 표시 (중복 방지)
 - 따라서 각 화면(Dashboard, ServerMain)에서는 별도의 Layout 래핑 제거
 
-#### 2.14 (임시)
+#### 📍2.14 (임시)
 
-### 2.15 공통기능(Counters, functions  등)
+### 📍2.15 공통기능(Counters, functions  등)
 
 #### 2.15.1 Counter 관리
 
@@ -364,7 +364,7 @@
 
 ## 🎯3. 비기능 요구사항
 
-### 3.1 App 환경
+### 📍3.1 App 환경
 
 - front end : SPA(Single Page Architecture) + vite + react.js + TailWind CSS
 - back end : Google platform Firebase 기반
@@ -375,7 +375,7 @@
 - 유지보수성: CSV Import/Export, Emulator 기반 테스트 지원
 - CI/CD
 
-### 3.2 1인-개발 환경
+### 📍3.2 1인-개발 환경
 
 - IDE OS : windows 11
 - IDE : visual code studio
@@ -397,7 +397,7 @@
 - ESLint/TS 규칙에서 no-explicit-any를 활성화하여, 타입 안정성을 유지한다.
 - 새 Cloud Function 추가 시 반드시 Request / Response 타입을 정의하여 문서화한다.
 
-### 3.3 Test
+### 📍3.3 Test
 
 - 개발 중에 planner / server 역할을 오가며 재빨리 테스트 할수 있어야 함
 - test user : 역할에 따른 테스트 유저
@@ -424,7 +424,7 @@
   . `memberships/server-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "server" }`  
   . `server_groups/SG0001` → `{ parish_code: "DAEGU-BEOMEO", name: "범어성당 복사단 1그룹" }`  
 
-### 3.4 Google Firebase app config
+### 📍3.4 Google Firebase app config
 
 - 앱이름 : Altar Scheduler
 - const firebaseConfig = {
@@ -452,7 +452,7 @@ server_groups/{server_group_id} // 최상위 단위
 
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 
-## 4. 향후 확장
+## 🎯4. 향후 확장
 
 - 다국어 지원 (한국어/영어/스페인어 등)
 - 복사/부모 전용 앱 (푸시 알림 연동)
