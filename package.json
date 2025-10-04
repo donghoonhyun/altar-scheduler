@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:functions": "cd functions && npm run build",
     "lint": "eslint .",
     "preview": "vite preview",
     "seed:roles": "cross-env USE_FIRESTORE_EMULATOR=true FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 tsx scripts/seedRoles.ts",
-    "dev:emu": "concurrently \"vite\" \"firebase emulators:start --import=./emulator-data --export-on-exit\" \"npm run seed:roles\""
+    "dev:emu": "concurrently \"vite\" \"firebase emulators:start --import=./emulator-data --export-on-exit\" \"npm run seed:roles\"",
+    "emulators:start": "npm run build:functions && firebase emulators:start"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.85.5",

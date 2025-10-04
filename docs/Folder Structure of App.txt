@@ -6,11 +6,12 @@ altar-scheduler/
 ├── dist/                             # 🔹 빌드 결과물 (vite, tsc 등)
 ├── emulator-data/                    # 🔹 Firebase Emulator 데이터(Firestore/Auth 등)
 ├── functions/                        # 🔹 Firebase Functions (서버 사이드)
-│   ├── lib/
+│   ├── lib/                          # build 결과물(JS)이 들어감
 │   ├── node_modules/
 │   ├── scripts/                      # 데이터 import/export, 마이그레이션/시드
 │   ├── src/
 │   │   ├── index.ts
+│   │   ├── utils/
 │   │   ├── types/                    # 타입 선언 (예: csv-parser.d.ts)
 │   │   │   └── firestore.ts          # 여기에서 Request/Response 타입 관리
 │   │   ├── roles/                    # 권한 관련 CF (grant/revoke/approve 등)
@@ -44,6 +45,8 @@ altar-scheduler/
 │   │   ├── auth.ts                   # Role/세션 타입 (admin/manager/planner/server)
 │   │   ├── firestore.ts              # system_roles/parish_roles/memberships/server_groups 등 문서 타입
 │   │   └── index.ts                  # 타입 re-export
+│   ├── utils/
+│   │   └── dateUtils.ts              # timezone, date 관련 util 함수 
 │   ├── pages/
 │   │   ├── Login.tsx
 │   │   ├── Dashboard.tsx             # 플래너 메인
@@ -82,7 +85,12 @@ altar-scheduler/
 │   ├── Firestore Collections Structure.txt
 │   └── Folder Structure of App.txt
 ├── scripts/                          # 🔹루트 실행 스크립트(배포/시드/마이그레이션)
-│   ├── seedRoles.ts                  # admin/manager/planner/server + 샘플 SG
+│   ├── data/
+│   │   ├── servers.ts                # 복사단원 리스트 (데이터성)
+│   │   └── massEvents_YyyyMm.ts      # (선택사항, 특정 달 미리 정의 필요시)
+│   ├── utils/
+│   │   └── seedUtils.ts              # Seed script에 사용하는 요일 패턴 등의 기반 생성 함수
+│   ├── seedRoles.ts                  # planner/server user + 샘플 ServerGroups + Members + MasssEvents
 │   ├── migrateToServerGroups.ts      # parish → server_groups 마이그레이션
 │   └── export-import.ts
 ├── config/                           # 🔹/품질 세팅

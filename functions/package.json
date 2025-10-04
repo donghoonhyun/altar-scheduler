@@ -9,16 +9,20 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.json",
     "build:watch": "tsc --watch",
+    "watch": "tsc -w",
+    "prestart": "npm run build",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
-    "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "start": "firebase emulators:start --only functions",
+    "deploy": "npm run build && firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "dev": "npm run build:watch & firebase emulators:start --only functions"
   },
   "dependencies": {
     "csv-parser": "^3.2.0",
     "firebase-admin": "^11.11.1",
-    "firebase-functions": "^4.9.0"
+    "firebase-functions": "^4.9.0",
+    "moment-timezone": "^0.6.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

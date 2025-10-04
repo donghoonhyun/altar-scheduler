@@ -10,8 +10,9 @@ import RoleBadge from './components/RoleBadge';
 
 interface MassEvent {
   id: string;
-  date: string;
+  date: string; // YYYY-MM-DD
   title: string;
+  required_servers: number;
   servers: string[];
 }
 
@@ -41,6 +42,7 @@ const Dashboard: React.FC = () => {
           id: doc.id,
           date: d.date?.toDate ? d.date.toDate().toISOString().substring(0, 10) : d.date,
           title: d.title,
+          required_servers: d.required_servers,
           servers: d.assigned_servers || [],
         };
       });
@@ -70,7 +72,6 @@ const Dashboard: React.FC = () => {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-4">
-          {/* ✅ MyInfoCard 제거 */}
           <ServerStats parishCode={parishCode} serverGroupId={serverGroupId} />
         </div>
 

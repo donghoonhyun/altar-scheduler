@@ -194,6 +194,30 @@
     updated_at: timestamp;
   }
 
+##### 2.4.2.2 미사일정(Mass Event) 저장 로직
+
+- 신규 생성
+  . Cloud Function createMassEvent 호출
+  . 기능:
+    EventId (ME000001 형식) 채번
+    counters/mass_events 증가 처리
+    기본 status = MASS-NOTCONFIRMED 설정
+    Firestore server_groups/{sg}/mass_events/{eventId}에 문서 생성
+- 건별 수정
+  . Planner UI에서 MassEventDrawer 통해 수정
+  . Firestore setDoc(..., { merge: true }) 방식 사용
+  . title, required_servers 변경 가능
+- 건별 삭제
+  . Planner UI에서 삭제 버튼 제공
+  . Firestore deleteDoc()으로 삭제
+- 권한
+  . Planner만 가능 (RoleGuard require="planner")
+  . Firestore 보안 규칙: mass_events 직접 쓰기 허용은 최소화, 신규 생성은 CF 경유
+
+##### 2.4.2.3 Timezone Handling (저장 및 표시 로직)
+
+- 프로젝트 파일 PRD-2.4.2.3-TimezoneHandling.md 파일 내용을 참고함.
+
 #### 2.4.3 필요 인원(required_servers) 설정
 
 - 조건 : 1~6(number)명까지 radio button으로 선택, default=미선택
@@ -353,9 +377,10 @@
 - 모든 시퀀스 ID는 counters/{counterName} 문서에서 관리한다.
 - 채번 방식 : counters/{counterName} 문서에서 last_seq 관리 → 트랜잭션으로 +1 후 ID 발급.
 - ID형식 : prefix + zero-padding(고정 길이 숫자)
-- PREFIX : SG(server group), ME(mass event), NT(notification)
-- 자릿수: 5자리를 기본으로 사용 (최대 99,999개). 확장성을 고려해야 할 경우, 6자리 이상(SG000001)도 설정가능
-    예) SG00001, ME00001, NT00001
+- PREFIX : SG(server group), ME(mass event)
+- 자릿수: 5자리를 기본으로 사용 (최대 99,999개). 확장성을 고려해야 할 경우, 6자리 이상(ME000001)도 설정가능
+  . Server Group은 5자리로 함 : 예) SG00001
+  . Mass Event는 6자리로 함 : 예) ME000001
 - 예시:
   counters/
   ├── server_groups { last_seq: 3 }
