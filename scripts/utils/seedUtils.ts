@@ -1,43 +1,14 @@
-// scripts/utils/seedUtils.ts
+// /scripts/utils/seedUtils.ts
 import dayjs from 'dayjs';
 import { getFirestore } from 'firebase-admin/firestore';
 
 export interface MassEventSeed {
-  date: Date;
+  date: Date | string; // ✅ 문자열 or Date 모두 허용
   required_servers: number;
   title?: string;
-}
-
-/**
- * 📌 기본 패턴: 매달 요일 반복 일정 생성
- * - 일요일: 9시(2), 11시(4), 17시(2), 19:30(2)
- * - 토요일: 19:30(2)
- * - 수요일: 19시(1)
- */
-export function generateMassEventsForMonth(year: number, month: number): MassEventSeed[] {
-  const baseDate = dayjs(`${year}-${String(month).padStart(2, '0')}-01`);
-  const daysInMonth = baseDate.daysInMonth();
-  const events: MassEventSeed[] = [];
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = baseDate.date(d);
-    const weekday = date.day(); // 0=일, 1=월 ... 6=토
-
-    if (weekday === 3) {
-      events.push({ date: date.hour(19).minute(0).toDate(), required_servers: 1 });
-    }
-    if (weekday === 6) {
-      events.push({ date: date.hour(19).minute(30).toDate(), required_servers: 2 });
-    }
-    if (weekday === 0) {
-      events.push({ date: date.hour(9).minute(0).toDate(), required_servers: 2 });
-      events.push({ date: date.hour(11).minute(0).toDate(), required_servers: 4 });
-      events.push({ date: date.hour(17).minute(0).toDate(), required_servers: 2 });
-      events.push({ date: date.hour(19).minute(30).toDate(), required_servers: 2 });
-    }
-  }
-
-  return events;
+  status?: string;
+  member_ids?: string[];
+  names?: string[]; // ✅ 참고용
 }
 
 /**
@@ -61,6 +32,8 @@ function formatMassTitle(date: Date, customTitle?: string): string {
 
 /**
  * 📌 특정 달 + 추가 이벤트 배열을 Firestore에 저장
+ *  - extra 배열은 외부 파일(/scripts/data/massEvents_YYYYMM.ts)에서 import 가능
+ *  - date 필드가 string이면 Date로 변환 처리
  */
 export async function seedMassEvents(
   serverGroupId: string,
@@ -71,29 +44,38 @@ export async function seedMassEvents(
   const db = getFirestore();
   const sgRef = db.collection('server_groups').doc(serverGroupId);
 
-  const baseEvents = generateMassEventsForMonth(year, month);
+  const baseEvents: MassEventSeed[] = []; // generateMassEventsForMonth 제거 (테스트 전용)
   const allEvents = [...baseEvents, ...extra];
 
   let seq = 1;
   for (const ev of allEvents) {
+    // ✅ 문자열 → Date 변환 지원
+    const dateObj = typeof ev.date === 'string' ? new Date(ev.date) : ev.date;
     const eventId = `ME${String(seq).padStart(6, '0')}`;
-    const title = formatMassTitle(ev.date, ev.title);
+    const title = formatMassTitle(dateObj, ev.title);
 
-    await sgRef.collection('mass_events').doc(eventId).set({
-      server_group_id: serverGroupId,
-      title,
-      date: ev.date,
-      required_servers: ev.required_servers,
-      status: 'MASS-NOTCONFIRMED',
-      created_at: new Date(),
-      updated_at: new Date(),
-    });
+    await sgRef
+      .collection('mass_events')
+      .doc(eventId)
+      .set({
+        server_group_id: serverGroupId,
+        title,
+        date: dateObj,
+        required_servers: ev.required_servers,
+        status: ev.status || 'MASS-NOTCONFIRMED',
+        member_ids: Array.isArray(ev.member_ids) ? ev.member_ids : [], // ✅ 명시적 확인
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
 
+    // ✅ 로그에는 names 표시 (사람이 확인하기 좋음)
+    const nameList = ev.names && ev.names.length ? ev.names.join(', ') : '—';
     console.log(
-      `✅ ${eventId} → ${dayjs(ev.date).format('YYYY-MM-DD HH:mm')} ${title} (${
+      `✅ ${eventId} → ${dayjs(dateObj).format('YYYY-MM-DD HH:mm')} ${title} (${
         ev.required_servers
-      }명)`
+      }명) => [${nameList}]` + `(members: ${ev.member_ids?.length || 0})`
     );
+
     seq++;
   }
 

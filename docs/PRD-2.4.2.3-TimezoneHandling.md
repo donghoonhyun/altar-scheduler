@@ -1,115 +1,184 @@
-# 2.4.2.3 Timezone Handling
+# 2.4.2.3 Timezone Handling (최종 버전 – 2025-10)
 
-- 메인 PRD PRD-Altar Scheduler.md 파일 내용 중 <2.4.2.3 Timezone Handling> 영역 내용이 방대하여 별도의 이 파일로 분리했음.
+- 🧭 목적
+각 본당(server_group)은 서로 다른 표준시(Timezone)를 사용할 수 있으므로,
+모든 미사 일정(mass_events.date)은 해당 본당의 현지 자정(Local Midnight) 기준으로
+Firestore에 UTC Timestamp 형태로 저장해야 한다.
+클라이언트(UI)와 서버(Cloud Function)는 동일한 Timezone을 참조해
+오프셋 오차 없이 동일한 날짜가 표시되도록 한다.
 
-## 🧩2.4.2.3.1 목적
+## 📌2.4.2.3.1 Firestore 저장 규칙
 
-- 모든 미사 일정(`mass_events.date`)을 **본당의 현지 자정(local midnight)** 기준으로 Firestore에 저장하고,  
-  클라이언트(UI)에서도 동일한 날짜로 표시되도록 한다.  
-- UTC 변환으로 인한 ±1일 오차 문제를 완전히 방지한다.  
-- Firestore Timestamp ↔️ UI 렌더링 시 **PRD 표준 변환 함수**(`fromLocalDateToFirestore`, `toLocalDateFromFirestore`)를 사용한다.
-- 각 본당(server_groups) 문서에는 이미 timezone 필드가 존재하며, IANA 표준 식별자(예: "Asia/Seoul", "America/Los_Angeles")를 사용한다.
+🔹 기본 개념
 
-## 🧩2.4.2.3.2 저장 로직 (Cloud Function: `createMassEvent`)
+Firestore에 저장되는 date 필드는 UTC Timestamp 형식이다.
 
-### 1.1 입력 포맷
+그러나 의미상으로는 “해당 본당의 현지 자정(Local Midnight)”을 가리킨다.
 
-- 클라이언트는 `"YYYY-MM-DDT00:00:00"` 형태의 ISO 자정 문자열을 전달한다.
+server_groups/{id}.timezone 필드가 Timezone 기준이다.
+(없을 경우 'Asia/Seoul'을 기본값으로 사용한다.)
 
-  ```json
-  {
-    "serverGroupId": "SG00001",
-    "title": "주일 11시 미사",
-    "date": "2025-09-26T00:00:00",
-    "requiredServers": 4
-  }
-  ```
+🔹 저장 규칙
+항목 규칙
+데이터 타입 Firestore Timestamp
+저장 기준 현지 자정(Local Midnight) 기준 UTC Timestamp
+변환 방식 Timestamp.fromDate(dayjs(date).tz(tz, true).startOf('day').toDate())
+기준 필드 server_groups/{id}.timezone
+기본값 'Asia/Seoul'
+🔹 예시
+본당 timezone Firestore에 저장되는 Timestamp 의미
+범어성당 (한국) Asia/Seoul 2025-09-02T00:00:00+09:00 9월 2일 자정 (KST)
+사이판 성당 Pacific/Saipan 2025-09-02T00:00:00+10:00 9월 2일 자정 (Saipan)
+괌 성당 Pacific/Guam 2025-09-02T00:00:00+10:00 9월 2일 자정 (Guam)
+2.4.2.3.2 클라이언트 (UI) 표시 규칙
+🔹 원칙
 
-### 1.2 변환 로직
+UI는 Firestore의 UTC Timestamp를 읽어들일 때,
+server_group.timezone을 기준으로 변환해야 한다.
 
-- Cloud Function 내부에서 다음 규칙으로 변환한다.
+변환 결과는 현지 시각(Local Time)으로 표시한다.
 
-  ```ts
-  const localMidnight = dayjs(date).tz(tz, true).startOf('day');
-  const timestamp = Timestamp.fromDate(localMidnight.toDate());
-  ```
+Asia/Seoul을 fallback으로 사용한다.
 
-  - `tz(tz, true)` : 입력 문자열을 해당 timezone의 현지 시각으로 그대로 유지  
-  - `startOf('day')` : 자정(00:00:00) 기준 고정  
-  - `Timestamp.fromDate()` : Firestore 저장용 UTC Timestamp 생성
-
-### 1.3 Firestore 저장 예시
-
-```json
-"date": "Fri Sep 26 2025 00:00:00 GMT+0900 (한국 표준시)"
-```
-
-## 🧩2.4.2.3.3 조회 및 표시 로직 (클라이언트: `MassCalendar`)
-
-### ✅ 변환 함수
-
-Firestore Timestamp를 현지 타임존으로 되돌린다.
-
-```ts
+🔹 변환 유틸
+// src/lib/firestore.ts
 export function toLocalDateFromFirestore(
-  date: Timestamp | { _seconds?: number; seconds?: number },
-  tz: string = "Asia/Seoul"
+  date: Timestamp | FirestoreTimestampLike | Date | string | null | undefined,
+  tz: string = 'Asia/Seoul'
 ): dayjs.Dayjs {
+  if (!date) return dayjs.tz(tz);
   const seconds = (date as any)._seconds ?? (date as any).seconds;
-  return dayjs.unix(seconds).utc().tz(tz);
+  if (typeof seconds === 'number') {
+    return dayjs.unix(seconds).utc().tz(tz); // UTC → 현지
+  }
+  if (date instanceof Date) {
+    return dayjs(date).utc().tz(tz);
+  }
+  return dayjs.tz(tz);
 }
-```
 
-### ✅ UI 렌더링 결과
+🔹 사용 예시
+// MassCalendar.tsx
+const tz = serverGroup.timezone || 'Asia/Seoul';
+const localDayjs = toLocalDateFromFirestore(event.date, tz);
+const label = localDayjs.format('YYYY-MM-DD');
 
-- Firestore에 `"Fri Sep 26 2025 00:00:00 GMT+0900"` 저장된 값은  
-  화면상 **“9월 26일 칸”**에 정확히 표시된다.
+## 📌2.4.2.3.3 클라이언트 (저장 시) 규칙
 
-## 🧩2.4.2.3.4 클라이언트 → 서버 전송 규칙
+🔹 원칙
 
-- 클라이언트에서 Cloud Function 호출 시 다음과 같이 처리한다:
+미사 일정 생성 시, 사용자가 클릭한 날짜(Date)는 현지 자정 기준으로 변환되어야 한다.
 
-  ```ts
-  const formattedDate = dayjs(date).format("YYYY-MM-DD[T]00:00:00");
-  await createMassEvent({
-    serverGroupId,
-    title,
-    date: formattedDate,
-    requiredServers,
-  });
-  ```
+변환 후 Cloud Function으로 전달할 때 "YYYY-MM-DD[T]00:00:00" 형식의 문자열로 전달한다.
 
-- `toISOString()` 사용 금지 (UTC 변환 발생으로 하루 당겨짐)
-- `dayjs(...).format("YYYY-MM-DD[T]00:00:00")` 사용 필수
+🔹 변환 유틸
+// src/lib/firestore.ts
+export function fromLocalDateToFirestore(
+  localDate: string | Date | dayjs.Dayjs,
+  tz: string = 'Asia/Seoul'
+): Date {
+  const localMidnight = dayjs(localDate).tz(tz, true).startOf('day');
+  return localMidnight.toDate(); // UTC Timestamp 기준 Date 반환
+}
 
-## 🧩2.4.2.3.5 규칙 요약
+🔹 사용 예시
+// MassEventDrawer.tsx
+const tz = serverGroup.timezone || 'Asia/Seoul';
+const localMidnight = fromLocalDateToFirestore(selectedDate, tz);
+const formattedDate = dayjs(localMidnight).format('YYYY-MM-DD[T]00:00:00');
 
-| 구분 | 규칙 |
-|------|------|
-| 클라이언트 → 서버 전달 | `"YYYY-MM-DDT00:00:00"` |
-| 서버 변환 기준 | `dayjs(date).tz(tz, true).startOf('day')` |
-| Firestore 저장 | UTC Timestamp (해당 본당 자정 기준) |
-| 클라이언트 표시 | `.utc().tz(timezone)` |
-| 기본 타임존 | `"Asia/Seoul"` |
+await createMassEvent({
+  serverGroupId,
+  title,
+  date: formattedDate, // 현지 자정 문자열
+  requiredServers,
+});
 
-## 🧩2.4.2.3.6 주요 이슈 및 해결 내역
+2.4.2.3.4 Cloud Function 규칙
+🔹 원칙
 
-| 번호 | 문제 | 원인 | 해결 |
-|------|------|------|------|
-| ① | 하루 빠르게 저장됨 | `toISOString()`이 UTC 변환 수행 | ✅ 클라이언트 → `"YYYY-MM-DDT00:00:00"` |
-| ② | 하루 밀려 표시됨 | UTC ↔ KST 변환 누락 | ✅ `.utc().tz(timezone)` 적용 |
-| ③ | “Value for argument 'seconds'…” 오류 | Invalid Date 전달 | ✅ 중복 `T00:00:00` 제거 |
-| ④ | 에뮬레이터 vs 실DB 필드명 불일치 | `_seconds` / `seconds` 차이 | ✅ 두 경우 모두 처리 |
+서버에서도 동일한 Timezone 기준으로 변환해야 하며,
+Firestore에 UTC Timestamp 형태로 저장한다.
 
-## 🧩2.4.2.3.7 End-to-End 예시
+timezone은 server_groups/{id}.timezone에서 읽어온다.
 
-| 단계 | 처리 기준 | 입력값 | Firestore 저장 | UI 표시 |
-|------|-------------|-----------|----------------|----------|
-| 클라이언트 입력 | `"2025-09-26"` 선택 | → `"2025-09-26T00:00:00"` 전송 | `"Fri Sep 26 2025 00:00:00 GMT+0900"` | ✅ 9월 26일 칸 |
-| 서버 변환 | `dayjs(date).tz("Asia/Seoul", true)` | `"2025-09-26T00:00:00"` | UTC 2025-09-25T15:00:00Z | |
-| 표시 변환 | `.utc().tz("Asia/Seoul")` | Timestamp(1758831600) | | ✅ 26일 |
+🔹 구현 예시
+// functions/src/massEvents/createMassEvent.ts
+const groupRef = db.collection('server_groups').doc(serverGroupId);
+const groupSnap = await groupRef.get();
+const tz = groupSnap.data()?.timezone || 'Asia/Seoul';
 
-## 🧩2.4.2.3.9 최종 상태
+const localMidnight = dayjs(date).tz(tz, true).startOf('day');
+const timestamp = Timestamp.fromDate(localMidnight.toDate());
 
-- Firestore `date` 필드는 항상 **현지 자정 기준 UTC Timestamp** 로 저장됨  
-- 클라이언트에서는 동일한 날짜로 정확히 표시됨  
+t.set(eventRef, {
+  server_group_id: serverGroupId,
+  title,
+  date: timestamp,
+  required_servers: requiredServers,
+  status: 'MASS-NOTCONFIRMED',
+  created_at: FieldValue.serverTimestamp(),
+  updated_at: FieldValue.serverTimestamp(),
+});
+
+## 📌2.4.2.3.5 Seed Script 규칙
+
+🔹 원칙
+
+미사 일정 시드(seedMassEvents) 생성 시에도 같은 규칙을 따른다.
+
+date 필드는 “YYYY-MM-DDT00:00:00” 형태의 문자열로 유지하며,
+Firestore 저장 시 UTC Timestamp로 변환한다.
+
+🔹 예시
+// scripts/utils/seedUtils.ts
+const localDate = new Date(ev.date); // "2025-09-02T00:00:00"
+batch.set(ref, {
+  ...ev,
+  date: Timestamp.fromDate(localDate),
+  created_at: new Date(),
+  updated_at: new Date(),
+});
+
+## 📌2.4.2.3.6 Timezone 계층 요약
+
+계층	소스	예시	설명
+1️⃣ server_groups.timezone	Firestore 필드	"Asia/Seoul", "Pacific/Saipan"	본당별 기준 timezone
+2️⃣ Firestore 저장	UTC Timestamp	2025-09-02T00:00:00+09:00	현지 자정 기준 UTC
+3️⃣ Cloud Function	server_group.timezone 참조	dayjs(date).tz(tz,true).startOf('day')	서버 저장 변환
+4️⃣ 클라이언트 입력	Drawer.tsx	fromLocalDateToFirestore(date, tz)	현지 자정 변환
+5️⃣ 클라이언트 표시	MassCalendar.tsx	toLocalDateFromFirestore(ts, tz)	현지 날짜 복원
+6️⃣ fallback	모든 레벨	'Asia/Seoul'	timezone 누락 시 기본값
+2.4.2.3.7 데이터 흐름 요약
+sequenceDiagram
+  participant UI as Client(UI)
+  participant CF as Cloud Function
+  participant DB as Firestore
+
+  UI->>CF: createMassEvent({ date: "2025-09-02T00:00:00", tz })
+  CF->>DB: Timestamp.fromDate(dayjs(date).tz(tz,true).startOf('day'))
+  DB-->>CF: date = 2025-09-02T00:00:00+09:00 (UTC 저장)
+  CF-->>UI: success (eventId)
+  UI->>UI: toLocalDateFromFirestore(Timestamp, tz)
+
+## 📌2.4.2.3.8 Validation Rules
+
+항목	규칙
+입력값(date)	"YYYY-MM-DD" 또는 "YYYY-MM-DDT00:00:00" 형식
+저장 시	Timestamp.fromDate(dayjs(date).tz(tz,true).startOf('day'))
+표시 시	dayjs.unix(seconds).utc().tz(tz)
+timezone 필드 누락 시	'Asia/Seoul' 적용
+Cloud Function 내부	Firestore 트랜잭션 사용
+Seed Script	동일한 규칙 사용
+
+## ✅ 결론
+
+모든 Timezone 계산의 기준은 server_groups.timezone 필드이다.
+
+Firestore에는 항상 UTC Timestamp(현지 자정 기준) 으로 저장한다.
+
+클라이언트와 서버 모두 동일한 tz를 사용해야 한다.
+
+fallback 기본값은 'Asia/Seoul'.
+
+Seed, Cloud Function, UI 표시까지 모두 동일한 변환 규칙을 적용해야 한다.

@@ -86,8 +86,8 @@ altar-scheduler/
 │   └── Folder Structure of App.txt
 ├── scripts/                          # 🔹루트 실행 스크립트(배포/시드/마이그레이션)
 │   ├── data/
-│   │   ├── servers.ts                # 복사단원 리스트 (데이터성)
-│   │   └── massEvents_YyyyMm.ts      # (선택사항, 특정 달 미리 정의 필요시)
+│   │   ├── servers.ts                # 복사단원 리스트 (seed 데이터)
+│   │   └── massEvents_[server_group_id]_[YyyyMm].ts      # 미사배정표 seed 데이터 (예:massEvents_SG00001_202509.ts)
 │   ├── utils/
 │   │   └── seedUtils.ts              # Seed script에 사용하는 요일 패턴 등의 기반 생성 함수
 │   ├── seedRoles.ts                  # planner/server user + 샘플 ServerGroups + Members + MasssEvents

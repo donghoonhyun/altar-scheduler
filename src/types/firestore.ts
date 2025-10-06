@@ -1,4 +1,4 @@
-import type { Timestamp } from "firebase/firestore";
+import type { Timestamp } from 'firebase/firestore';
 
 // ===============================
 // 🔹 Users (users/{uid})
@@ -8,7 +8,7 @@ export interface UserDoc {
   email: string;
   display_name: string;
   managerParishes?: string[]; // 캐시용
-  role?: "manager" | "server" | "admin"; // (구버전 호환)
+  role?: 'manager' | 'server' | 'admin'; // (구버전 호환)
   created_at?: Timestamp;
   updated_at?: Timestamp;
 }
@@ -17,14 +17,14 @@ export interface UserDoc {
 // 🔹 Server Groups (server_groups/{serverGroupId})
 // ===============================
 export interface ServerGroupDoc {
-  id: string;             // Firestore document id
-  parish_code: string;    // 본당 코드
-  name: string;           // 복사단 이름
-  timezone: string;       // ex) "Asia/Seoul"
-  locale: string;         // ex) "ko-KR"
-  active: boolean;        // 사용 여부
-  created_at: Timestamp;  // 생성 시각
-  updated_at: Timestamp;  // 수정 시각
+  id: string; // Firestore document id
+  parish_code: string; // 본당 코드
+  name: string; // 복사단 이름
+  timezone: string; // ex) "Asia/Seoul"
+  locale: string; // ex) "ko-KR"
+  active: boolean; // 사용 여부
+  created_at: Timestamp; // 생성 시각
+  updated_at: Timestamp; // 수정 시각
 }
 
 // ===============================
@@ -35,19 +35,7 @@ export interface MemberDoc {
   uid?: string; // 연결된 user_id (optional)
   name_kor: string;
   baptismal_name: string;
-  grade:
-    | "E1"
-    | "E2"
-    | "E3"
-    | "E4"
-    | "E5"
-    | "E6"
-    | "M1"
-    | "M2"
-    | "M3"
-    | "H1"
-    | "H2"
-    | "H3";
+  grade: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'M1' | 'M2' | 'M3' | 'H1' | 'H2' | 'H3';
   phone_guardian?: string;
   phone_student?: string;
   notes?: string;
@@ -63,7 +51,7 @@ export interface MembershipDoc {
   uid: string;
   server_group_id: string;
   parish_code: string;
-  role: "planner" | "server";
+  role: 'planner' | 'server';
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -72,15 +60,15 @@ export interface MembershipDoc {
 // 🔹 Mass Events (server_groups/{sg}/mass_events/{eventId})
 // ===============================
 export type MassStatus =
-  | "MASS-NOTCONFIRMED"
-  | "MASS-CONFIRMED"
-  | "SURVEY-CONFIRMED"
-  | "FINAL-CONFIRMED";
+  | 'MASS-NOTCONFIRMED'
+  | 'MASS-CONFIRMED'
+  | 'SURVEY-CONFIRMED'
+  | 'FINAL-CONFIRMED';
 
 export interface MassEventDoc {
   id: string;
-  title: string;         // 미사명
-  date: Timestamp;       // 미사 시간
+  title: string; // 미사명
+  date: Timestamp; // 미사 시간
   required_servers: number;
   status: MassStatus;
   created_at: Timestamp;
@@ -90,7 +78,7 @@ export interface MassEventDoc {
 // ===============================
 // 🔹 Availability Surveys (server_groups/{sg}/availability_surveys/{monthId}/responses/{memberId})
 // ===============================
-export type AvailabilityResponse = "AVAILABLE" | "UNAVAILABLE";
+export type AvailabilityResponse = 'AVAILABLE' | 'UNAVAILABLE';
 
 export interface AvailabilitySurveyResponseDoc {
   id: string; // memberId
@@ -110,7 +98,7 @@ export interface ScheduleDoc {
 // ===============================
 // 🔹 Replacement Requests (server_groups/{sg}/replacement_requests/{reqId})
 // ===============================
-export type ReplacementStatus = "pending" | "approved" | "rejected";
+export type ReplacementStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ReplacementRequestDoc {
   id: string;
@@ -129,4 +117,18 @@ export interface NotificationDoc {
   type: string;
   message: string;
   created_at: Timestamp;
+}
+
+// ------------------------------------
+// 🌱 시드 / Import용 타입 (string 기반)
+// ------------------------------------
+export interface MassEventSeed {
+  id: string; // ME000001
+  server_group_id: string; // SG00001
+  title: string; // 예: '평일 월 미사'
+  date: string; // '2025-09-01T00:00:00'  (PRD 표준 포맷)
+  required_servers: number;
+  status: string; // 'MASS-NOTCONFIRMED'
+  member_ids?: string[];
+  names?: string[];
 }

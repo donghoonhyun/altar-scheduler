@@ -15,10 +15,26 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// ------------------------------------------------------
+// 🔹 PRD 2.4.2.3 기반 현지 자정 변환 유틸
+// ------------------------------------------------------
+function fromLocalDateToFirestore(dateStr: string, tz = 'Asia/Seoul'): Date {
+  // dateStr = "YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:mm:ss"
+  const parsed = dayjs.tz(dateStr, tz);
+  if (!parsed.isValid()) {
+    console.warn(`⚠️ Invalid date input: ${dateStr}, fallback to today`);
+    return dayjs().tz(tz).startOf('day').toDate();
+  }
+  return parsed.startOf('day').toDate();
+}
+
+// ------------------------------------------------------
+// 🔹 인터페이스 정의
+// ------------------------------------------------------
 export interface CreateMassEventRequest {
   serverGroupId: string;
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD or YYYY-MM-DDT00:00:00
   requiredServers: number;
 }
 
@@ -29,6 +45,9 @@ export interface CreateMassEventResponse {
   error?: string;
 }
 
+// ------------------------------------------------------
+// 🔹 Cloud Function 본문
+// ------------------------------------------------------
 export const createMassEvent = functions.https.onCall(
   async (data: CreateMassEventRequest, context): Promise<CreateMassEventResponse> => {
     console.log('📨 [createMassEvent] 호출됨:', JSON.stringify(data));
@@ -54,17 +73,16 @@ export const createMassEvent = functions.https.onCall(
       const tz = groupSnap.data()?.timezone || 'Asia/Seoul';
       console.log(`🌐 serverGroup ${serverGroupId} timezone = ${tz}`);
 
-      // ✅ 카운터
+      // ✅ counters/mass_events 시퀀스 관리
       const counterRef = db.collection('counters').doc('mass_events');
       const counterSnap = await counterRef.get();
       const lastSeq = counterSnap.exists ? counterSnap.data()?.last_seq || 0 : 0;
       const newSeq = lastSeq + 1;
       const eventId = `ME${String(newSeq).padStart(6, '0')}`;
 
-      // ✅ 날짜 변환 (PRD 2.4.2.3 규칙)
-      // 현지 자정 기준 Timestamp로 저장
-      const localMidnight = dayjs(date).tz(tz, true).startOf('day');
-      const timestamp = Timestamp.fromDate(localMidnight.toDate());
+      // ✅ 날짜 변환 (PRD 2.4.2.3 준수)
+      const localMidnight = fromLocalDateToFirestore(date, tz);
+      const timestamp = Timestamp.fromDate(localMidnight);
 
       console.log(
         `📅 변환 완료: 입력=${date}, timezone=${tz}, Firestore 저장=${timestamp

@@ -6,6 +6,7 @@ import type {
   CreateMassEventResponse,
 } from '../../../functions/src/massEvents/createMassEvent';
 import dayjs from 'dayjs';
+import { fromLocalDateToFirestore } from '../../lib/firestore'; // ✅ PRD 2.4.2.3 유틸 추가
 
 interface MassEventDrawerProps {
   eventId?: string; // 선택한 이벤트 ID (없으면 신규 생성)
@@ -43,10 +44,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
       }
     };
     fetchEvent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId, serverGroupId]);
+  }, [eventId, serverGroupId, db]);
 
-  // ✅ 저장 처리 (신규 → Cloud Function / 기존 → Firestore setDoc)
+  // ✅ 저장 처리
   const handleSave = async () => {
     if (!title || !requiredServers || (!eventId && !date)) {
       setErrorMsg('모든 필드를 입력해주세요.');
@@ -78,13 +78,15 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           'createMassEvent'
         );
 
-        // ✅ 날짜 변환: 브라우저 현지 기준 자정으로 고정 (PRD 2.4.2.3 규칙)
-        const formattedDate = dayjs(date).format('YYYY-MM-DD[T]00:00:00');
+        // ✅ 날짜 변환 (PRD 2.4.2.3 규칙)
+        // fromLocalDateToFirestore()는 UTC Date 반환 → ISO 변환 시 UTC 기준 문자열 생성
+        const localMidnight = fromLocalDateToFirestore(date!, 'Asia/Seoul');
+        const formattedDate = dayjs(localMidnight).format('YYYY-MM-DD[T]00:00:00');
 
         const res = await createMassEvent({
           serverGroupId,
           title,
-          date: formattedDate,
+          date: formattedDate, // ✅ PRD 규칙: 문자열(로컬 자정)
           requiredServers,
         });
 
@@ -107,8 +109,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   // ✅ 삭제 처리 (기존 이벤트만)
   const handleDelete = async () => {
     if (!eventId) return;
-    const confirmDelete = window.confirm('이 미사 일정을 정말 삭제하시겠습니까?');
-    if (!confirmDelete) return;
+    if (!window.confirm('이 미사 일정을 정말 삭제하시겠습니까?')) return;
 
     setLoading(true);
     try {
@@ -135,14 +136,14 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           </button>
         </div>
 
-        {/* 날짜 (신규일 때만 표시) */}
+        {/* 신규 등록 시 날짜 표시 */}
         {!eventId && (
           <p className="text-sm text-gray-600 mb-4">
             선택한 날짜: {date ? date.toLocaleDateString('ko-KR') : '미선택'}
           </p>
         )}
 
-        {/* 제목 입력 */}
+        {/* 제목 */}
         <label className="block mb-2">
           <span className="text-sm font-medium">미사 제목</span>
           <input
@@ -155,7 +156,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           />
         </label>
 
-        {/* 필요 인원 선택 */}
+        {/* 필요 인원 */}
         <label className="block mb-2">
           <span className="text-sm font-medium">필요 인원</span>
           <div className="flex gap-2 mt-1">
@@ -175,12 +176,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           </div>
         </label>
 
-        {/* 에러 메시지 */}
         {errorMsg && <p className="text-sm text-red-500 mb-2">{errorMsg}</p>}
 
-        {/* 하단 버튼 */}
         <div className="mt-auto flex justify-between items-center">
-          {/* 삭제 버튼 (수정 모드 전용) */}
+          {/* 삭제 버튼 */}
           {eventId && (
             <button
               onClick={handleDelete}
@@ -190,7 +189,6 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
               삭제
             </button>
           )}
-
           <div className="flex gap-2 ml-auto">
             <button
               onClick={onClose}

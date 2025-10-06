@@ -1,9 +1,9 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { SERVERS } from './data/servers';
+import { SERVERS } from './data/servers_with_id';
 import { seedMassEvents } from './utils/seedUtils';
-import { EXTRA_EVENTS } from './data/massEvents_202509'; // 없으면 빈 배열 []
+import { EXTRA_EVENTS } from './data/massEvents_SG00001_202509'; // 없으면 빈 배열 []
 
 initializeApp({ projectId: 'altar-scheduler-dev' });
 
@@ -109,7 +109,7 @@ async function seed() {
   // 3. members (랜덤ID)
   const batch = db.batch();
   SERVERS.forEach((s) => {
-    const mRef = sgRef.collection('members').doc(); // 랜덤 ID
+    const mRef = sgRef.collection('members').doc(s.member_id); // ✅ 명시적 ID 사용
     batch.set(mRef, {
       ...s,
       active: true,
