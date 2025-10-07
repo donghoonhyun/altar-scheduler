@@ -17,4 +17,12 @@ module.exports = {
     "emulator-data/",
     "functions/**" ,
   ],
+  settings: {
+  "import/resolver": {
+    alias: {
+      map: [["@", "./src"]],
+      extensions: [".ts", ".tsx", ".js", ".jsx"],
+    },
+  },
+},
 };

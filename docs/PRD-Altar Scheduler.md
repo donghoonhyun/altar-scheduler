@@ -151,25 +151,32 @@
 - 복사 리스트에서 직접 modify/add/delete 가능
 - add 등록시 중복 체크 : email_id로 체크
 
+#### 2.3.7 Dashboard Rendering Flow
+
+- 프로젝트 파일 'PRD-2.3.7-Dashboard Rendering Flow.md' 파일 내용을 참고함.
+
+---
+
 ### 📍2.4 미사 일정 관리 (MassEvent)
 
 - 기능 : 매월 반복되는 미사 일정 등록
-- 권한관리 : 해당본당 관리자만 권한있음, manager only
-- status 상태관리 : 월별 4가지 상태(순서대로 흐름)
-  . 'MASS-NOTCONFIRMED' (미사일정 미확정, Blue)
-  . 'MASS-CONFIRMED' (미사일정 확정, Orange) -> 가용성 설문시작 상태
-  . 'SURVEY-CONFIRMED' (설문 확정, Sky Blue)
-  . 'FINAL-CONFIRMED' (최종 확정, Green)
+- 권한관리 : planner only
 - 표시내용 : 현재 월상태 표시, 필요한 각종 버튼 표시, 차월 기준 달력 표시
   . 현재 월상태 표시 : 선택된 월의 현재 상태를 표시하고 색깔로 구분 - 기능 버튼들 : 전월미사정보가져오기, 미사일정 확정/확정취소, 설문링크복사, 자동배정(2.7)
   . 월달력 표시 : 차월을 기본으로 보여주고 달 전후 이동이 가능하며, 확정/미확정에 따라 색깔이 다르게 표시됨
 
-#### 2.4.1 전월 미사정보 가져오기 버튼
+#### 2.4.1 상태흐름관리(Status Flow)
 
-- 표시 : 현재월이 'MASS-NOTCONFIRMED'(미사일정 미확정) 상태에서만 버튼 활성화됨
-- 사전 경고 : "전월 미사정보 가져오기를 하면 현재 월에 입력된 미사일정과 복사설문 정보가 모두 삭제됩니다" 메세지 표시
-- 기능 : 미확정 상태의 월정보()를 삭제하고 전월 정보로 insert
-- 복사로직 : 날짜 그대로 복사하는 것이 아니라, 주차별 요일별로 복사하는 것이다. 예를 들어 전월 첫째주 토요일-->당월 첫째주 토요일로 복사함.
+- status 상태관리 : 월별 4가지 상태(순서대로 흐름)
+  ① 'MASS-NOTCONFIRMED' (미사일정 미확정)
+  ② 'MASS-CONFIRMED' (미사일정 확정, 가용성 설문시작 상태)
+  ③ 'SURVEY-CONFIRMED' (설문 확정)
+  ④ 'FINAL-CONFIRMED' (최종 확정)
+- status 상태에 따른 UX 구분 (대표 색상+아이콘)
+  ① 'MASS-NOTCONFIRMED' → css:bg-gray → 없음
+  ② 'MASS-CONFIRMED' → css:bg-blue → 🔒 회색
+  ③ 'SURVEY-CONFIRMED' → css:bg-amber → 🔒 노랑
+  ④ 'FINAL-CONFIRMED' → css:bg-green → 🔒 초록
 
 #### 2.4.2 달력 기반 일정 보기/편집
 
@@ -221,7 +228,14 @@
 
 ##### 2.4.2.3 Timezone Handling (저장 및 표시 로직)
 
-- 프로젝트 파일 PRD-2.4.2.3-TimezoneHandling.md 파일 내용을 참고함.
+- 프로젝트 파일 'PRD-2.4.2.3-TimezoneHandling.md' 파일 내용을 참고함.
+
+#### 2.4.2.4 전월 미사정보 가져오기 버튼
+
+- 표시 : 현재월이 'MASS-NOTCONFIRMED'(미사일정 미확정) 상태에서만 버튼 활성화됨
+- 사전 경고 : "전월 미사정보 가져오기를 하면 현재 월에 입력된 미사일정과 복사설문 정보가 모두 삭제됩니다" 메세지 표시
+- 기능 : 미확정 상태의 월정보()를 삭제하고 전월 정보로 insert
+- 복사로직 : 날짜 그대로 복사하는 것이 아니라, 주차별 요일별로 복사하는 것이다. 예를 들어 전월 첫째주 토요일-->당월 첫째주 토요일로 복사함.
 
 #### 2.4.3 필요 인원(required_servers) 설정
 
@@ -364,8 +378,8 @@
 
 ### 📍2.13 App UI & UX
 
-- 반응형 웹 : 모바일이 기본이므로 작은 모바일 화면에 표현되도록 UI설계해야함. 추가로 PC브라우저에서도 깨지지 않게 반응해야함.
-- dark mode / white mode 모두 감안하여 css color 고려해야함
+- 세부 내용은 [PRD-2.13-App-UIUX.md] 참조
+- 반응형 웹UI 시스템
 
 #### 2.13.1 Layout 구조
 

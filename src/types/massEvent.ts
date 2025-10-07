@@ -15,4 +15,5 @@ export interface MassEventCalendar {
   date: string | { _seconds: number; _nanoseconds: number }; // ✅ Firestore Timestamp or string
   required_servers: number;
   servers?: string[];
+  status?: "MASS-NOTCONFIRMED" | "MASS-CONFIRMED" | "SURVEY-CONFIRMED" | "FINAL-CONFIRMED"; 
 }

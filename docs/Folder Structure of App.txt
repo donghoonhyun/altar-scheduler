@@ -34,10 +34,13 @@ altar-scheduler/
 │   ├── config/
 │   │   └── parishes.ts               # 기초정보 - 본당 카탈로그(JSON) — parish_code SSOT
 │   ├── lib/
+│   │   ├── utiles.md                 # 클래스 병합 유틸 (shadcn 표준)
+│   │   ├── dateUtiles.md             # dayjs 기반 날짜/시간 변환 (timezone 대응)
 │   │   ├── firebase.ts               # Firebase 초기화 (현재 안씀)
-│   │   ├── firestore.ts              # 공통 쿼리 래퍼/인덱스 키/쿼리 헬퍼
-│   │   ├── auth.ts                   # 로그인 유틸, 토큰 갱신 등
-│   │   └── rules-helpers.md          # (문서) Rules와 연계되는 쿼리 제약 모음
+│   │   ├── firestore.ts              # Firestore 변환 및 쿼리 유틸 (UI↔DB 변환) (date함수는 dateutiles.md에서 관리함)
+│   │   ├── auth.ts                   # Firebase Auth 로그인 유틸, 토큰 갱신 등
+│   │   ├── rules-helpers.md          # (문서) Rules와 연계되는 쿼리 제약 모음
+│   │   └── index.ts                  # lib 내 export 정리
 │   ├── state/
 │   │   ├── session.ts                # useSession (isAdmin, managerParishes, groupRoles, currentServerGroupId)
 │   │   └── ui.ts                     # UI 관련 전역 상태(다크모드 등)
@@ -45,11 +48,22 @@ altar-scheduler/
 │   │   ├── auth.ts                   # Role/세션 타입 (admin/manager/planner/server)
 │   │   ├── firestore.ts              # system_roles/parish_roles/memberships/server_groups 등 문서 타입
 │   │   └── index.ts                  # 타입 re-export
-│   ├── utils/
-│   │   └── dateUtils.ts              # timezone, date 관련 util 함수 
+│   ├── components/                   # 공통 컴포넌트
+│   │   ├── ui/
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── container.tsx
+│   │   │   ├── heading.tsx
+│   │   │   ├── StatusBadge.tsx       # 미사배정 상태별 배지 UX
+│   │   │   └── index.ts
+│   │   └── common/
+│   │       ├── Logo.tsx
+│   │       └── LoadingSpinner.tsx    # 공통 스피너
+│   ├── hooks/
+│   │   └── useMassEvents.ts 
 │   ├── pages/
 │   │   ├── Login.tsx
-│   │   ├── Dashboard.tsx             # 플래너 메인
+│   │   ├── Dashboard.tsx             # 플래너 메인 (조회용이고 수정은 각 기능페이지로 이동후 수행)
 │   │   ├── ServerGroupList.tsx       # 복사단 리스트(for manager)
 │   │   ├── ServerGroupWizard.tsx     # 복사단 생성/설정 마법사 (구 ParishWizard 대체)
 │   │   ├── ServerMain.tsx            # 복사용 메인
@@ -66,16 +80,15 @@ altar-scheduler/
 │   │       ├── EventDetailDrawer.tsx
 │   │       ├── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
 │   │       └── Forbidden.tsx
-│   └── components/                   # 공통 컴포넌트
-│   │   └── common/
-│   │       └── LoadingSpinner.tsx    # 공통 스피너
 │   ├── dev/                          # 개발모드 전용 UI/유틸(프로덕션 미노출)
 │   │   ├── DevRoleSwitcher.tsx       # 역할 스위처(에뮬/개발 전용)
 │   │   └── QuickSignIn.tsx           # 테스트 계정 빠른 로그인
 │   ├── routes/
 │   │   └── AppRoutes.tsx             # `/:serverGroupId/...` 경로 정의
 │   ├── styles/
-│   │   └── globals.css
+│   │   ├── globals.css               # 기초 Reset, Tailwind base
+│   │   ├── theme.css                 # 컬러, 폰트 변수
+│   │   └── index.css                 # globals + theme 통합 import
 │   └── main.tsx
 ├── tests/                            # 🔹Jest/RTL 단위/통합, Cypress e2e(선택)
 │   ├── e2e/                          # Cypress: 역할별 접근/버튼/쓰기 권한 스모크

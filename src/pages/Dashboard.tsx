@@ -1,89 +1,57 @@
-// src/pages/Dashboard.tsx
-import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useSession } from '../state/session';
+import { Container, Card, Heading } from '@/components/ui';
 import ServerStats from './components/ServerStats';
 import NextMonthPlan from './components/NextMonthPlan';
 import MassCalendar from './components/MassCalendar';
-import { useSession } from '../state/session';
-import { getFirestore, collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import RoleBadge from './components/RoleBadge';
-
-interface MassEvent {
-  id: string;
-  date: string; // YYYY-MM-DD
-  title: string;
-  required_servers: number;
-  servers: string[];
-}
+import { useMassEvents } from '@/hooks/useMassEvents';
 
 const Dashboard: React.FC = () => {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const session = useSession();
-  const [events, setEvents] = useState<MassEvent[]>([]);
-  const [parishCode, setParishCode] = useState<string>('');
-
-  useEffect(() => {
-    if (!serverGroupId) return;
-    const db = getFirestore();
-
-    const fetchServerGroup = async () => {
-      const sgRef = doc(db, 'server_groups', serverGroupId);
-      const sgSnap = await getDoc(sgRef);
-      if (sgSnap.exists()) {
-        setParishCode(sgSnap.data().parish_code || '');
-      }
-    };
-
-    const fetchEvents = async () => {
-      const snap = await getDocs(collection(db, 'server_groups', serverGroupId, 'mass_events'));
-      const list: MassEvent[] = snap.docs.map((doc) => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          date: d.date?.toDate ? d.date.toDate().toISOString().substring(0, 10) : d.date,
-          title: d.title,
-          required_servers: d.required_servers,
-          servers: d.assigned_servers || [],
-        };
-      });
-      setEvents(list);
-    };
-
-    fetchServerGroup();
-    fetchEvents();
-  }, [serverGroupId]);
+  const { events, loading, error } = useMassEvents(serverGroupId);
 
   if (!serverGroupId) {
     return <div className="p-4">잘못된 경로입니다.</div>;
   }
 
+  const userName = session.user?.displayName || session.user?.email;
+
+  if (loading) return <div className="p-4">로딩 중...</div>;
+  if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
+
   return (
-    <div>
-      {/* ✅ 상단 헤더 */}
-      <div className="mb-6 flex items-center justify-between">
+    <Container className="min-h-screen py-8 bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 transition-all duration-300">
+      {/* ✅ 상단 인사 + 역할 배지 */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <div>
-          <h2 className="text-xl font-bold">
-            안녕하세요, {session.user?.displayName || session.user?.email} 플래너님 👋
-          </h2>
-          <p className="text-gray-600 mt-1">이번 달 배정 일정을 확인하세요.</p>
+          <Heading size="md" className="mb-1">
+            안녕하세요, <span className="text-blue-600 dark:text-blue-300">{userName}</span>{' '}
+            플래너님 👋
+          </Heading>
+          <p className="text-gray-600 dark:text-gray-400">이번 달 복사 배정 현황을 확인하세요.</p>
         </div>
-        <RoleBadge serverGroupId={serverGroupId} />
+        <div className="mt-3 sm:mt-0">
+          <RoleBadge serverGroupId={serverGroupId} />
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <ServerStats parishCode={parishCode} serverGroupId={serverGroupId} />
-        </div>
-
-        <div className="flex flex-col gap-4">
+      {/* ✅ 주요 카드 2개 */}
+      <div className="grid gap-6 md:grid-cols-2 mb-6">
+        <Card className="fade-in">
+          <ServerStats parishCode="SG00001" serverGroupId={serverGroupId} />
+        </Card>
+        <Card className="fade-in">
           <NextMonthPlan serverGroupId={serverGroupId} />
-        </div>
-
-        <div className="md:col-span-2">
-          <MassCalendar events={events} highlightServerName={session?.user?.displayName || ''} />
-        </div>
+        </Card>
       </div>
-    </div>
+
+      {/* ✅ 미사 달력 */}
+      <Card className="md:col-span-2 fade-in">
+        <MassCalendar events={events} highlightServerName={session?.user?.displayName || ''} />
+      </Card>
+    </Container>
   );
 };
 

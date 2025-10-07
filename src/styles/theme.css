@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+:root {
+  --color-primary: #3b82f6;
+  --color-secondary: #fde68a;
+  --color-accent: #f472b6;
+  --color-success: #22c55e;
+  --color-warning: #f97316;
+  --color-error: #ef4444;
+  --color-bg-light: #f9fafb;
+  --color-bg-dark: #111827;
+  --font-main: 'Nunito', 'Noto Sans KR', sans-serif;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--color-bg-light);
+  color: var(--color-text-main);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.dark body {
+  background-color: var(--color-bg-dark);
+  color: #f3f4f6;
+}

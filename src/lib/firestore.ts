@@ -1,89 +1,77 @@
-// src/lib/firestore.ts
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, connectFirestoreEmulator, Timestamp } from 'firebase/firestore';
-import { firebaseConfig } from '../config/firebaseConfig';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
+/**
+ * 🔥 Firestore Access Layer (TypeScript Strict-safe 버전)
+ *
+ * 목적:
+ *   - Firestore 초기화 및 공용 접근 함수 집합
+ *   - 모든 페이지에서 동일한 DB 접근 규칙 유지
+ *   - PRD-2.4.2.1 Firestore Access Layer 섹션 반영
+ *
+ * 특징:
+ *   - noImplicitAny 대응
+ *   - Timestamp/Date/string 타입 변환 명시
+ *   - 모든 Firestore 결과 타입 안전하게 처리
+ */
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import {
+  getFirestore,
+  getDoc,
+  getDocs,
+  doc,
+  collection,
+  Timestamp,
+  DocumentData,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
+import type { MassEventCalendar } from '@/types/massEvent';
+import { fromLocalDateToFirestore } from '@/lib/dateUtils';
+import type { Dayjs } from 'dayjs';
 
-// --------------------------------------------------------
-// 🔹 Firebase 초기화
-// --------------------------------------------------------
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db = getFirestore(); // ✅ export 추가 (전역 접근용)
 
-if (import.meta.env.DEV) {
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
-  console.log('✅ Firestore Emulator 연결됨');
-}
+// ---------------------------------------------------------------------------
+// 🧩 1. Timestamp 유틸 (Firestore <-> dayjs 변환)
+// ---------------------------------------------------------------------------
 
-// --------------------------------------------------------
-// 🔹 Timezone-safe 변환 유틸 (PRD 2.4.2.3 준수)
-// --------------------------------------------------------
-
-// ✅ Firestore Timestamp-like 객체 타입 정의
-interface FirestoreTimestampLike {
-  _seconds?: number;
-  seconds?: number;
-  _nanoseconds?: number;
-  nanoseconds?: number;
+/**
+ * ✅ Firestore Timestamp 객체 생성 (쓰기용)
+ * @param date - string, Date, or dayjs 객체
+ * @param tz - timezone, 기본값 'Asia/Seoul'
+ */
+export function makeFirestoreTimestamp(date: string | Date | Dayjs, tz = 'Asia/Seoul'): Timestamp {
+  return Timestamp.fromDate(fromLocalDateToFirestore(date, tz));
 }
 
 /**
- * ✅ Firestore Timestamp → dayjs 변환 (timezone 반영)
- * Firestore에는 “현지 자정(Local Midnight) 기준 UTC Timestamp”가 저장되어 있으므로
- * UI에서는 UTC→timezone 변환만 수행하여 현지 시간으로 복원한다.
+ * ✅ Firestore Timestamp → ISO 문자열 변환 (읽기용)
+ * @param timestamp - Firestore Timestamp, Date, or string
+ * @returns ISO yyyy-MM-dd 문자열
  */
-export function toLocalDateFromFirestore(
-  date: Timestamp | FirestoreTimestampLike | Date | string | null | undefined,
-  tz: string = 'Asia/Seoul'
-): dayjs.Dayjs {
-  if (!date) return dayjs.tz(tz);
+export function toISOStringFromFirestore(timestamp?: Timestamp | Date | string): string {
+  if (!timestamp) return '';
 
-  // ✅ 문자열(ISO 포맷) → 현지 해석
-  if (typeof date === 'string') {
-    const parsed = dayjs.tz(date, tz);
-    return parsed.isValid() ? parsed : dayjs.tz(tz);
+  if (timestamp instanceof Timestamp) {
+    return timestamp.toDate().toISOString().substring(0, 10);
   }
 
-  // ✅ Firestore Timestamp / Emulator mock
-  if (typeof date === 'object' && date !== null) {
-    const ts = date as FirestoreTimestampLike;
-    const sec = ts._seconds ?? ts.seconds;
-    if (typeof sec === 'number' && !isNaN(sec)) {
-      // 🔸 PRD 규칙: UTC → 현지 복원
-      return dayjs.unix(sec).utc().tz(tz);
-    }
+  if (timestamp instanceof Date) {
+    return timestamp.toISOString().substring(0, 10);
   }
 
-  // ✅ JS Date 객체
-  if (date instanceof Date && !isNaN(date.getTime())) {
-    return dayjs(date).utc().tz(tz);
+  if (typeof timestamp === 'string') {
+    return timestamp.substring(0, 10);
   }
 
-  return dayjs.tz(tz);
+  return '';
 }
+
+// ---------------------------------------------------------------------------
+// 👥 2. Member 관련 헬퍼
+// ---------------------------------------------------------------------------
 
 /**
- * ✅ 현지 날짜 → Firestore 저장용 Date (Timestamp.fromDate()와 함께 사용)
- * 입력: "YYYY-MM-DDT00:00:00" 형식 or Date/dayjs 객체
- * 변환: 해당 timezone의 자정(Local Midnight) → UTC Timestamp 기준 Date 반환
+ * ✅ member_ids → 이름 목록 변환
+ * 사용처: Dashboard / MassEventPlanner
  */
-export function fromLocalDateToFirestore(
-  localDate: string | Date | dayjs.Dayjs,
-  tz: string = 'Asia/Seoul'
-): Date {
-  // 🔸 PRD 규칙: 현지 자정(Local Midnight)을 UTC Timestamp 기준으로 변환
-  const localMidnight = dayjs(localDate).tz(tz, true).startOf('day');
-  return localMidnight.toDate();
-}
-
-// --------------------------------------------------------
-// 🔹 복사 이름 조인 헬퍼 (MassCalendar / Planner 용)
-// --------------------------------------------------------
 export async function getMemberNamesByIds(
   serverGroupId: string,
   memberIds: string[]
@@ -91,20 +79,91 @@ export async function getMemberNamesByIds(
   if (!memberIds || memberIds.length === 0) return [];
 
   const names: string[] = [];
+
   await Promise.all(
     memberIds.map(async (id) => {
       const ref = doc(db, `server_groups/${serverGroupId}/members/${id}`);
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        const data = snap.data() as { name_kor?: string; baptismal_name?: string };
-        const fullName =
-          data.baptismal_name && data.name_kor
-            ? `${data.name_kor} ${data.baptismal_name}`
-            : data.name_kor ?? '';
-        if (fullName) names.push(fullName);
+        const data = snap.data() as DocumentData;
+        const fullName = data.baptismal_name
+          ? `${data.name_kor} ${data.baptismal_name}`
+          : data.name_kor;
+        names.push(fullName);
       }
     })
   );
 
   return names;
+}
+
+/**
+ * ✅ 복사단(server_group) 기본정보 조회
+ * @returns Firestore 문서 데이터 or null
+ */
+export async function getServerGroupById(serverGroupId: string): Promise<DocumentData | null> {
+  const ref = doc(db, 'server_groups', serverGroupId);
+  const snap = await getDoc(ref);
+  return snap.exists() ? (snap.data() as DocumentData) : null;
+}
+
+// ---------------------------------------------------------------------------
+// 🕊️ 3. MassEvent 관련 쿼리
+// ---------------------------------------------------------------------------
+
+/**
+ * ✅ 특정 복사단(server_group)의 미사 일정 목록 조회
+ * Firestore 문서 → UI용 MassEventCalendar[] 변환
+ */
+export async function getMassEvents(serverGroupId: string): Promise<MassEventCalendar[]> {
+  const snap = await getDocs(collection(db, 'server_groups', serverGroupId, 'mass_events'));
+
+  const list: MassEventCalendar[] = [];
+
+  const promises: Promise<void>[] = snap.docs.map(
+    async (docSnap: QueryDocumentSnapshot<DocumentData>) => {
+      const d = docSnap.data();
+      const memberIds: string[] = Array.isArray(d.member_ids) ? d.member_ids : [];
+      const servers =
+        memberIds.length > 0 ? await getMemberNamesByIds(serverGroupId, memberIds) : [];
+
+      list.push({
+        id: docSnap.id,
+        date: d.date,
+        title: d.title,
+        required_servers: d.required_servers,
+        servers,
+        status: d.status || 'MASS-NOTCONFIRMED',
+      });
+    }
+  );
+
+  await Promise.all(promises);
+
+  return list;
+}
+
+/**
+ * ✅ 개별 미사 일정 문서 조회
+ */
+export async function getMassEventById(
+  serverGroupId: string,
+  eventId: string
+): Promise<MassEventCalendar | null> {
+  const ref = doc(db, `server_groups/${serverGroupId}/mass_events/${eventId}`);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+
+  const d = snap.data() as DocumentData;
+  const memberIds: string[] = Array.isArray(d.member_ids) ? d.member_ids : [];
+  const servers = memberIds.length > 0 ? await getMemberNamesByIds(serverGroupId, memberIds) : [];
+
+  return {
+    id: eventId,
+    date: d.date,
+    title: d.title,
+    required_servers: d.required_servers,
+    servers,
+    status: d.status || 'MASS-NOTCONFIRMED',
+  };
 }

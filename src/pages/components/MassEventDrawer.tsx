@@ -6,7 +6,8 @@ import type {
   CreateMassEventResponse,
 } from '../../../functions/src/massEvents/createMassEvent';
 import dayjs from 'dayjs';
-import { fromLocalDateToFirestore } from '../../lib/firestore'; // ✅ PRD 2.4.2.3 유틸 추가
+import { fromLocalDateToFirestore } from '../../lib/dateUtils';
+
 
 interface MassEventDrawerProps {
   eventId?: string; // 선택한 이벤트 ID (없으면 신규 생성)
