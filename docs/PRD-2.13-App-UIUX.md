@@ -1,13 +1,4 @@
----
-title: "PRD-2.13-App-UIUX"
-subtitle: "Altar Scheduler – App UI & UX Design System"
-version: 1.0
-last_updated: 2025-10-07
-author: PONGSO-SDS
-status: Stable
----
-
-# 🕇 PRD-2.13 App UI & UX Design System
+# PRD-2.13 App UI & UX Design System
 
 ---
 
@@ -35,7 +26,7 @@ status: Stable
 | 분류 | 기술 |
 |------|------|
 | UI Framework | Tailwind CSS |
-| UI Components | shadcn/ui |
+| UI Components | shadcn/ui, radix-ui |
 | Icon Library | lucide-react |
 | Date/Time | dayjs (with timezone) |
 | Routing | React Router |
@@ -45,7 +36,7 @@ status: Stable
 
 ## 📌4. 폴더 구조
 
-```
+```text
 src/
  ├── components/
  │   ├── ui/
@@ -317,6 +308,7 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
 
 #### 8.5.5 적용 예시 (MassCalendar 컴포넌트)
 
+```ts
 {ev.status === "FINAL-CONFIRMED" && (
   <Lock size={12} className="text-green-500" title="최종 확정됨" />
 )}
@@ -326,6 +318,7 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
 {ev.status === "MASS-CONFIRMED" && (
   <Lock size={12} className="text-gray-400" title="확정됨" />
 )}
+```
 
 #### 8.5.6 Mass Event Status Badge Component
 

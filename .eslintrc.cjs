@@ -18,11 +18,14 @@ module.exports = {
     "functions/**" ,
   ],
   settings: {
-  "import/resolver": {
+    "import/resolver": {
     alias: {
       map: [["@", "./src"]],
       extensions: [".ts", ".tsx", ".js", ".jsx"],
     },
+    },
   },
-},
+  rules: {    
+    '@typescript-eslint/no-empty-interface': 'off',
+  },
 };

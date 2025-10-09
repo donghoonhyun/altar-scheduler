@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { MassEventCalendar } from '@/types/massEvent';
 import { toLocalDateFromFirestore } from '@/lib/dateUtils'; // ✅ 상단 import 추가
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import type { MassStatus } from '@/types/firestore';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -15,22 +17,29 @@ dayjs.extend(timezone);
 interface MassCalendarProps {
   events?: MassEventCalendar[];
   onDayClick?: (date: Date, eventId?: string) => void;
+  onMonthChange?: (month: dayjs.Dayjs) => void; // ✅ 추가
   timezone?: string;
 }
 
 export default function MassCalendar({
   events = [],
   onDayClick,
+  onMonthChange,
   timezone = 'Asia/Seoul',
 }: MassCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(dayjs().tz(timezone).startOf('month'));
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<MassStatus | 'ALL'>('ALL');
 
   const today = dayjs().tz(timezone).format('YYYY-MM-DD');
   const startOfMonth = currentMonth.startOf('month');
   const endOfMonth = currentMonth.endOf('month');
   const daysInMonth = endOfMonth.date();
   const startDay = startOfMonth.day();
+
+  // ✅ currentMonth 변경 시 부모에 알림
+  useEffect(() => {
+    if (onMonthChange) onMonthChange(currentMonth);
+  }, [currentMonth, onMonthChange]);
 
   // ✅ 필터 적용
   const filteredEvents =
@@ -64,13 +73,11 @@ export default function MassCalendar({
         className={cn(
           'border rounded-xl p-2 min-h-[90px] flex flex-col justify-start transition-all duration-200 cursor-pointer',
           'hover:shadow-md',
-          // ✅ 주말 배경색 구분
           isSunday
             ? 'bg-pink-50 dark:bg-pink-900/20'
             : isSaturday
             ? 'bg-sky-50 dark:bg-sky-900/20'
             : 'bg-white dark:bg-gray-800',
-          // ✅ 오늘 날짜 하이라이트
           isToday && '!border-blue-400 ring-2 ring-blue-300 shadow-sm'
         )}
       >
@@ -159,36 +166,49 @@ export default function MassCalendar({
             <CalendarDays size={16} className="mr-1" /> 오늘
           </Button>
         </div>
+        {/* ✅ 상태 필터 (ToggleGroup) */}
+        <div className="w-full flex justify-center mb-4">
+          <ToggleGroup
+            type="single"
+            value={filterStatus}
+            onValueChange={(val: string | undefined) => {
+              if (val) setFilterStatus(val as MassStatus | 'ALL');
+            }}
+            className="flex gap-2 flex-wrap justify-center"
+          >
+            {(
+              [
+                { code: 'ALL', label: '전체', color: 'gray' },
+                { code: 'MASS-NOTCONFIRMED', label: '미확정', color: 'gray' },
+                { code: 'MASS-CONFIRMED', label: '미사확정', color: 'blue' },
+                { code: 'SURVEY-CONFIRMED', label: '설문종료', color: 'amber' },
+                { code: 'FINAL-CONFIRMED', label: '최종확정', color: 'green' },
+              ] as const
+            ).map(({ code, label, color }) => {
+              const isActive = filterStatus === code;
+              const baseClasses =
+                'flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm font-medium shadow-sm transition-all duration-200';
 
-        {/* ✅ 상태 필터 (모바일 스크롤형) */}
-        <div
-          className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide px-1 py-1 justify-center sm:justify-center"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {[
-            { code: 'ALL', label: '전체', color: 'gray' },
-            { code: 'MASS-NOTCONFIRMED', label: '미확정', color: 'gray' },
-            { code: 'MASS-CONFIRMED', label: '미사확정', color: 'blue' },
-            { code: 'SURVEY-CONFIRMED', label: '설문종료', color: 'amber' },
-            { code: 'FINAL-CONFIRMED', label: '최종확정', color: 'green' },
-          ].map((s) => (
-            <button
-              key={s.code}
-              onClick={() => setFilterStatus(s.code)}
-              className={cn(
-                'flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm font-medium shadow-sm transition-all duration-150 flex-shrink-0',
-                'hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none',
-                filterStatus === s.code
-                  ? `bg-${s.color}-100 border-${s.color}-500 text-${s.color}-700 focus:ring-${s.color}-400`
-                  : 'bg-gray-50 dark:bg-gray-700 border-gray-300 text-gray-600'
-              )}
-            >
-              {s.code !== 'ALL' && <StatusBadge status={s.code as any} iconOnly size="sm" />}
-              <span>{s.label}</span>
-            </button>
-          ))}
+              return (
+                <ToggleGroupItem
+                  key={code}
+                  value={code}
+                  aria-label={label}
+                  className={cn(
+                    baseClasses,
+                    isActive
+                      ? `bg-${color}-100 border-${color}-500 text-${color}-700`
+                      : 'bg-gray-50 dark:bg-gray-700 border-gray-300 text-gray-600',
+                    'hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none'
+                  )}
+                >
+                  {code !== 'ALL' && <StatusBadge status={code as MassStatus} iconOnly size="sm" />}
+                  <span>{label}</span>
+                </ToggleGroupItem>
+              );
+            })}
+          </ToggleGroup>
         </div>
-
         {/* 📅 요일 헤더 */}
         <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
           {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
@@ -206,7 +226,6 @@ export default function MassCalendar({
             </div>
           ))}
         </div>
-
         {/* 📆 날짜 셀 */}
         <div className="grid grid-cols-7 gap-2 mt-2">{cells}</div>
       </Card>
