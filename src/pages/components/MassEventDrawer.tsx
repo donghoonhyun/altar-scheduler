@@ -1,17 +1,37 @@
 import React, { useState, useEffect } from 'react';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  serverTimestamp,
+  DocumentData,
+} from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getFirestore, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import dayjs from 'dayjs';
+import { fromLocalDateToFirestore } from '@/lib/dateUtils';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from '@/components/ui/dialog';
+import type { MemberDoc, MassStatus } from '@/types/firestore';
 import type {
   CreateMassEventRequest,
   CreateMassEventResponse,
 } from '../../../functions/src/massEvents/createMassEvent';
-import dayjs from 'dayjs';
-import { fromLocalDateToFirestore } from '../../lib/dateUtils';
-
+// import { MASS_STATUS_LABELS } from '@/constants/massStatusLabels';
 
 interface MassEventDrawerProps {
-  eventId?: string; // 선택한 이벤트 ID (없으면 신규 생성)
-  date: Date | null; // 신규 생성일 경우만 사용
+  eventId?: string;
+  date: Date | null;
   serverGroupId: string;
   onClose: () => void;
 }
@@ -23,12 +43,37 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   onClose,
 }) => {
   const db = getFirestore();
+
   const [title, setTitle] = useState('');
   const [requiredServers, setRequiredServers] = useState<number | null>(null);
+  const [status, setStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // ✅ 기존 이벤트 불러오기 (수정 모드)
+  // ✅ 복사단 멤버 목록
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const ref = collection(db, 'server_groups', serverGroupId, 'members');
+        const snaps = await getDocs(ref);
+        const list: { id: string; name: string }[] = snaps.docs
+          .map((d) => d.data() as MemberDoc)
+          .filter((m) => m.name_kor && m.baptismal_name)
+          .map((m) => ({
+            id: m.uid ?? m.id ?? crypto.randomUUID(),
+            name: `${m.name_kor} ${m.baptismal_name}`,
+          }));
+        setMembers(list);
+      } catch (err) {
+        console.error('❌ members load error:', err);
+      }
+    };
+    fetchMembers();
+  }, [db, serverGroupId]);
+
+  // ✅ 기존 이벤트 불러오기
   useEffect(() => {
     const fetchEvent = async () => {
       if (!eventId) return;
@@ -36,9 +81,11 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
         const snap = await getDoc(ref);
         if (snap.exists()) {
-          const data = snap.data();
+          const data = snap.data() as DocumentData;
           setTitle(data.title || '');
           setRequiredServers(data.required_servers || null);
+          setStatus((data.status as MassStatus) || 'MASS-NOTCONFIRMED');
+          setMemberIds((data.member_ids as string[]) || []);
         }
       } catch (err) {
         console.error('❌ 이벤트 불러오기 오류:', err);
@@ -58,44 +105,38 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     setErrorMsg('');
 
     try {
+      const groupSnap = await getDoc(doc(db, 'server_groups', serverGroupId));
+      const tz = (groupSnap.data()?.timezone as string) || 'Asia/Seoul';
+
       if (eventId) {
-        // ✏️ 기존 이벤트 수정
         const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
         await setDoc(
           ref,
           {
             title,
             required_servers: requiredServers,
-            updated_at: new Date(),
+            status,
+            member_ids: memberIds,
+            updated_at: serverTimestamp(),
           },
           { merge: true }
         );
         console.log(`✅ MassEvent updated: ${eventId}`);
       } else {
-        // 🆕 신규 이벤트 생성 (Cloud Function)
         const functions = getFunctions();
         const createMassEvent = httpsCallable<CreateMassEventRequest, CreateMassEventResponse>(
           functions,
           'createMassEvent'
         );
-
-        // ✅ 날짜 변환 (PRD 2.4.2.3 규칙)
-        // fromLocalDateToFirestore()는 UTC Date 반환 → ISO 변환 시 UTC 기준 문자열 생성
-        const localMidnight = fromLocalDateToFirestore(date!, 'Asia/Seoul');
+        const localMidnight = fromLocalDateToFirestore(date!, tz);
         const formattedDate = dayjs(localMidnight).format('YYYY-MM-DD[T]00:00:00');
-
         const res = await createMassEvent({
           serverGroupId,
           title,
-          date: formattedDate, // ✅ PRD 규칙: 문자열(로컬 자정)
+          date: formattedDate,
           requiredServers,
         });
-
-        if (res.data.success) {
-          console.log(res.data.message || `✅ MassEvent created: ${res.data.eventId}`);
-        } else {
-          throw new Error(res.data.error || '저장 실패');
-        }
+        if (!res.data.success) throw new Error(res.data.error || '저장 실패');
       }
 
       onClose();
@@ -107,11 +148,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
-  // ✅ 삭제 처리 (기존 이벤트만)
+  // ✅ 삭제 처리
   const handleDelete = async () => {
     if (!eventId) return;
-    if (!window.confirm('이 미사 일정을 정말 삭제하시겠습니까?')) return;
-
+    if (!window.confirm('이 미사 일정을 삭제하시겠습니까?')) return;
     setLoading(true);
     try {
       const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
@@ -127,40 +167,28 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-end z-50">
-      <div className="bg-white w-80 h-full shadow-lg p-4 flex flex-col">
-        {/* 상단 헤더 */}
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">{eventId ? '미사 일정 수정' : '미사 일정 등록'}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-black" disabled={loading}>
-            ✕
-          </button>
-        </div>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="w-96 h-full right-0 top-0 fixed p-6 flex flex-col gap-4 overflow-visible shadow-2xl">
+        <DialogTitle>{eventId ? '미사 일정 수정' : '미사 일정 등록'}</DialogTitle>
+        <DialogDescription>미사 일정을 새로 등록하거나 기존 일정을 수정합니다.</DialogDescription>
 
-        {/* 신규 등록 시 날짜 표시 */}
-        {!eventId && (
-          <p className="text-sm text-gray-600 mb-4">
-            선택한 날짜: {date ? date.toLocaleDateString('ko-KR') : '미선택'}
-          </p>
-        )}
-
-        {/* 제목 */}
-        <label className="block mb-2">
+        {/* 미사 제목 */}
+        <label className="block">
           <span className="text-sm font-medium">미사 제목</span>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block w-full border rounded px-2 py-1"
+            className="mt-1 w-full border rounded px-2 py-1"
             placeholder="예: 주일 11시 미사"
             disabled={loading}
           />
         </label>
 
         {/* 필요 인원 */}
-        <label className="block mb-2">
+        <label className="block">
           <span className="text-sm font-medium">필요 인원</span>
-          <div className="flex gap-2 mt-1">
+          <div className="flex gap-2 mt-1 flex-wrap">
             {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
               <label key={n} className="flex items-center gap-1">
                 <input
@@ -177,38 +205,77 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           </div>
         </label>
 
-        {errorMsg && <p className="text-sm text-red-500 mb-2">{errorMsg}</p>}
+        {/* 배정 복사 */}
+        <label className="block">
+          <span className="text-sm font-medium">배정 복사</span>
+          <select
+            multiple
+            className="mt-1 w-full border rounded px-2 py-1 h-28"
+            value={memberIds}
+            onChange={(e) => setMemberIds(Array.from(e.target.selectedOptions, (opt) => opt.value))}
+            disabled={loading}
+          >
+            {members.map((m) => (
+              <option key={`${m.id}-${m.name}`} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <div className="mt-auto flex justify-between items-center">
-          {/* 삭제 버튼 */}
+        {/* 상태 (radio 버튼으로 변경) */}
+        <label className="block">
+          <span className="text-sm font-medium">상태</span>
+          <div className="flex flex-col gap-1 mt-1">
+            {[
+              { value: 'MASS-NOTCONFIRMED', label: '미확정' },
+              { value: 'MASS-CONFIRMED', label: '미사확정' },
+              { value: 'SURVEY-CONFIRMED', label: '설문종료' },
+              { value: 'FINAL-CONFIRMED', label: '최종확정' },
+            ].map((s) => (
+              <label key={s.value} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="massStatus"
+                  value={s.value}
+                  checked={status === s.value}
+                  onChange={() => setStatus(s.value as MassStatus)}
+                  disabled={loading}
+                />
+                <StatusBadge status={s.value as MassStatus} />
+                <span className="text-sm">{s.label}</span>
+              </label>
+            ))}
+          </div>
+        </label>
+
+        {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
+
+        {/* 하단 버튼 */}
+        <div className="mt-auto flex justify-between items-center pt-2">
           {eventId && (
-            <button
+            <Button
+              variant="outline"
               onClick={handleDelete}
-              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
               disabled={loading}
+              className="text-red-600 border-red-400"
             >
               삭제
-            </button>
+            </Button>
           )}
           <div className="flex gap-2 ml-auto">
-            <button
-              onClick={onClose}
-              className="px-3 py-1 rounded border border-gray-300"
-              disabled={loading}
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            >
+            <DialogClose asChild>
+              <Button variant="outline" disabled={loading}>
+                취소
+              </Button>
+            </DialogClose>
+            <Button onClick={handleSave} disabled={loading}>
               {loading ? '저장 중...' : eventId ? '수정' : '저장'}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -246,15 +246,27 @@
 - <미사일정확정> 버튼 클릭 : 가용성 설문을 할 수 있는 상태(MASS-CONFIRMED)가 되고, <설문링크복사> 버튼 활성화되고 설문 페이지<2.6 가용성 설문> 링크주소를 복사해서 카톡방에 공유해서 설문 진행을 유도함
 - 차월 미사가 확정되기 전(MASS-CONFIRMED가 아닌 상태)에는 복사가 해당 링크페이지에 들어가도 "미사가 확정되지 않았습니다" 메세지 표시하고 해당월의 미사 일정이 조회 및 설문 저장이 되지 않아야 함
 
-#### 2.4.5 가용성설문 링크 보내기
+#### 2.4.5 가용성(Availability)설문 링크 보내기
 
 - 별도의 시스템 기능 없이 카톡 대화방에서 공유예정
 
-#### 2.4.6 자동배정 버튼
+#### 2.4.6 자동배정(Auto Assignment) 버튼
 
-- 설문확정( 'SURVEY-CONFIRMED') 상태에서만 버튼이 활성화 됨
-- 버튼클릭시 : "자동배정을 실행하면 기존 복사배정정보가 삭제됩니다" 경고 메세지 표시 후 <2.7 자동배정> 로직으로 function 처리,
-  기존 복사배정(Assign)정보만 삭제하고 미사일정정보(massevent)는 삭제하지 않음
+- 프로젝트 파일 'PRD 2.4.6 Auto ServerAssignment Logic.md' 파일 내용을 참고함.
+
+#### 2.4.7 MassEvent Calendar UI
+
+- 프로젝트 파일 'PRD-2.4.7-MassEvent Calendar UI.md' 파일 내용을 참고함.
+
+#### 2.4.8 MassEvent Planner UI
+
+- 프로젝트 파일 'PRD-2.4.8-MassEvent Planner UI.md' 파일 내용을 참고함.
+
+#### 2.4.9 MassEvent Drawer UI
+
+- 프로젝트 파일 'PRD-2.4.9-MassEvent Drawer UI.md' 파일 내용을 참고함.
+
+---
 
 ### 📍2.5 복사 가용성 설문 (Availability)
 
@@ -291,42 +303,6 @@
 - UI/UX 고려사항
   . 모바일 우선 달력 UI 제공 (아이콘/색상 활용)
   . 해당 월에서 이벤트가 있는 날짜에 대해 두 가지 상태 중 하나를 직관적으로 선택 가능해야 함
-
-### 📍2.6 자동 배정 (Auto Assignment) 로직
-
-- **구현 방식**  
-  Cloud Function 기반 자동 배정 로직으로 구현한다.  
-  복사들의 가용성 설문(2.7)을 기반으로 각 미사 이벤트에 필요한 인원을 자동 배정한다.
-
-- **배정 조건**  
-  1. 각 미사 이벤트(event_id)에는 주복사(Main) 1명 이상이 반드시 배정되어야 한다.  
-  2. Rookie(신입 복사)는 기본적으로 Main 배정에서 제외하되, 필수 인원이 부족할 경우 보완적으로 포함할 수 있다.  
-  3. 공정성을 고려하여, 동일 복사에게 과도하게 편중되지 않도록 한다.  
-  4. 가용성은 **`AVAILABLE`(가능) / `UNAVAILABLE`(불가)** 두 가지 값만 사용한다.  
-     - `UNAVAILABLE` → 절대 배정하지 않는다.  
-     - `AVAILABLE` → 배정 가능 대상으로 고려한다.  
-
-- **데이터 저장 구조 (Firestore)**  
-
-  ```ts
-  server_groups/{sg}/schedules/{month_id}
-    assignments: {
-      [event_id: string]: string[]   // event_id별 배정된 member_id 배열
-    }
-  ```
-  
-  (예시:)
-  {
-    "assignments": {
-      "event_20250915_1900": ["member_001", "member_002"],
-      "event_20250916_0900": ["member_003", "member_004"],
-      "event_20250917_1100": ["member_005"]
-    }
-  }
-
-- 플래너 검토 단계
-  . 자동 배정 후, 플래너가 결과를 확인하고 필요 시 수동 조정 가능
-  . 최종 확정 시 FINAL-CONFIRMED 상태로 변경
 
 ### 📍2.7 복사 메인 페이지 (ServerMain.tsx)
 
@@ -483,17 +459,7 @@
 
 ### 3.4.1 Firestore doc modeling (서브컬렉션로 단위 격리)
 
-- 구조 :
-memberships/{uid}_{server_group_id}   // 전역 권한 SSOT
-server_groups/{server_group_id} // 최상위 단위
-/members/{member_id}
-/memberships/{uid} // 캐시/미러(표시용)
-/mass_events/{event_id}
-/availability_surveys/{month_id}/responses/{member_id}
-/schedules/{month_id}
-/replacement_requests/{req_id}
-/notifications/{notif_id}
-
+- 프로젝트 파일 'PRD-2.4.1-Firestore doc Modeling.md' 파일 내용을 참고함.
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 
 ## 🎯4. 향후 확장

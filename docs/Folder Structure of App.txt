@@ -48,6 +48,8 @@ altar-scheduler/
 │   │   ├── auth.ts                   # Role/세션 타입 (admin/manager/planner/server)
 │   │   ├── firestore.ts              # system_roles/parish_roles/memberships/server_groups 등 문서 타입
 │   │   └── index.ts                  # 타입 re-export
+│   ├── constants/                    # 상수 constants 정의
+│   │   └── massStatusLabels.ts       # mass status의 라벨 + 색상 상수
 │   ├── components/                   # 공통 컴포넌트
 │   │   ├── ui/
 │   │   │   ├── button.tsx

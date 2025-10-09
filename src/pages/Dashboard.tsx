@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ✅ 주요 카드 2개 */}
+      {/* ✅ 주요 카드 */}
       <div className="grid gap-6 md:grid-cols-2 mb-6">
         <Card className="fade-in">
           <ServerStats parishCode="SG00001" serverGroupId={serverGroupId} />
@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* ✅ 미사 달력 */}
+      {/* ✅ 미사 일정 달력 */}
       <Card className="md:col-span-2 fade-in">
         <MassCalendar events={events} highlightServerName={session?.user?.displayName || ''} />
       </Card>

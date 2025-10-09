@@ -182,3 +182,17 @@ Firestore에는 항상 UTC Timestamp(현지 자정 기준) 으로 저장한다.
 fallback 기본값은 'Asia/Seoul'.
 
 Seed, Cloud Function, UI 표시까지 모두 동일한 변환 규칙을 적용해야 한다.
+
+## Appendix A. 표준 dateUtils.ts (2025.10 통합버전)
+
+이 섹션은 Firestore ↔ UI ↔ Cloud Function 간의 timezone 처리 일관성을 보장하기 위한
+공식 유틸리티 모듈이며, 다음 4가지 타입을 모두 지원한다.
+
+- Firestore Timestamp
+- JS Date
+- string (YYYY-MM-DD, ISO)
+- JSON Timestamp-like object ({ _seconds, _nanoseconds })
+
+모든 변환은 Asia/Seoul 기준으로 처리됨
+any 사용 제거 및 타입가드 기반 안전성 확보
+Cloud Function 저장 시에도 동일 유틸을 재사용 가능
