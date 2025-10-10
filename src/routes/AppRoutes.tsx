@@ -7,7 +7,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 // 페이지
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
-import ServerMain from '../pages/ServerMain';
+// import ServerMain from '../pages/ServerMain';
 import ServerGroupList from '../pages/ServerGroupList';
 import ServerList from '../pages/ServerList';
 import ServerGroupWizard from '../pages/ServerGroupWizard';
@@ -41,7 +41,7 @@ export default function AppRoutes() {
     if (role === 'planner') {
       return <Dashboard />;
     } else if (role === 'server') {
-      return <ServerMain />;
+      return <Dashboard />;
     } else {
       return <Navigate to="/forbidden" replace />;
     }

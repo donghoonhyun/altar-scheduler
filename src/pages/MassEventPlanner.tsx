@@ -25,9 +25,9 @@ import AutoAssignDrawer from './components/AutoAssignDrawer';
 import { useMassEvents } from '@/hooks/useMassEvents';
 import { useMonthStatus } from '@/hooks/useMonthStatus';
 import { fromLocalDateToFirestore, toLocalDateFromFirestore } from '@/lib/dateUtils';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { MassEventCalendar } from '@/types/massEvent';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { cn } from '@/lib/utils';
 
 dayjs.extend(weekOfYear);
 
@@ -47,7 +47,7 @@ const MassEventPlanner: React.FC = () => {
   } = useMonthStatus(serverGroupId, monthKey);
 
   // ✅ 실시간 미사 일정
-  const { events } = useMassEvents(serverGroupId) as {
+  const { events } = useMassEvents(serverGroupId, currentMonth) as {
     events: MassEventCalendar[];
   };
 
@@ -80,6 +80,7 @@ const MassEventPlanner: React.FC = () => {
     setSelectedEventId(undefined);
     setSelectedDate(null);
   };
+
   const handleCloseMonthDrawer = () => setMonthStatusDrawerOpen(false);
 
   /** 🔹 전월 미사일정 복사 */
@@ -90,7 +91,6 @@ const MassEventPlanner: React.FC = () => {
       const tz = 'Asia/Seoul';
       const prevMonth = currentMonth.subtract(1, 'month');
 
-      // 현재 월 일정 삭제
       const currQuery = query(
         collection(db, `server_groups/${serverGroupId}/mass_events`),
         where('date', '>=', fromLocalDateToFirestore(currentMonth.startOf('month'), tz)),
@@ -100,7 +100,6 @@ const MassEventPlanner: React.FC = () => {
       const batch = writeBatch(db);
       currSnap.forEach((docSnap) => batch.delete(docSnap.ref));
 
-      // 전월 일정 조회
       const prevQuery = query(
         collection(db, `server_groups/${serverGroupId}/mass_events`),
         where('date', '>=', fromLocalDateToFirestore(prevMonth.startOf('month'), tz)),
@@ -113,7 +112,6 @@ const MassEventPlanner: React.FC = () => {
         return;
       }
 
-      // 복사 로직
       prevSnap.forEach((snap) => {
         const ev = snap.data();
         const prevDate = toLocalDateFromFirestore(ev.date, tz);
@@ -139,25 +137,20 @@ const MassEventPlanner: React.FC = () => {
     }
   };
 
-  /** 🔹 미사 일정 확정 */
+  /** 🔹 상태 변경 액션들 */
   const handleConfirmMass = async () => {
     await updateStatus('MASS-CONFIRMED', 'planner@test.com');
     toast.success('📘 미사 일정이 확정되었습니다.');
   };
-
-  /** 🔹 설문 종료 */
   const handleCloseSurvey = async () => {
     await updateStatus('SURVEY-CONFIRMED', 'planner@test.com');
     toast.success('📊 설문이 종료되었습니다.');
   };
-
-  /** 🔹 자동 배정 (최종 확정) */
   const handleAutoAssign = async () => {
     await updateStatus('FINAL-CONFIRMED', 'planner@test.com');
     toast.success('✅ 자동배정이 완료되고 최종 확정되었습니다.');
   };
 
-  /** 🔹 버튼 활성화 조건 */
   const isCopyEnabled =
     currentMonth.isSame(dayjs(), 'month') || currentMonth.isSame(dayjs().add(1, 'month'), 'month');
 
@@ -165,79 +158,111 @@ const MassEventPlanner: React.FC = () => {
 
   return (
     <div className="p-4">
-      {/* ✅ 상단 헤더 : 제목은 왼쪽, 상태/년월은 중앙 쪽 */}
+      {/* 🧭 상단 헤더 */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold flex items-center gap-2">📅 미사 일정 관리</h2>
-
-        {/* 상태+년월 카드 — 가운데 정렬 느낌으로 살짝 안쪽으로 */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl px-5 py-2 shadow-sm">
-          <StatusBadge status={monthStatus} size="lg" />
-          <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">
-            {currentMonth.format('YYYY년 M월')}
-          </span>
-        </div>
       </div>
 
-      {/* ✅ Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 mb-4 justify-end">
+      {/* ✅ Toolbar (그룹 색상 구분 버전) */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4 justify-end">
+        {/* 🔵 그룹 ① 확정 준비 */}
         <Button
           variant="outline"
           size="sm"
+          className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-blue-400 text-blue-700',
+            'hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+          )}
           disabled={!isCopyEnabled}
           onClick={() => setCopyDrawerOpen(true)}
         >
-          <Copy className="w-4 h-4 mr-1" /> 전월 미사일정 복사
+          <Copy className="w-3.5 h-3.5 mr-1" /> 전월 미사일정 복사
         </Button>
 
         <Button
           variant="outline"
           size="sm"
+          className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-blue-400 text-blue-700',
+            'hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+          )}
           disabled={monthStatus !== 'MASS-NOTCONFIRMED' || isLocked}
           onClick={() => setConfirmDrawerOpen(true)}
         >
-          <Lock className="w-4 h-4 mr-1" /> 미사 일정 확정
+          <Lock className="w-3.5 h-3.5 mr-1" /> 미사 일정 확정
         </Button>
 
+        {/* 🟠 그룹 ② 설문 단계 */}
         <Button
           variant="outline"
           size="sm"
+          className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-amber-500 text-amber-700',
+            'hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+          )}
           disabled={monthStatus !== 'MASS-CONFIRMED'}
           onClick={() => setSurveyDrawerOpen(true)}
         >
-          <Send className="w-4 h-4 mr-1" /> 설문 링크 보내기
+          <Send className="w-3.5 h-3.5 mr-1" /> 설문 링크 보내기
         </Button>
 
         <Button
           variant="outline"
           size="sm"
+          className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-amber-500 text-amber-700',
+            'hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+          )}
           disabled={monthStatus !== 'MASS-CONFIRMED'}
           onClick={() => setCloseSurveyDrawerOpen(true)}
         >
-          <StopCircle className="w-4 h-4 mr-1" /> 설문 종료
+          <StopCircle className="w-3.5 h-3.5 mr-1" /> 설문 종료
         </Button>
 
+        {/* 🔴 그룹 ③ 최종 확정 */}
         <Button
           variant="outline"
           size="sm"
+          className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-red-500 text-red-700',
+            'hover:bg-red-50 hover:border-red-600 hover:text-red-800',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+          )}
           disabled={monthStatus !== 'SURVEY-CONFIRMED'}
           onClick={() => setAutoAssignDrawerOpen(true)}
         >
-          <Repeat className="w-4 h-4 mr-1" /> 자동 배정 (최종 확정)
+          <Repeat className="w-3.5 h-3.5 mr-1" /> 자동 배정 (최종 확정)
         </Button>
 
-        <Button variant="outline" size="sm" onClick={() => setMonthStatusDrawerOpen(true)}>
-          <Settings className="w-4 h-4 mr-1" /> 월 상태변경
+        {/* ⚙️ 기타 */}
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-gray-400 text-gray-700',
+            'hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+          )}
+          onClick={() => setMonthStatusDrawerOpen(true)}
+        >
+          <Settings className="w-3.5 h-3.5 mr-1" /> 월 상태변경
         </Button>
       </div>
 
       {loading && <LoadingSpinner label="전월 데이터 복사 중..." />}
 
-      {/* ✅ 달력 */}
+      {/* ✅ 달력 (상태는 내부에서 표시) */}
       <MassCalendar
         events={events}
-        onDayClick={handleDayClick}
         timezone="Asia/Seoul"
+        onDayClick={handleDayClick}
         onMonthChange={(newMonth) => setCurrentMonth(newMonth)}
+        monthStatus={monthStatus}
+        onOpenMonthStatusDrawer={() => setMonthStatusDrawerOpen(true)}
       />
 
       {/* ✅ Drawer 연결 */}
@@ -249,12 +274,14 @@ const MassEventPlanner: React.FC = () => {
           onClose={handleCloseDrawer}
         />
       )}
-
       <CopyPrevMonthDrawer
         open={copyDrawerOpen}
         onClose={() => setCopyDrawerOpen(false)}
         onConfirm={handleCopyPrevMonth}
+        serverGroupId={serverGroupId!}
+        currentMonth={currentMonth}
       />
+
       <ConfirmMassDrawer
         open={confirmDrawerOpen}
         onClose={() => setConfirmDrawerOpen(false)}

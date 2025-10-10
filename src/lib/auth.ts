@@ -11,17 +11,17 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   type User,
-} from "firebase/auth";
+} from 'firebase/auth';
 
-import { app } from "./firebase";
+import { app } from './firebase';
 
 // Auth 인스턴스
 export const auth = getAuth(app);
 
 // ✅ 개발 환경이면 Auth Emulator 연결
 if (import.meta.env.DEV) {
-  connectAuthEmulator(auth, "http://127.0.0.1:9099");
-  console.log("✅ Auth Emulator 연결됨");
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+  console.log('✅ Auth Emulator 연결됨 (auth.ts)');
 }
 
 // Google Provider
@@ -33,7 +33,7 @@ export async function signInWithGoogle(): Promise<User | null> {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (err) {
-    console.warn("Popup 실패, redirect로 시도:", err);
+    console.warn('Popup 실패, redirect로 시도:', err);
     await signInWithRedirect(auth, googleProvider);
     return null;
   }
@@ -44,7 +44,7 @@ export async function checkRedirectResult(): Promise<User | null> {
     const result = await getRedirectResult(auth);
     return result?.user ?? null;
   } catch (err) {
-    console.error("Redirect 로그인 에러:", err);
+    console.error('Redirect 로그인 에러:', err);
     return null;
   }
 }

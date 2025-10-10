@@ -1,3 +1,4 @@
+import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
@@ -48,15 +49,14 @@ export interface CreateMassEventResponse {
 // ------------------------------------------------------
 // 🔹 Cloud Function 본문
 // ------------------------------------------------------
-export const createMassEvent = functions.https.onCall(
-  async (data: CreateMassEventRequest, context): Promise<CreateMassEventResponse> => {
+export const createMassEvent = onCall(
+  { region: 'asia-northeast3' },
+  async (request: CallableRequest<CreateMassEventRequest>): Promise<CreateMassEventResponse> => {
+    const { data, auth } = request;
+    if (!auth) throw new Error('unauthenticated');
     console.log('📨 [createMassEvent] 호출됨:', JSON.stringify(data));
 
     try {
-      if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', '로그인이 필요합니다.');
-      }
-
       const { serverGroupId, title, date, requiredServers } = data;
       if (!serverGroupId || !title || !date || !requiredServers) {
         throw new functions.https.HttpsError('invalid-argument', '필수 입력값 누락');

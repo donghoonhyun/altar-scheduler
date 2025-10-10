@@ -133,3 +133,21 @@ export interface MassEventSeed {
   member_ids?: string[];
   names?: string[];
 }
+
+export interface CreateServerGroupRequest {
+  parishCode: string;
+  name: string;
+  timezone: string;
+  locale: string;
+  active: boolean;
+}
+
+export interface CreateServerGroupResponse {
+  serverGroupId: string;
+}
+
+export interface AvailabilityDoc {
+  member_id: string;
+  mass_id: string;
+  available: boolean;
+}

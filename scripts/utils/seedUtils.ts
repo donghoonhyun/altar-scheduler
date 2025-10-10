@@ -69,12 +69,12 @@ export async function seedMassEvents(
       });
 
     // ✅ 로그에는 names 표시 (사람이 확인하기 좋음)
-    const nameList = ev.names && ev.names.length ? ev.names.join(', ') : '—';
-    console.log(
-      `✅ ${eventId} → ${dayjs(dateObj).format('YYYY-MM-DD HH:mm')} ${title} (${
-        ev.required_servers
-      }명) => [${nameList}]` + `(members: ${ev.member_ids?.length || 0})`
-    );
+    // const nameList = ev.names && ev.names.length ? ev.names.join(', ') : '—';
+    // console.log(
+    //   `✅ ${eventId} → ${dayjs(dateObj).format('YYYY-MM-DD HH:mm')} ${title} (${
+    //     ev.required_servers
+    //   }명) => [${nameList}]` + `(members: ${ev.member_ids?.length || 0})`
+    // );
 
     seq++;
   }

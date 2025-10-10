@@ -1,81 +1,57 @@
-import { Lock, Clock } from 'lucide-react';
+import React from 'react';
 import { cn } from '@/lib/utils';
+import type { MassStatus } from '@/types/firestore';
 
 interface StatusBadgeProps {
-  status?: string;
-  size?: 'sm' | 'md' | 'lg'; // ✅ lg 추가
+  status?: MassStatus;
+  size?: 'sm' | 'md' | 'lg';
   iconOnly?: boolean;
-  className?: string;
 }
 
-/**
- * ✅ StatusBadge
- * 상태(status)에 따라 색상, 아이콘, Tooltip을 일관되게 표시하는 컴포넌트.
- * - PRD-2.13 8.5 Status & Badge Design System 기반
- */
-export const StatusBadge = ({
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
   status = 'MASS-NOTCONFIRMED',
-  size = 'sm',
+  size = 'md',
   iconOnly = false,
-  className,
-}: StatusBadgeProps) => {
-  const styles: Record<
-    string,
-    { bg: string; text: string; icon: JSX.Element; tooltip: string; label: string }
-  > = {
+}) => {
+  const statusMap: Record<MassStatus, { label: string; icon: string; text: string; bg: string }> = {
     'MASS-NOTCONFIRMED': {
-      bg: 'bg-gray-100',
-      text: 'text-gray-500',
-      icon: <Clock size={14} className="text-gray-400" />, // ⏳ 아이콘
-      tooltip: '미확정',
       label: '미확정',
+      icon: '⏱️',
+      text: 'text-gray-500',
+      bg: 'bg-gray-100 dark:bg-gray-700/50',
     },
     'MASS-CONFIRMED': {
-      bg: 'bg-blue-100',
-      text: 'text-blue-700',
-      icon: <Lock size={14} className="text-blue-500" />,
-      tooltip: '미사일정이 확정됨',
-      label: '미사확정',
+      label: '확정됨',
+      icon: '🔒',
+      text: 'text-blue-500',
+      bg: 'bg-blue-50 dark:bg-blue-900/30',
     },
     'SURVEY-CONFIRMED': {
-      bg: 'bg-amber-100',
-      text: 'text-amber-700',
-      icon: <Lock size={14} className="text-amber-500" />,
-      tooltip: '복사설문이 마감됨',
       label: '설문마감',
+      icon: '🗳️',
+      text: 'text-amber-500',
+      bg: 'bg-amber-50 dark:bg-amber-900/30',
     },
     'FINAL-CONFIRMED': {
-      bg: 'bg-green-100',
-      text: 'text-green-700',
-      icon: <Lock size={14} className="text-green-500" />,
-      tooltip: '최종 확정됨',
       label: '최종확정',
+      icon: '🛡️',
+      text: 'text-green-500',
+      bg: 'bg-green-50 dark:bg-green-900/30',
     },
   };
 
-  const current = styles[status] || styles['MASS-NOTCONFIRMED'];
+  const { label, icon, text, bg } = statusMap[status];
 
-  // ✅ size별 스타일 정의
-  const sizeStyle =
-    size === 'sm'
-      ? 'px-1.5 py-0.5 text-[10px]'
-      : size === 'md'
-      ? 'px-2.5 py-1 text-sm'
-      : 'px-3.5 py-1.5 text-base'; // ✅ lg는 약간 크게
+  const sizeClasses = {
+    sm: 'text-xs px-2 py-[1px] rounded-md',
+    md: 'text-sm px-3 py-1 rounded-lg',
+    lg: 'text-base px-4 py-1.5 rounded-xl',
+  }[size];
 
   return (
-    <div
-      title={current.tooltip}
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full font-semibold',
-        sizeStyle,
-        current.bg,
-        current.text,
-        className
-      )}
-    >
-      {current.icon}
-      {!iconOnly && <span>{current.label}</span>}
+    <div className={cn('inline-flex items-center font-medium select-none', text, bg, sizeClasses)}>
+      <span className="mr-1">{icon}</span>
+      {!iconOnly && <span>{label}</span>}
     </div>
   );
 };

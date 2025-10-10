@@ -76,21 +76,16 @@ export function toLocalDateFromFirestore(
 /* -------------------------------------------------------------------------- */
 /* ✅ dayjs 또는 Date → Firestore Timestamp 변환 (쓰기용)
  * Firestore Timestamp.fromDate()에 직접 사용할 수 있는 Date 반환
+ * PRD-2.4.2.3 TimezoneHandling 정책 준수 (KST 00:00 고정)
  * -------------------------------------------------------------------------- */
 export function fromLocalDateToFirestore(
   date: Dayjs | Date | string,
   tz: string = DEFAULT_TZ
 ): Date {
-  if (dayjs.isDayjs(date)) {
-    return date.tz(tz).toDate();
-  }
-  if (date instanceof Date) {
-    return dayjs(date).tz(tz).toDate();
-  }
-  if (typeof date === 'string') {
-    return dayjs(date).tz(tz).toDate();
-  }
-  throw new Error('Invalid date type for fromLocalDateToFirestore()');
+  const local = dayjs(date).tz(tz).startOf('day');
+
+  // ✅ UTC 변환 금지, 한국시간(UTC+9)을 그대로 유지
+  return local.utcOffset(9, true).toDate();
 }
 
 /* -------------------------------------------------------------------------- */

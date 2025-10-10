@@ -9,6 +9,14 @@ export interface MassEventDB {
   status?: MassStatus;
 }
 
+export interface MassEvent {
+  id: string;
+  title: string;
+  date: string;
+  required_servers: number; // ✅ 추가
+  // ...기타 필드
+}
+
 // 달력 표시용
 export interface MassEventCalendar {
   id: string;

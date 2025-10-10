@@ -252,8 +252,6 @@ export const Heading: React.FC<HeadingProps> = ({
 };
 ```
 
----
-
 ### 8.5 Status & Badge Design System (미사일정 상태 시각 규칙)
 
 - 목적:
@@ -281,8 +279,8 @@ Gray: #F9FAFB
 상태 코드 아이콘 아이콘 색상 의미 Tooltip
 MASS-NOTCONFIRMED ❌ 없음 없음 미확정 상태 없음
 MASS-CONFIRMED 🔒 (Lock) #9CA3AF (회색) 확정됨 (편집 일부 제한) “확정됨”
-SURVEY-CONFIRMED 🔒 (Lock) #F59E0B (노랑) 설문 마감됨 “설문 마감됨”
-FINAL-CONFIRMED 🔒 (Lock) #10B981 (초록) 최종 확정 완료 “최종 확정됨”
+SURVEY-CONFIRMED 🗳️ (Lock) #F59E0B (노랑) 설문 마감됨 “설문 마감됨”
+FINAL-CONFIRMED 🛡️ (Lock) #10B981 (초록) 최종 확정 완료 “최종 확정됨”
 
 📍 구현 기준
 아이콘: lucide-react → Lock
@@ -326,6 +324,125 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
 - 예시 : `<StatusBadge status="FINAL-CONFIRMED" />`
 - 내부적으로 상태 색상, 아이콘, tooltip, 텍스트 일괄 매핑
 - MassCalendar, MassEventDrawer, ServerStats 등 모든 화면에서 공통 사용
+
+#### 8.5.7 toolbar Button Color Guide
+
+- MassEventPlanner / MonthStatusDrawer / MassEventDrawer 내 상단 Toolbar 등에 배치시 가이드
+- 버튼 스타일 원칙 (활성/비활성 두가지로만 구분)
+  . 모든 Toolbar 버튼은 `variant="outline"`, `size="sm"`, `h-7 text-[12px] px-2 py-1` 규격을 사용한다.
+  
+  ```ts
+  | 단계 | 버튼명 | 색상 그룹 | 테두리색 | 텍스트색 | Hover 시 | 설명 |
+  |------|----------|-------------|------------|------------|-----------|----------|
+  | ① 확정 준비 단계 | 전월 미사일정 복사 / 미사 일정 확정 | 🔵 Blue | `border-blue-400` | `text-blue-700` | `hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800` | 미사 일정 생성 및 확정 준비 |
+  | ② 설문 단계 | 설문 링크 보내기 / 설문 종료 | 🟠 Amber | `border-amber-500` | `text-amber-700` | `hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800` | 설문 진행 및 마감 단계 |
+  | ③ 최종 확정 단계 | 자동 배정 (최종 확정) | 🔴 Red | `border-red-500` | `text-red-700` | `hover:bg-red-50 hover:border-red-600 hover:text-red-800` | 자동배정 및 확정 완료 |
+  | ⚙️ 관리 기능 | 월 상태변경 | ⚪ Gray | `border-gray-400` | `text-gray-700` | `hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800` | 설정 / 상태 관리 기능 |
+  ```
+  
+- 시각 정책
+
+  . **활성 버튼:** 파란색 테두리 및 텍스트, hover 시 옅은 파란 배경 강조  
+  . **비활성 버튼:** 연회색 배경 및 흐린 텍스트, hover 효과 없음  
+  . **목적:** 기능별 색상 대신, “현재 조작 가능 여부”만으로 상태를 명확히 구분  
+
+- 예시 코드 (React / Tailwind)
+
+  ```tsx
+  <Button
+    variant="outline"
+    size="sm"
+    className={cn(
+      'h-7 text-[12px] px-2 py-1',
+      'border border-blue-400 text-blue-700',
+      'hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800',
+      'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+    )}
+    disabled={isDisabled}
+  >
+    <Copy className="w-3.5 h-3.5 mr-1" /> 전월 미사일정 복사
+  </Button>
+  ```
+
+#### 8.5.8 Drawer & Dialog UI 표준 구조
+
+- 개요:
+  모든 **Dialog / Drawer 컴포넌트의 상단 헤더 영역**은 일관된 여백 구조와 구분선을 사용한다.  
+  사용자는 다이얼로그가 열렸을 때, 제목–설명–본문의 시각적 구분을 명확히 인식할 수 있어야 한다.
+
+- 구성요소
+
+  ```ts
+  | 구역 | 구성 | 설명 |
+  |------|------|------|
+  | Header | `DialogTitle`, `DialogDescription` | 타이틀 + 간단한 안내문 |
+  | Body | 자유 구성 (Form, Text, Status 등) | 핵심 인터랙션 또는 설명 |
+  | Footer | 버튼 영역 | 항상 우측 정렬 `[취소] [확인]` |
+  ```
+
+  ```ts
+  | 구분 | 규칙 | Tailwind Class | 비고 |
+  |------|------|----------------|------|
+  | Title 하단 여백 | 제목 아래 최소 0.5rem 간격 | `mb-2` | Title과 Description 간 간격 확보 |
+  | Description 하단 여백 | 설명문 아래 구분선 전 최소 0.75rem 간격 | `mb-3` | 시각적 그룹 완성 |
+  | Header와 Body 구분선 | 밝은 회색 라인으로 시각 분리 | `<div class="border-b border-gray-200 dark:border-gray-700 my-3" />` | 모든 Drawer/Dialog 공통 적용 |
+  | Body 시작 여백 | Title 구분선 이후 `mt-3` 적용 | `mt-3` | 콘텐츠와 헤더의 공간 확보 |
+  | 색상 규칙 | 밝은 테마 → `border-gray-200`, 다크 테마 → `border-gray-700` |  | UI 통일성 유지 |
+  ```
+
+- 스타일 가이드
+
+  ```ts
+  | 요소 | Tailwind Class | 설명 |
+  |------|----------------|------|
+  | Title | `flex items-center gap-2 text-lg font-semibold` | 아이콘+제목 일렬 배치 |
+  | Description | `text-sm text-gray-600 mb-4` | 기능 요약 설명 |
+  | Body | `mt-4 text-sm text-gray-700 dark:text-gray-300 space-y-2` | 내용 간격 정리 |
+  | Footer | `flex justify-end gap-2 mt-6` | 버튼 배치 규칙 |
+  | Primary Button | `variant="primary"` | 파란색 계열 기본 버튼 |
+  | Cancel Button | `variant="outline"` | 회색 테두리 버튼 |
+  ```
+
+- 코드 예시:
+
+  ```tsx
+  <Dialog open={open} onOpenChange={onClose}>
+    <DialogContent className="max-w-md p-6">
+      {/* Header */}
+      <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-2">
+        <Clipboard size={20} className="text-blue-600" />
+        전월 미사일정 복사
+        <span className="text-gray-500 text-base ml-1">
+          ({currentMonth.format('YYYY년 M월')})
+        </span>
+      </DialogTitle>
+
+      <DialogDescription className="text-sm text-gray-600 mb-3">
+        전월(<b>{prevMonth.format('YYYY년 M월')}</b>)의 미사 일정을 현재 월(
+        <b>{currentMonth.format('M월')}</b>)로 복사합니다.
+      </DialogDescription>
+
+      {/* ✅ 구분선 */}
+      <div className="border-b border-gray-200 dark:border-gray-700 my-3" />
+
+      {/* Body */}
+      <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+        <p>⚠️ 현재 월의 모든 미사 일정은 삭제된 후 전월 일정으로 교체됩니다.</p>
+        <p>복사 완료 후 캘린더가 자동으로 새로고침됩니다.</p>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end gap-2 mt-6">
+        <Button variant="outline" onClick={onClose}>취소</Button>
+        <Button variant="primary" onClick={handleCopy}>
+          복사 시작
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>
+  ```
+
+---
 
 ## 📌9. Forbidden Page 예시
 

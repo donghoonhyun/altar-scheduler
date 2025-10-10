@@ -19,6 +19,7 @@ export interface Session {
   loading: boolean;
   groupRoles: Record<string, 'planner' | 'server'>;
   currentServerGroupId?: string | null;
+  managerParishes: string[];
 
   // 추가된 필드
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
@@ -29,6 +30,7 @@ const initialSession: Session = {
   loading: true,
   groupRoles: {},
   currentServerGroupId: null,
+  managerParishes: [],
   serverGroups: {},
 };
 

@@ -11,9 +11,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    host: '127.0.0.1', // ✅ 명시적 바인딩
+    port: 5173,
+  },
 });
-
-
-
-
-

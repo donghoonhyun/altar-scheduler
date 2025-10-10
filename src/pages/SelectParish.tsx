@@ -1,7 +1,7 @@
 // src/pages/SelectParish.tsx
-import { useNavigate } from "react-router-dom";
-import { useSession } from "../state/session";
-import { PARISHES } from "../config/parishes"; // ✅ parish 목록 import
+import { useNavigate } from 'react-router-dom';
+import { useSession } from '../state/session';
+import { PARISHES } from '../config/parishes'; // ✅ parish 목록 import
 
 // code → name_kor 매핑 딕셔너리 생성
 const PARISH_MAP = PARISHES.reduce<Record<string, string>>((acc, parish) => {
@@ -27,7 +27,7 @@ export default function SelectParish() {
     <div className="p-6 max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">본당 선택</h1>
       <ul className="space-y-3">
-        {session.managerParishes.map((parishCode) => (
+        {session.managerParishes.map((parishCode: string) => (
           <li key={parishCode}>
             <button
               onClick={() => handleSelect(parishCode)}

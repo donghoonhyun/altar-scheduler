@@ -1,29 +1,22 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
-import { getNextCounter } from "../utils/counter";
+import { onCall, CallableRequest } from 'firebase-functions/v2/https';
+import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+export const createNotification = onCall(
+  { region: 'asia-northeast3' },
+  async (
+    request: CallableRequest<{ message: string; type: string }>
+  ): Promise<{ notificationId: string }> => {
+    const { message, type } = request.data;
 
-export const createNotification = functions.https.onCall(
-  async (data: { message: string; type: string }) => {
-    if (!data.message || !data.type) {
-      throw new functions.https.HttpsError("invalid-argument", "필수 입력값 누락");
-    }
+    const db = admin.firestore();
+    const ref = db.collection('notifications').doc();
 
-    try {
-      const notificationId = await getNextCounter("notifications", "NTF", 5);
+    await ref.set({
+      message,
+      type,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-      await db.collection("notifications").doc(notificationId).set({
-        type: data.type,
-        message: data.message,
-        created_at: Timestamp.now(),
-      });
-
-      return { notificationId };
-    } catch (err) {
-      console.error("🔥 [createNotification] 에러 발생:", err);
-      throw new functions.https.HttpsError("internal", "서버 오류 발생");
-    }
+    return { notificationId: ref.id };
   }
 );

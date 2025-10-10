@@ -1,4 +1,4 @@
-# 📚Altar Scheduler PRD
+# 📚 Altar Scheduler Main PRD (PRD-Main-Altar Scheduler.md)
 
 ## 🎯1. 개요(Overview)
 
@@ -173,10 +173,10 @@
   ③ 'SURVEY-CONFIRMED' (설문 확정)
   ④ 'FINAL-CONFIRMED' (최종 확정)
 - status 상태에 따른 UX 구분 (대표 색상+아이콘)
-  ① 'MASS-NOTCONFIRMED' → css:bg-gray → 없음
-  ② 'MASS-CONFIRMED' → css:bg-blue → 🔒 회색
-  ③ 'SURVEY-CONFIRMED' → css:bg-amber → 🔒 노랑
-  ④ 'FINAL-CONFIRMED' → css:bg-green → 🔒 초록
+  ① 'MASS-NOTCONFIRMED' → css:bg-gray → gray
+  ② 'MASS-CONFIRMED' → css:bg-blue → 🔒 blue
+  ③ 'SURVEY-CONFIRMED' → css:bg-amber → 🗳️ amber
+  ④ 'FINAL-CONFIRMED' → css:bg-green → 🛡️green
 
 #### 2.4.2 달력 기반 일정 보기/편집
 
@@ -283,7 +283,7 @@
 
 - 버튼 활성화 조건 : 선택된 월이 today()의 금월 또는 다음월에서만 버튼 활성화됨.
 - 버튼 클릭 시 : MassEventPlanner에서 선택된 월의 MonthStatusDrawer 화면 표시.
-  (프로젝트 파일 PRD 2.4.9 MassEvent Drawer.md 참조)
+  (프로젝트 파일 PRD-2.5.7-MonthStatus Drawer.md 참조)
 
 ---
 

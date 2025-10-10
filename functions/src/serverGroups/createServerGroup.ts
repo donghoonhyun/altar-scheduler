@@ -1,45 +1,37 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
-import { getNextCounter } from "../utils/counter";
-import {
-  CreateServerGroupRequest,
-  CreateServerGroupResponse,
-} from "../types/firestore";
+import { onCall, CallableRequest } from 'firebase-functions/v2/https';
+import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+interface CreateServerGroupRequest {
+  parishCode: string;
+  name: string;
+  timezone: string;
+  locale: string;
+  active: boolean;
+}
 
-export const createServerGroup = functions.https.onCall(
+interface CreateServerGroupResponse {
+  serverGroupId: string;
+}
+
+export const createServerGroup = onCall(
+  { region: 'asia-northeast3' },
   async (
-    data: CreateServerGroupRequest
+    request: CallableRequest<CreateServerGroupRequest>
   ): Promise<CreateServerGroupResponse> => {
-    const { parishCode, name, timezone, locale, active } = data;
+    const { parishCode, name, timezone, locale, active } = request.data;
 
-    if (!parishCode || !name || !timezone || !locale) {
-      throw new functions.https.HttpsError("invalid-argument", "필수 입력값 누락");
-    }
+    const db = admin.firestore();
+    const ref = db.collection('server_groups').doc();
 
-    try {
-      // ✅ 공통 counter 유틸 사용
-      const serverGroupId = await getNextCounter("server_groups", "SG", 5);
+    await ref.set({
+      parishCode,
+      name,
+      timezone,
+      locale,
+      active,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-      await db.collection("server_groups").doc(serverGroupId).set({
-        parish_code: parishCode,
-        name,
-        timezone,
-        locale,
-        active,
-        created_at: Timestamp.now(),
-        updated_at: Timestamp.now(),
-      });
-
-      return { serverGroupId };
-    } catch (err) {
-      console.error("🔥 [createServerGroup] 에러 발생:", err);
-      throw new functions.https.HttpsError(
-        "internal",
-        "서버 오류 발생: " + (err as Error).message
-      );
-    }
+    return { serverGroupId: ref.id };
   }
 );

@@ -7,8 +7,7 @@ import { Button, Card, Container, Heading } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { MassEventCalendar } from '@/types/massEvent';
-import { toLocalDateFromFirestore } from '@/lib/dateUtils'; // ✅ 상단 import 추가
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { toLocalDateFromFirestore } from '@/lib/dateUtils';
 import type { MassStatus } from '@/types/firestore';
 
 dayjs.extend(utc);
@@ -16,9 +15,12 @@ dayjs.extend(timezone);
 
 interface MassCalendarProps {
   events?: MassEventCalendar[];
+  highlightServerName?: string;
   onDayClick?: (date: Date, eventId?: string) => void;
-  onMonthChange?: (month: dayjs.Dayjs) => void; // ✅ 추가
+  onMonthChange?: (month: dayjs.Dayjs) => void;
   timezone?: string;
+  monthStatus?: MassStatus;
+  onOpenMonthStatusDrawer?: () => void;
 }
 
 export default function MassCalendar({
@@ -26,35 +28,30 @@ export default function MassCalendar({
   onDayClick,
   onMonthChange,
   timezone = 'Asia/Seoul',
+  monthStatus,
+  onOpenMonthStatusDrawer,
 }: MassCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(dayjs().tz(timezone).startOf('month'));
-  const [filterStatus, setFilterStatus] = useState<MassStatus | 'ALL'>('ALL');
-
   const today = dayjs().tz(timezone).format('YYYY-MM-DD');
   const startOfMonth = currentMonth.startOf('month');
   const endOfMonth = currentMonth.endOf('month');
   const daysInMonth = endOfMonth.date();
   const startDay = startOfMonth.day();
 
-  // ✅ currentMonth 변경 시 부모에 알림
   useEffect(() => {
-    if (onMonthChange) onMonthChange(currentMonth);
+    onMonthChange?.(currentMonth);
   }, [currentMonth, onMonthChange]);
 
-  // ✅ 필터 적용
-  const filteredEvents =
-    filterStatus === 'ALL' ? events : events.filter((ev) => ev.status === filterStatus);
-
-  // ✅ 날짜별 그룹화
+  // 날짜별 이벤트 그룹
   const eventsByDate: Record<string, MassEventCalendar[]> = {};
-  filteredEvents.forEach((event) => {
+  events.forEach((event) => {
     const eventDate = toLocalDateFromFirestore(event.date, timezone);
     const key = eventDate.format('YYYY-MM-DD');
     if (!eventsByDate[key]) eventsByDate[key] = [];
     eventsByDate[key].push(event);
   });
 
-  // ✅ 날짜 셀 생성
+  // 날짜 셀 구성
   const cells: JSX.Element[] = [];
   for (let i = 0; i < startDay; i++) cells.push(<div key={`empty-${i}`} className="p-3" />);
 
@@ -71,8 +68,7 @@ export default function MassCalendar({
         key={dateStr}
         onClick={() => onDayClick?.(date.toDate())}
         className={cn(
-          'border rounded-xl p-2 min-h-[90px] flex flex-col justify-start transition-all duration-200 cursor-pointer',
-          'hover:shadow-md',
+          'border rounded-xl p-2 min-h-[90px] flex flex-col justify-start transition-all duration-200 cursor-pointer hover:shadow-md',
           isSunday
             ? 'bg-pink-50 dark:bg-pink-900/20'
             : isSaturday
@@ -95,7 +91,7 @@ export default function MassCalendar({
           {d}
         </div>
 
-        {/* 미사 일정 카드 */}
+        {/* 미사 일정 */}
         {dayEvents.map((ev) => (
           <div
             key={ev.id}
@@ -107,18 +103,14 @@ export default function MassCalendar({
                        dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 
                        flex flex-col gap-1 transition-all duration-200"
           >
-            {/* 제목 + 상태 */}
-            <div className="flex justify-between items-center">
-              <div className="text-xs font-medium text-gray-800 dark:text-gray-100">
-                {ev.title}
-                {ev.required_servers && (
-                  <span className="ml-1 text-[10px] text-gray-500">({ev.required_servers}명)</span>
-                )}
-              </div>
-              <StatusBadge status={ev.status || 'MASS-NOTCONFIRMED'} iconOnly size="sm" />
+            <div className="text-xs font-medium text-gray-800 dark:text-gray-100">
+              {ev.title}
+              {ev.required_servers && (
+                <span className="ml-1 text-[10px] text-gray-500">({ev.required_servers}명)</span>
+              )}
             </div>
 
-            {/* 복사명 표시 */}
+            {/* 복사명 */}
             {ev.servers && ev.servers.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {ev.servers.slice(0, 3).map((s, i) => (
@@ -144,73 +136,66 @@ export default function MassCalendar({
   return (
     <Container>
       <Card className="fade-in">
-        {/* 📅 월 네비게이션 */}
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-2">
+        {/* ✅ 상단 헤더 : 년월 + '오늘' 버튼 + 상태배지 + 범례 */}
+        <div className="flex justify-between items-center mb-3">
+          {/* 왼쪽: 년월 + 오늘 버튼 */}
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => setCurrentMonth(currentMonth.subtract(1, 'month'))}
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </Button>
-            <Heading size="md">{currentMonth.format('YYYY년 M월')}</Heading>
-            <Button variant="ghost" onClick={() => setCurrentMonth(currentMonth.add(1, 'month'))}>
-              <ChevronRight size={18} />
+
+            <Heading size="sm" className="text-gray-800 dark:text-gray-100">
+              {currentMonth.format('YYYY년 M월')}
+            </Heading>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(currentMonth.add(1, 'month'))}
+            >
+              <ChevronRight size={16} />
+            </Button>
+
+            {/* ▶ 오늘 버튼 (작게 조정) */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[11px] px-2 py-0 h-6 ml-1"
+              onClick={() => setCurrentMonth(dayjs().tz(timezone).startOf('month'))}
+            >
+              <CalendarDays size={12} className="mr-1" /> 오늘
             </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentMonth(dayjs().tz(timezone).startOf('month'))}
-          >
-            <CalendarDays size={16} className="mr-1" /> 오늘
-          </Button>
-        </div>
-        {/* ✅ 상태 필터 (ToggleGroup) */}
-        <div className="w-full flex justify-center mb-4">
-          <ToggleGroup
-            type="single"
-            value={filterStatus}
-            onValueChange={(val: string | undefined) => {
-              if (val) setFilterStatus(val as MassStatus | 'ALL');
-            }}
-            className="flex gap-2 flex-wrap justify-center"
-          >
-            {(
-              [
-                { code: 'ALL', label: '전체', color: 'gray' },
-                { code: 'MASS-NOTCONFIRMED', label: '미확정', color: 'gray' },
-                { code: 'MASS-CONFIRMED', label: '미사확정', color: 'blue' },
-                { code: 'SURVEY-CONFIRMED', label: '설문종료', color: 'amber' },
-                { code: 'FINAL-CONFIRMED', label: '최종확정', color: 'green' },
-              ] as const
-            ).map(({ code, label, color }) => {
-              const isActive = filterStatus === code;
-              const baseClasses =
-                'flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm font-medium shadow-sm transition-all duration-200';
 
-              return (
-                <ToggleGroupItem
-                  key={code}
-                  value={code}
-                  aria-label={label}
-                  className={cn(
-                    baseClasses,
-                    isActive
-                      ? `bg-${color}-100 border-${color}-500 text-${color}-700`
-                      : 'bg-gray-50 dark:bg-gray-700 border-gray-300 text-gray-600',
-                    'hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none'
-                  )}
-                >
-                  {code !== 'ALL' && <StatusBadge status={code as MassStatus} iconOnly size="sm" />}
-                  <span>{label}</span>
-                </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
+          {/* 오른쪽: 상태배지 + 범례 */}
+          <div className="flex items-center gap-3">
+            <div onClick={onOpenMonthStatusDrawer} className="cursor-pointer">
+              <StatusBadge status={monthStatus} size="md" />
+            </div>
+
+            <div className="text-[11px] text-gray-500 flex gap-2">
+              <span className="flex items-center gap-1">
+                (⏱️ <span className="text-gray-500">미확정</span>
+              </span>
+              <span className="flex items-center gap-1">
+                🔒 <span className="text-blue-500">확정됨</span>
+              </span>
+              <span className="flex items-center gap-1">
+                🗳️ <span className="text-amber-500">설문마감</span>
+              </span>
+              <span className="flex items-center gap-1">
+                🛡️ <span className="text-green-500">최종확정</span>)
+              </span>
+            </div>
+          </div>
         </div>
-        {/* 📅 요일 헤더 */}
-        <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
+
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">
           {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
             <div
               key={d}
@@ -219,14 +204,15 @@ export default function MassCalendar({
                   ? 'text-red-500 dark:text-red-400'
                   : i === 6
                   ? 'text-blue-500 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-300'
+                  : ''
               )}
             >
               {d}
             </div>
           ))}
         </div>
-        {/* 📆 날짜 셀 */}
+
+        {/* 날짜 셀 */}
         <div className="grid grid-cols-7 gap-2 mt-2">{cells}</div>
       </Card>
     </Container>

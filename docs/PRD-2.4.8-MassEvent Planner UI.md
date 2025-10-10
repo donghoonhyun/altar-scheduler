@@ -1,6 +1,6 @@
 # PRD 2.4.4 MassEvent Planner
 
-## 🧩 섹션 개요
+## 🧩 1. 섹션 개요
 
 본 섹션은 **MassEventPlanner 페이지**의 기능, 데이터 흐름, Drawer 인터랙션 및 Firestore 연동 정책을 정의한다.
 이 페이지는 복사단의 미사 일정을 생성·수정·삭제하고, `MassCalendar` 컴포넌트를 통해 일정 현황을 시각적으로 표시한다.
@@ -9,9 +9,9 @@
 
 ---
 
-## 🧩 구성 구조
+## 🧩 2. 구성 구조
 
-```text
+```ts
 MassEventPlanner
 ├── 상단 제목 및 Tool Bar 버튼 라인
 │ ├── [전월 미사일정 복사]
@@ -21,14 +21,14 @@ MassEventPlanner
 │ ├── [자동 배정]
 │ └── [월 상태변경]
 ├── MassCalendar (달력 형태 일정 표시)
-│ └── 상태 필터 (ToggleGroup 기반)
+│ └── 상태/범례 표시
 ├── MassEventDrawer (일정 추가/수정/삭제 Drawer)
 └── MonthStatusDrawer (월별 상태 일괄 변경 Drawer)
 ```
 
 ---
 
-## 🧩 주요 기능 요약
+## 🧩 3. 주요 기능 요약
 
 | 기능       | 설명                                                                                      |
 | -------- | --------------------------------------------------------------------------------------- |
@@ -40,7 +40,7 @@ MassEventPlanner
 
 ---
 
-## 🧩 데이터 구조
+## 🧩 4. 데이터 구조
 
 Firestore 컬렉션 경로:
 `server_groups/{serverGroupId}/mass_events/{eventId}`
@@ -56,7 +56,7 @@ Firestore 컬렉션 경로:
 
 ---
 
-## 🧩 UI / UX 규칙
+## 🧩 5. UI / UX 규칙
 
 ```lua
 | 컴포넌트                        | 규칙                                                   |
@@ -67,7 +67,15 @@ Firestore 컬렉션 경로:
 | **삭제 후 동작**                 | Drawer 닫기 + Firestore onSnapshot으로 자동 반영             |
 ```
 
-### 상단 헤더 배치 규칙
+### 5.1 렌더링 흐름
+
+1. useMassEvents(serverGroupId) → 미사 일정 실시간 구독
+2. useMonthStatus(serverGroupId, currentMonth) → 월 상태 구독
+3. 상단 툴바 표시
+4. MassCalendar 렌더링 (monthStatus 전달)
+5. 이벤트 클릭 시 MassEventDrawer 오픈
+
+### 5.2 상단 헤더 배치 규칙
 
 - 목적: 사용자가 현재 보고 있는 월 상태(Status) 와 대상 월(YYYY년 M월) 을 명확히 인지할 수 있도록, 상단 헤더를 좌측 제목 + 중앙 월 상태 카드 구성으로 통일한다.
 
@@ -81,14 +89,22 @@ Firestore 컬렉션 경로:
 
 ---
 
-## 🧩 데이터 흐름 및 상호작용
+## 🧩 6. 데이터 흐름 및 상호작용
 
 - 달력 이동 :         MassCalendar → onMonthChange() 호출 → Planner의 currentMonth 갱신
 - 월상태 변경 :       Planner → MonthStatusDrawer 호출 시 현재 월 전달 (currentMonth)
 - Drawer 쿼리 기준 :  전달받은 currentMonth.startOf('month') ~ endOf('month') 범위
 - 상태 필터링 :       ToggleGroup 선택값(filterStatus)에 따라 UI 실시간 필터링
 
-## 🧩 이벤트 핸들링 흐름
+### 6.1 Props 정의
+
+```ts
+interface MassEventPlannerProps {
+  serverGroupId: string;
+}
+```
+
+## 🧩 7. 이벤트 핸들링 흐름
 
 ### ① 날짜 클릭 시 (새 일정 생성)
 
@@ -121,13 +137,14 @@ onClose() => {
 
 ---
 
-## 🧩 상태 전이 규칙
+## 🧩 8. 상태 전이 규칙
 
-| 이전 상태               | 전이 후 상태            | 전이 조건      |
+| 이전 상태            | 전이 후 상태         | 전이 조건      |
 | ------------------- | ------------------ | ---------- |
-| `MASS-NOTCONFIRMED` | `SURVEY-CONFIRMED` | 설문 결과로 확정됨 |
+| `MASS-NOTCONFIRMED` | `MASS-CONFIRMED`   | 미사일정 확정됨 |
+| `MASS-CONFIRMED`    | `SURVEY-CONFIRMED` | 설문마감 결과확정됨 |
 | `SURVEY-CONFIRMED`  | `FINAL-CONFIRMED`  | 관리자 승인 완료  |
-| `FINAL-CONFIRMED`   | (변경 불가)            | 잠금 상태 유지   |
+| `FINAL-CONFIRMED`   | (변경 불가)         | 잠금 상태 유지   |
 
 Drawer에서는 상태 전이에 따라 버튼/아이콘 색상이 다르게 표시된다.
 
@@ -150,13 +167,9 @@ Drawer에서는 상태 전이에 따라 버튼/아이콘 색상이 다르게 표
 
 ---
 
-## 🧩 Props 정의
-
-```ts
-interface MassEventPlannerProps {
-  serverGroupId: string;
-}
-```
+- monthStatus: useMonthStatus(serverGroupId, currentMonth) 훅을 통해 가져와서 MassCalendar에 전달
+- MassCalendar: `<MassCalendar monthStatus={monthStatus} ... />` 형태로 호출
+- MonthStatusDrawer: Planner Toolbar의 [월 상태변경] 버튼을 통해 호출
 
 ## 🧩 기술 의존성
 

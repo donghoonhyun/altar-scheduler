@@ -2,44 +2,59 @@ import { useEffect, useState } from 'react';
 import {
   getFirestore,
   collection,
+  query,
+  where,
   onSnapshot,
   QuerySnapshot,
   DocumentData,
+  orderBy,
 } from 'firebase/firestore';
 import { getMemberNamesByIds } from '@/lib/firestore';
-import { toLocalDateFromFirestore } from '@/lib/dateUtils';
+import { toLocalDateFromFirestore, fromLocalDateToFirestore } from '@/lib/dateUtils';
 import type { MassEventCalendar } from '@/types/massEvent';
 import type { MassStatus } from '@/types/firestore';
+import dayjs from 'dayjs';
 
 /**
- * ✅ useMassEvents (실시간 리스너 + Timezone 적용 버전)
+ * ✅ useMassEvents (월 단위 Firestore where 버전)
  * ---------------------------------------------------------
  * 목적:
- *  - 특정 복사단(serverGroupId)의 미사일정을 실시간으로 구독
- *  - 각 일정의 member_ids를 이름 배열로 변환
- *  - PRD-2.4.2.3 TimezoneHandling 정책 준수
+ *  - 특정 복사단(serverGroupId)의 특정 월(currentMonth) 일정만 실시간 구독
+ *  - Firestore 쿼리 최적화 (UTC-safe)
+ *  - TimezoneHandling 정책 준수 (Asia/Seoul)
  * ---------------------------------------------------------
  * 반환:
  *  { events, loading, error }
  * ---------------------------------------------------------
  */
-export function useMassEvents(serverGroupId?: string) {
+export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs) {
   const db = getFirestore();
   const [events, setEvents] = useState<MassEventCalendar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!serverGroupId) return;
+    if (!serverGroupId || !currentMonth) return;
+
+    const tz = 'Asia/Seoul';
+
+    // ✅ Firestore에서 UTC-safe 범위 설정
+    const start = fromLocalDateToFirestore(currentMonth.startOf('month'), tz);
+    const end = fromLocalDateToFirestore(currentMonth.endOf('month').add(1, 'day'), tz);
 
     const colRef = collection(db, 'server_groups', serverGroupId, 'mass_events');
+    const q = query(
+      colRef,
+      where('date', '>=', start),
+      where('date', '<', end),
+      orderBy('date', 'asc')
+    );
 
     // ✅ Firestore 실시간 리스너 등록
     const unsubscribe = onSnapshot(
-      colRef,
+      q,
       async (snapshot: QuerySnapshot<DocumentData>) => {
         try {
-          // 병렬 처리용 Promise.all
           const list = await Promise.all(
             snapshot.docs.map(async (docSnap) => {
               const d = docSnap.data();
@@ -69,6 +84,7 @@ export function useMassEvents(serverGroupId?: string) {
           setEvents(list);
           setLoading(false);
           setError(null);
+          console.log(`📆 [useMassEvents] ${currentMonth.format('YYYY-MM')} → ${list.length} docs`);
         } catch (err) {
           console.error('🔥 useMassEvents snapshot error:', err);
           setError(err instanceof Error ? err.message : String(err));
@@ -82,9 +98,9 @@ export function useMassEvents(serverGroupId?: string) {
       }
     );
 
-    // ✅ cleanup: 컴포넌트 unmount 시 구독 해제
+    // ✅ cleanup
     return () => unsubscribe();
-  }, [serverGroupId, db]);
+  }, [serverGroupId, currentMonth, db]);
 
   return { events, loading, error };
 }

@@ -21,6 +21,8 @@ altar-scheduler/
 │   │   ├── serverGroups/             # 복사단 관련 함수
 │   │   │   └── createServerGroup.ts
 │   │   ├── massEvents/               # 미사일정 관련 함수
+│   │   │   ├── copyPrevMonth.ts
+│   │   │   ├── autoServerAssignment.ts
 │   │   │   └── createMassEvent.ts
 │   │   ├── notifications/            # 알림 관련 함수
 │   │   │   └── createNotification.ts
@@ -103,7 +105,7 @@ altar-scheduler/
 │   ├── e2e/                          # Cypress: 역할별 접근/버튼/쓰기 권한 스모크
 │   └── unit/
 ├── docs/                             # 🔹PRD/아키/운영가이드
-│   ├── PRD-Altar Scheduler.md
+│   ├── PRD-Main-Altar Scheduler.md   # Main PRD 파일
 │   ├── Firestore Collections Structure.txt
 │   └── Folder Structure of App.txt
 ├── scripts/                          # 🔹루트 실행 스크립트(배포/시드/마이그레이션)
