@@ -34,7 +34,13 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!serverGroupId || !currentMonth) return;
+    // ✅ 파라미터 누락 방어
+    if (!serverGroupId || !currentMonth) {
+      setEvents([]);
+      setError(null);
+      setLoading(false);
+      return; // ❗ 이 부분은 void 반환 (cleanup 아님)
+    }
 
     const tz = 'Asia/Seoul';
 
@@ -62,19 +68,16 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
               const servers =
                 memberIds.length > 0 ? await getMemberNamesByIds(serverGroupId, memberIds) : [];
 
-              // 🔹 Timezone 변환 (fallback: Asia/Seoul)
               const tz = d.timezone || 'Asia/Seoul';
               const localDayjs = toLocalDateFromFirestore(d.date, tz);
               const formattedDate = localDayjs.format('YYYY-MM-DD');
-
-              // 🔹 MassStatus 타입 강제
               const status: MassStatus = (d.status as MassStatus) || 'MASS-NOTCONFIRMED';
 
               return {
                 id: docSnap.id,
                 title: d.title,
                 date: formattedDate,
-                required_servers: d.required_servers,
+                required_servers: d.required_servers ?? 0,
                 servers,
                 status,
               } satisfies MassEventCalendar;
@@ -84,7 +87,7 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
           setEvents(list);
           setLoading(false);
           setError(null);
-          console.log(`📆 [useMassEvents] ${currentMonth.format('YYYY-MM')} → ${list.length} docs`);
+          // console.log(`📆 [useMassEvents] ${currentMonth.format('YYYY-MM')} → ${list.length} docs`);
         } catch (err) {
           console.error('🔥 useMassEvents snapshot error:', err);
           setError(err instanceof Error ? err.message : String(err));

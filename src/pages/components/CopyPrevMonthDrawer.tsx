@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Button } from '@/components/ui/button';
 import { Clipboard, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { getFunctions, httpsCallable, HttpsCallableResult } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
+import { functions, db } from '@/lib/firebase'; // ✅ db 포함
+import { doc, getDoc } from 'firebase/firestore';
 import dayjs from 'dayjs';
 
 interface CopyPrevMonthDrawerProps {
@@ -14,20 +16,19 @@ interface CopyPrevMonthDrawerProps {
   currentMonth: dayjs.Dayjs;
 }
 
-/** 🔹 Cloud Function 응답 타입 */
 interface CopyPrevMonthResponse {
   ok: boolean;
   message: string;
 }
 
-/** 🔹 Cloud Function 요청 타입 */
 interface CopyPrevMonthRequest {
   serverGroupId: string;
   currentMonth: string;
 }
 
 /**
- * CopyPrevMonthDrawer (Cloud Function 연동)
+ * ✅ CopyPrevMonthDrawer
+ * - 전월 상태('MASS-CONFIRMED')일 때만 복사 허용
  */
 const CopyPrevMonthDrawer: React.FC<CopyPrevMonthDrawerProps> = ({
   open,
@@ -37,39 +38,77 @@ const CopyPrevMonthDrawer: React.FC<CopyPrevMonthDrawerProps> = ({
   currentMonth,
 }) => {
   const [loading, setLoading] = useState(false);
-  const functions = getFunctions();
   const prevMonth = currentMonth.subtract(1, 'month');
+
+  /** 🔹 전월 상태 확인 */
+  const checkPrevMonthStatus = async (): Promise<boolean> => {
+    try {
+      const prevMonthKey = prevMonth.format('YYYYMM');
+      const ref = doc(db, `server_groups/${serverGroupId}/month_status/${prevMonthKey}`);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        alert(`⚠️ ${prevMonth.format('M월')} 상태 문서가 존재하지 않습니다.`);
+        return false;
+      }
+
+      const data = snap.data();
+      const status = data.status;
+
+      if (status !== 'MASS-CONFIRMED') {
+        alert(
+          `⚠️ ${prevMonth.format(
+            'M월'
+          )} 상태가 '확정' 상태가 아닙니다.\n\n확정 상태에서만 전월 일정을 복사할 수 있습니다.`
+        );
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      console.error('Month status check error:', e);
+      alert('전월 상태 확인 중 오류가 발생했습니다.');
+      return false;
+    }
+  };
 
   /** 🔹 Cloud Function 호출 */
   const handleCopyViaCF = async (): Promise<void> => {
     if (!serverGroupId) return;
+
+    // ✅ 먼저 전월 상태 확인
+    const canCopy = await checkPrevMonthStatus();
+    if (!canCopy) return;
+
+    // ✅ 사용자 확인
+    const ok = window.confirm(
+      `전월(${prevMonth.format('M월')}) 일정을 현재 월(${currentMonth.format(
+        'M월'
+      )})로 복사하시겠습니까?\n\n⚠️ 현재 월의 모든 미사 일정이 삭제된 뒤 전월 패턴으로 덮어씌워집니다.\n이 작업은 되돌릴 수 없습니다.`
+    );
+    if (!ok) return;
+
     try {
       setLoading(true);
 
-      // ✅ 타입 명시로 any 제거
       const copyPrevMonth = httpsCallable<CopyPrevMonthRequest, CopyPrevMonthResponse>(
         functions,
         'copyPrevMonthMassEvents'
       );
 
-      const res: HttpsCallableResult<CopyPrevMonthResponse> = await copyPrevMonth({
+      const res = await copyPrevMonth({
         serverGroupId,
-        currentMonth: currentMonth.format('YYYY-MM-DD'),
+        currentMonth: currentMonth.format('YYYY-MM'),
       });
 
       const result = res.data;
-      if (result.ok) {
-        toast.success(result.message);
-      } else {
-        toast.warning(result.message);
-      }
+      if (result.ok) toast.success(result.message);
+      else toast.warning(result.message);
 
-      onConfirm?.();
+      await onConfirm?.();
       onClose?.();
     } catch (err) {
-      // ⚠️ 안전한 타입 내러잉 (unknown → Error)
       const e = err as Error;
-      console.error('❌ copyPrevMonthMassEvents failed:', e);
       toast.error(e.message || '전월 미사일정 복사 중 오류 발생');
     } finally {
       setLoading(false);

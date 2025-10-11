@@ -16,7 +16,9 @@
     "start": "firebase emulators:start --only functions",
     "deploy": "npm run build && firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "dev": "npm run build:watch & firebase emulators:start --only functions"
+    "dev": "npm run build:watch & firebase emulators:start --only functions",
+    "test:func": "ts-node scripts/testFunction.ts",
+    "watch:test": "ts-node-dev --respawn --transpile-only scripts/testFunction.ts copyPrevMonthMassEvents '{\"serverGroupId\":\"SG00001\",\"currentMonth\":\"2025-10\"}'"
   },
   "dependencies": {
     "csv-parser": "^3.2.0",
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@types/express": "^5.0.3",
     "eslint": "^8.57.1",
+    "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^7.9.0"
   }

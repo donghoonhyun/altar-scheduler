@@ -1,4 +1,4 @@
-# Firestore Collections Structure (Altar Scheduler)
+# PRD 3.4.2 Firestore Collections Structure (Altar Scheduler)
 
 ```lua
 server_groups/{serverGroupId}

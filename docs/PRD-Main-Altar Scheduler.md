@@ -11,8 +11,9 @@
   복사들도 자신의 스케쥴을 쉽게 알수 있어야 함
 - 아래 프로젝트 파일들을 보조로 함께 참고해야함:  
   . Folder Structure of App.txt: App의 폴더와 파일 기본 구조
+  . PRD-2.13-App-UIUX.md: App의 UI/UX 기본 구조
   . PRD-2.4.2.3-TimezoneHandling.md: 글로벌사용을 위한 timezone 처리가이드
-  . Firestore Collections.md: Firebase Firestore의 컬렉션과 doc 구조 설명
+  . Firestore Collections.md: Firebase Firestore의 컬렉션과 doc 구조 설명  
   . 개발표준가이드 지침.txt: 그외 개발가이드
 
 ### 📍1.1 현재의 '복사 스케쥴링' 프로세스(AS-IS)
@@ -39,7 +40,10 @@
 
 ### 📍2.1 사용자 인증
 
-- 구글 계정을 통한 로그인 (Redirect / Popup 지원) : Android / iOS 둘다 지원해야함, 이후 kakao 등 확대 예정
+- Firebase Authentication 모듈 사용
+- 멀티인증: 다양한 인증 방식을 지원할 계획이지만 우선 구글 계정을 통한 로그인만 지원 (Redirect / Popup).
+  . Android / iOS 둘다 지원해야함
+  .이후 kakao 등 확대 예정
 - 역할 기반 접근 제어: Planner / Server
 
 #### 2.1.1 사용자 진입 routing
@@ -373,7 +377,7 @@
 
 ### 📍2.13 App UI & UX
 
-- 세부 내용은 [PRD-2.13-App-UIUX.md] 참조
+- 프로젝트 파일 'PRD-2.13-App-UIUX.md' 파일 내용을 참고함.
 - 반응형 웹UI 시스템
 
 #### 2.13.1 Layout 구조
@@ -463,22 +467,15 @@
   . `memberships/server-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "server" }`  
   . `server_groups/SG0001` → `{ parish_code: "DAEGU-BEOMEO", name: "범어성당 복사단 1그룹" }`  
 
-### 📍3.4 Google Firebase app config
+### 📍3.4 Google Firebase 환경
 
-- 앱이름 : Altar Scheduler
-- const firebaseConfig = {
-  apiKey: " ",
-  authDomain: "altar-scheduler-dev.firebaseapp.com",
-  projectId: "altar-scheduler-dev",
-  storageBucket: "altar-scheduler-dev.firebasestorage.app",
-  messagingSenderId: "675620470359",
-  appId: "1:675620470359:web:5bf093ffed79f292c2ad12",
-  measurementId: "G-S1FVFYKDVH"
-  };
+#### 3.4.1 Firebase 환경구성
 
-### 3.4.1 Firestore doc modeling (서브컬렉션로 단위 격리)
+- 프로젝트 파일 'PRD-3.4.1-Firebase Setup.md' 파일 내용을 참고함.
 
-- 프로젝트 파일 'PRD-2.4.1-Firestore doc Modeling.md' 파일 내용을 참고함.
+### 3.4.2 Firestore doc modeling (서브컬렉션로 단위 격리)
+
+- 프로젝트 파일 'PRD-3.4.2-Firestore doc Modeling.md' 파일 내용을 참고함.
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 
 ## 🎯4. 향후 확장

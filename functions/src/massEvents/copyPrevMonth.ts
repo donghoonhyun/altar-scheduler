@@ -17,10 +17,6 @@ interface MassEventDoc {
   updated_at?: Date;
 }
 
-/**
- * copyPrevMonthMassEvents
- * 전월(첫 주 일요일 포함 주) 패턴을 기준으로 현재 월 전체 복사
- */
 export const copyPrevMonthMassEvents = onCall(
   { region: 'asia-northeast3' },
   async (
@@ -29,19 +25,36 @@ export const copyPrevMonthMassEvents = onCall(
     const { serverGroupId, currentMonth } = request.data;
     const auth = request.auth;
 
-    if (!auth) {
-      throw new Error('unauthenticated');
-    }
-
-    if (!serverGroupId || !currentMonth) {
+    if (!auth) throw new Error('unauthenticated');
+    if (!serverGroupId || !currentMonth)
       throw new Error('invalid arguments: serverGroupId and currentMonth required');
-    }
 
     const db = admin.firestore();
-
     const currMonth = dayjs.tz(currentMonth, 'Asia/Seoul').startOf('month');
     const prevMonth = currMonth.subtract(1, 'month');
+
     const batch = db.batch();
+
+    // ✅ (NEW) 전월 상태 확인
+    const prevMonthKey = prevMonth.format('YYYYMM'); // ex: 202509
+    const statusRef = db.doc(`server_groups/${serverGroupId}/month_status/${prevMonthKey}`);
+    const statusSnap = await statusRef.get();
+
+    if (!statusSnap.exists) {
+      return { ok: false, message: `${prevMonth.format('M월')} 상태 문서가 존재하지 않습니다.` };
+    }
+
+    const statusData = statusSnap.data() || {};
+    const monthStatus = statusData.status;
+
+    if (monthStatus !== 'MASS-CONFIRMED') {
+      return {
+        ok: false,
+        message: `${prevMonth.format(
+          'M월'
+        )} 상태가 확정(MASS-CONFIRMED)이 아닙니다. 전월이 확정 상태일 때만 복사 가능합니다.`,
+      };
+    }
 
     // 🔹 1. 기존 일정 삭제
     const currSnap = await db
