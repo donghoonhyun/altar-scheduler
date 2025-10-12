@@ -1,6 +1,10 @@
 # App Folder & Files Structure (Folder Structure of App.txt 파일)
 
 altar-scheduler/
+├── .env
+├── .env.local
+├── .env.development
+├── .env.production
 ├── backup/                           # 🔹 데이터/설정 백업용
 │   └── sample_data/                  # 🔹 일회성 import 샘플 데이터(CSV 등)
 ├── dist/                             # 🔹 빌드 결과물 (vite, tsc 등)
@@ -36,6 +40,7 @@ altar-scheduler/
 │   ├── config/
 │   │   └── parishes.ts               # 기초정보 - 본당 카탈로그(JSON) — parish_code SSOT
 │   ├── lib/
+│   │   ├── env.ts                    # env 파일 변환, base URL 유틸
 │   │   ├── utiles.md                 # 클래스 병합 유틸 (shadcn 표준)
 │   │   ├── dateUtiles.md             # dayjs 기반 날짜/시간 변환 (timezone 대응)
 │   │   ├── firebase.ts               # Firebase 초기화 (현재 안씀)
@@ -75,7 +80,7 @@ altar-scheduler/
 │   │   ├── MassEventPlanner.tsx      # 미사 일정/설문/배정 (2.6 섹션)
 │   │   ├── SelectServerGroup.tsx     # 복수 소속 시 복사단 선택
 │   │   ├── SelectParish.tsx          # manager-only 본당 선택(복사단 리스트 뷰로 이동)
-│   │   └── components/
+│   │   └── components/               # page 의 components
 │   │       ├── Layout.tsx            # 상단바 구성
 │   │       ├── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
 │   │       ├── MyInfoCard.tsx

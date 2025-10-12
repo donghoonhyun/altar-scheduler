@@ -1,4 +1,4 @@
-# PRD 2.5.5 Auto ServerAssignment Logic
+# PRD-2.5.5-Auto ServerAssignment Logic
 
 ## 🧩 섹션 개요
 

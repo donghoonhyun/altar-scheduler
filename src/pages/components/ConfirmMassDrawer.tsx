@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { DialogDescription } from '@/components/ui/dialog-description';
 import { Button } from '@/components/ui/button';
 import { Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';

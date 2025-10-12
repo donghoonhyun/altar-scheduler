@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { DialogDescription } from '@/components/ui/dialog-description';
 import { Button } from '@/components/ui/button';
 import { Clipboard, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -126,7 +127,7 @@ const CopyPrevMonthDrawer: React.FC<CopyPrevMonthDrawerProps> = ({
           </span>
         </DialogTitle>
 
-        <DialogDescription asChild>
+        <DialogDescription>
           <div className="text-sm text-gray-600 mb-3">
             전월(<b>{prevMonth.format('M월')}</b>)의 미사 일정을 현재 월(
             <b>{currentMonth.format('M월')}</b>)로 <b>복사</b>합니다.

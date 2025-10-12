@@ -119,7 +119,7 @@ service cloud.firestore {
 
 ---
 
-## 📌3. Cloud Funtions 구성
+## 📌3. Cloud Funtions 개발표준
 
 ### 3.1 Functions 개요
 
@@ -180,7 +180,9 @@ curl -X POST http://127.0.0.1:5001/altar-scheduler-dev/asia-northeast3/copyPrevM
 firebase deploy --only functions
 ```
 
-### 3.4 예시: `copyPrevMonthMassEvents`
+### 3.4 개발 소스 가이드
+
+#### 3.4.1 개발 예시: `copyPrevMonthMassEvents`
 
 ```ts
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -196,6 +198,30 @@ const functions = getFunctions(app, "asia-northeast3");
   console.log("✅ RESULT:", res.data);
 })();
 ```
+
+#### 3.4.2 Firestore Timestamp 타입 처리 주의사항
+
+- Functions 코드 내 Firestore Timestamp 비교 규칙
+
+  . instanceof 비교 시 항상 Timestamp (from 'firebase-admin/firestore') 사용.
+  . admin.firestore.Timestamp 사용 금지.  
+  . Firestore 모듈에서 직접 import 한 Timestamp 객체를 기준으로 비교해야 한다.
+  . Timestamp 변환 로직은 다음 형태로 통일.
+
+  ```ts
+  import { Timestamp } from "firebase-admin/firestore";
+  const dateObj = ev.date instanceof Timestamp ? ev.date.toDate() : ev.date;
+  ```
+
+- 잘못된 예시 (❌)
+
+  ```ts
+  const dateObj = ev.date instanceof admin.firestore.Timestamp
+    ? ev.date.toDate()
+    : ev.date;
+  ```
+
+  위 구문은 admin.firestore.Timestamp 가 undefined 인 경우 런타임 예외를 발생시킨다.
 
 ### 3.5 검증 체크리스트
 

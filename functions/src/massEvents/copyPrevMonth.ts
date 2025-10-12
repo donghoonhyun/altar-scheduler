@@ -95,7 +95,7 @@ export const copyPrevMonthMassEvents = onCall(
         created_at: new Date(),
         updated_at: new Date(),
       };
-      const dateObj = ev.date instanceof admin.firestore.Timestamp ? ev.date.toDate() : ev.date;
+      const dateObj = ev.date instanceof Timestamp ? ev.date.toDate() : ev.date;
       const dow = dayjs(dateObj).tz('Asia/Seoul').day();
       if (!baseEvents[dow]) baseEvents[dow] = [];
       baseEvents[dow].push(ev);

@@ -14,6 +14,7 @@ import ServerGroupWizard from '../pages/ServerGroupWizard';
 import Forbidden from '../pages/components/Forbidden';
 import MassEventPlanner from '../pages/MassEventPlanner';
 import RoleGuard from '../pages/components/RoleGuard';
+import ServerSurvey from '@/pages/ServerSurvey';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -70,6 +71,9 @@ export default function AppRoutes() {
                 </RoleGuard>
               }
             />
+
+            {/* 복사용 설문 페이지 */}
+            <Route path="/survey/:serverGroupId/:yyyymm" element={<ServerSurvey />} />
 
             {/* 복사단별 메인 (planner → Dashboard, server → ServerMain) */}
             <Route path="/server-groups/:serverGroupId/*" element={<ServerMainWrapper />} />
