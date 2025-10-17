@@ -18,6 +18,7 @@ export interface Session {
   user: User | null;
   loading: boolean;
   groupRoles: Record<string, 'planner' | 'server'>;
+  groupRolesLoaded: boolean;
   currentServerGroupId?: string | null;
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
 }
@@ -26,6 +27,7 @@ const initialSession: Session = {
   user: null,
   loading: true,
   groupRoles: {},
+  groupRolesLoaded: false,
   currentServerGroupId: null,
   serverGroups: {},
 };
@@ -38,25 +40,23 @@ export function useSession(): Session {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        cachedSession = { ...initialSession, loading: false };
+        cachedSession = { ...initialSession, loading: false, groupRolesLoaded: true };
         setSession(cachedSession);
-        console.log('세션 초기화: 로그인 안 됨');
         return;
       }
-
-      console.log('로그인 성공:', user.email);
 
       const newSession: Session = {
         ...initialSession,
         user,
         loading: true,
+        groupRolesLoaded: false,
       };
 
       try {
         const roles: Record<string, 'planner' | 'server'> = {};
         const serverGroups: Session['serverGroups'] = {};
 
-        // ✅ (1) memberships 로드 → planner/manager 용
+        // memberships (planner)
         const membershipSnap = await getDocs(
           query(collection(db, 'memberships'), where('uid', '==', user.uid))
         );
@@ -65,8 +65,6 @@ export function useSession(): Session {
           const data = d.data();
           if (data.server_group_id && data.role) {
             roles[data.server_group_id] = data.role;
-
-            // ✅ server_group 문서 가져오기
             const sgDoc = await getDoc(doc(db, 'server_groups', data.server_group_id));
             if (sgDoc.exists()) {
               const sgData = sgDoc.data();
@@ -83,7 +81,7 @@ export function useSession(): Session {
           }
         }
 
-        // ✅ (2) members 로드 → server 계정 (승인된 active=true)
+        // members (server, active=true)
         const serverSnap = await getDocs(
           query(
             collectionGroup(db, 'members'),
@@ -95,7 +93,6 @@ export function useSession(): Session {
         for (const d of serverSnap.docs) {
           const sgId = d.ref.parent.parent?.id;
           if (!sgId) continue;
-
           roles[sgId] = 'server';
 
           const sgDoc = await getDoc(doc(db, 'server_groups', sgId));
@@ -114,6 +111,7 @@ export function useSession(): Session {
 
         newSession.groupRoles = roles;
         newSession.serverGroups = serverGroups;
+        newSession.groupRolesLoaded = true;
 
         if (Object.keys(roles).length > 0) {
           newSession.currentServerGroupId = Object.keys(roles)[0];
@@ -122,11 +120,13 @@ export function useSession(): Session {
         newSession.loading = false;
         cachedSession = newSession;
         setSession(newSession);
-
-        console.log('세션 저장됨:', newSession);
       } catch (err) {
         console.error('세션 로딩 중 오류:', err);
-        cachedSession = { ...initialSession, loading: false };
+        cachedSession = {
+          ...initialSession,
+          loading: false,
+          groupRolesLoaded: true,
+        };
         setSession(cachedSession);
       }
     });

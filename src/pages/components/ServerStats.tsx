@@ -1,7 +1,8 @@
 // src/pages/components/ServerStats.tsx
 import React, { useEffect, useState } from 'react';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import { PARISH_MAP } from '../../config/parishes'; // ✅ named export 사용
+import { useNavigate } from 'react-router-dom';
+import { PARISH_MAP } from '../../config/parishes';
 
 interface ServerStatsProps {
   parishCode: string;
@@ -15,16 +16,15 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
     total: 0,
   });
 
-  useEffect(() => {
-    const db = getFirestore();
+  const navigate = useNavigate();
+  const db = getFirestore();
 
-    // 📌 1) 복사단원 수 불러오기
+  useEffect(() => {
     const fetchMembers = async () => {
       const snap = await getDocs(collection(db, 'server_groups', serverGroupId, 'members'));
       setMemberCount(snap.size);
     };
 
-    // 📌 2) 이번 달 설문 응답 현황 (monthId = YYYYMM)
     const fetchSurvey = async () => {
       const now = new Date();
       const monthId = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -35,14 +35,14 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
 
       setSurveyCount({
         responses: respSnap.size,
-        total: memberCount, // 총원 = members 수 기준
+        total: memberCount,
       });
     };
 
     if (serverGroupId) {
       fetchMembers().then(fetchSurvey);
     }
-  }, [serverGroupId, memberCount]);
+  }, [serverGroupId, memberCount, db]);
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">
@@ -51,7 +51,8 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
         본당: {PARISH_MAP[parishCode]?.name_kor || parishCode} <br />
         복사단 코드: {serverGroupId}
       </p>
-      <div className="flex justify-between text-sm">
+
+      <div className="flex justify-between text-sm mb-4">
         <div>
           <span className="font-bold">{memberCount}</span> 명 등록됨
         </div>
@@ -62,6 +63,14 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
           </span>
         </div>
       </div>
+
+      {/* ✅ 복사단 명단 관리 버튼 */}
+      <button
+        onClick={() => navigate(`/server-groups/${serverGroupId}/servers`)}
+        className="w-full bg-blue-600 text-white text-sm py-2 rounded-md hover:bg-blue-700 transition"
+      >
+        복사단 명단 관리하기
+      </button>
     </div>
   );
 };

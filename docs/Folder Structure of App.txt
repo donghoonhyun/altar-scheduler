@@ -53,7 +53,7 @@ altar-scheduler/
 │   │   └── ui.ts                     # UI 관련 전역 상태(다크모드 등)
 │   ├── types/
 │   │   ├── auth.ts                   # Role/세션 타입 (admin/manager/planner/server)
-│   │   ├── firestore.ts              # system_roles/parish_roles/memberships/server_groups 등 문서 타입
+│   │   ├── firestore.ts              # system_roles,parish_roles,memberships,server_groups,grade 등 문서 타입
 │   │   └── index.ts                  # 타입 re-export
 │   ├── constants/                    # 상수 constants 정의
 │   │   └── massStatusLabels.ts       # mass status의 라벨 + 색상 상수
@@ -67,6 +67,7 @@ altar-scheduler/
 │   │   │   └── index.ts
 │   │   └── common/
 │   │       ├── Logo.tsx
+│   │       ├── ConfirmDialog.tsx     # 공통 대화창(선택창)
 │   │       └── LoadingSpinner.tsx    # 공통 스피너
 │   ├── hooks/
 │   │   └── useMassEvents.ts 
@@ -84,9 +85,9 @@ altar-scheduler/
 │   │       ├── Layout.tsx            # 상단바 구성
 │   │       ├── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
 │   │       ├── MyInfoCard.tsx
-│   │       ├── ServerStats.tsx
-│   │       ├── MassCalendar.tsx
-│   │       ├── NextMonthPlan.tsx
+│   │       ├── ServerStats.tsx       # 플래너 Dashboard의 [복사단 현황]
+│   │       ├── NextMonthPlan.tsx     # 플래너 Dashboard의 [차월 계획]
+│   │       ├── MassCalendar.tsx      # 플래너 Dashboard의 [일정 달력]
 │   │       ├── EventDetailDrawer.tsx
 │   │       ├── MassEventDrawer.tsx
 │   │       ├── CopyPrevMonthDrawer.tsx     # MassEventPlanner Toolbar button 1

@@ -1,46 +1,71 @@
 // src/pages/components/RoleGuard.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useSession } from '../../state/session';
+import { getFirestore, collectionGroup, getDocs, query, where } from 'firebase/firestore';
 
 interface RoleGuardProps {
   children: React.ReactNode;
-  require?: 'planner' | 'server'; // ✅ Admin/Manager는 제외
+  require?: 'planner' | 'server';
 }
 
 /**
- * ✅ 역할 기반 접근 제어
- * - require 지정 없으면 로그인만 확인
- * - require = "planner" → 해당 그룹 플래너만 접근 가능
- * - require = "server"  → 해당 그룹 복사만 접근 가능
+ * ✅ RoleGuard
+ * 로그인/승인(active)/권한(role) 체크 + 세션 동기화 보류처리 포함
  */
 export default function RoleGuard({ children, require }: RoleGuardProps) {
-  const { serverGroupId } = useParams<{ serverGroupId: string }>(); // ✅ 라우트 파라미터 직접 읽음
+  const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const session = useSession();
+  const [checked, setChecked] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const db = getFirestore();
 
-  // 세션 로딩 중
-  if (session.loading) {
-    return <div className="p-4">세션 로딩 중...</div>;
+  useEffect(() => {
+    const checkMemberStatus = async () => {
+      if (!session.user) {
+        setChecked(true);
+        return;
+      }
+
+      try {
+        const q = query(collectionGroup(db, 'members'), where('uid', '==', session.user.uid));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          setChecked(true);
+          return;
+        }
+
+        const hasActive = snap.docs.some((doc) => doc.data().active === true);
+        const hasPending = snap.docs.some((doc) => doc.data().active === false);
+        if (hasPending && !hasActive) setIsPending(true);
+      } finally {
+        setChecked(true);
+      }
+    };
+
+    if (session.user && !session.loading && session.groupRolesLoaded) {
+      checkMemberStatus();
+    }
+  }, [session.user, session.loading, session.groupRolesLoaded, db]);
+
+  // ✅ 1) 세션 또는 Firestore 체크 미완료 시 대기
+  if (session.loading || !session.groupRolesLoaded || !checked) {
+    return <div className="p-4 text-gray-500">세션 동기화 중...</div>;
   }
 
-  // 로그인 안 된 경우 → 로그인 페이지로
-  if (!session.user) {
-    return <Navigate to="/login" replace />;
-  }
+  // ✅ 2) 로그인 안 된 경우
+  if (!session.user) return <Navigate to="/login" replace />;
 
-  // 권한 체크
+  // ✅ 3) 승인 대기 회원
+  if (isPending) return <Navigate to="/pending" replace />;
+
+  // ✅ 4) 역할 검사
   if (require) {
-    if (!serverGroupId) {
-      console.warn(`🚫 접근 거부: serverGroupId 누락 (require=${require})`);
-      return <Navigate to="/forbidden" replace />;
-    }
-
+    if (!serverGroupId) return <Navigate to="/forbidden" replace />;
     const role = session.groupRoles[serverGroupId];
-    if (role !== require) {
-      console.warn(`🚫 접근 거부: ${session.user.email} → require=${require}, actual=${role}`);
-      return <Navigate to="/forbidden" replace />;
-    }
+    if (role !== require) return <Navigate to="/forbidden" replace />;
   }
 
+  // ✅ 5) 모든 조건 통과
   return <>{children}</>;
 }
