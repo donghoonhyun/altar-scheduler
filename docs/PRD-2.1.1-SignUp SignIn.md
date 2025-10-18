@@ -11,9 +11,23 @@
 
 ### ① 승인 대기 상태 (Pending)
 
-- `active:false` 회원은 로그인은 가능하지만 접근이 제한된다.
+- `/members/{uid}`의 속성 `active:false` 회원은 로그인은 가능하지만 접근이 제한된다.
 - `RoleGuard`가 Firestore `members.active=false`를 감지하면 `/pending` 으로 리다이렉트한다.
-- `/pending` 페이지에는 “승인 대기 중” 안내와 로그아웃 버튼만 표시된다.
+- `/pending` 페이지에는 가입환영과 승인대기 중 안내 메세지가 표시된다.
+- 동작 흐름:
+
+```ts
+  | 단계 | 설명 |
+  |------|------|
+  | ① | 사용자 로그인 후, Firestore에서 `members.active=false` 인 상태 감지 시 `/pending` 페이지로 이동 |
+  | ② | `PendingApproval.tsx`가 렌더링되면, Firestore 실시간 감시(`onSnapshot`)로 자신의 멤버 문서(`server_groups/{sg}/members/{uid}`)를 구독 |
+  | ③ | `members.active` 값이 `true`로 변경되면 즉시 승인 감지 |
+  | ④ | 감지 후 0.4초간 **카드 fade-out** 애니메이션 실행 |
+  | ⑤ | 이후 자동으로 `/{serverGroupId}/server-main` 으로 리다이렉트 |
+```
+
+- 서버그룹 식별 (serverGroupId) 처리 : 세션(`useSession()`)의 `currentServerGroupId` 값이 아직 설정되지 않은 경우(세션 초기화 지연 등),
+    Firestore에서 직접 사용자 소속 복사단을 조회하여 자동 보정한다.
 
 ### ② RoleGuard 동작 규칙
 
@@ -53,7 +67,17 @@
 
 ---
 
-## 2.1.1.2 로그인과 권한처리 (LogIn & Auth. )
+## 2.1.1.2 회원 승인 및 삭제 절차
+
+- 승인 대상: 가입 시 active:false 상태로 생성된 server_groups/{sg}/members/{uid} 문서
+- 승인 주체: 해당 복사단의 planner 권한 사용자
+- 승인 처리 시 동작: active 값을 true 로 업데이트동시에 memberships/{uid}_{serverGroupId} 문서를 생성 (role:'server')승인 완료 시 실시간 반영(onSnapshot)으로 “활동중인 복사단원” 목록에 자동 이동
+- 삭제(거절) 처리 시 동작: server_groups/{sg}/members/{uid} 문서 삭제memberships/{uid}_{serverGroupId} 문서도 함께 삭제삭제 후 UI에서는 즉시 목록에서 제거
+- 승인/삭제 UX: ConfirmDialog 모달 사용 (openConfirm() Promise 기반)모달은 Framer Motion 기반 fade/scale-in/out 애니메이션 적용취소 시 shake 효과 표시승인 후 0.3~0.5s 딜레이 후 닫히며 UX 자연스럽게 처리
+- 실시간 반영: ServerList 페이지는 Firestore onSnapshot()으로 실시간 반영되므로 승인/삭제 후 새로고침 없이 리스트 자동 갱신됨
+- 모바일 UI 기준: 승인/활동 카드 모두 2열 그리드 (grid-cols-2, compact layout)버튼은 text-xs + 동일폭으로 구성
+
+## 2.1.1.3 로그인과 권한처리 (LogIn & Auth. )
 
 ### RoleGuard & Session Authorization Flow
 

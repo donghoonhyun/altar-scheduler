@@ -67,7 +67,7 @@ altar-scheduler/
 │   │   │   └── index.ts
 │   │   └── common/
 │   │       ├── Logo.tsx
-│   │       ├── ConfirmDialog.tsx     # 공통 대화창(선택창)
+│   │       ├── ConfirmDialog.tsx     # 컴포넌트 + openConfirm() Promise 호출 함수를 통합한 단일 모듈
 │   │       └── LoadingSpinner.tsx    # 공통 스피너
 │   ├── hooks/
 │   │   └── useMassEvents.ts 
@@ -82,7 +82,7 @@ altar-scheduler/
 │   │   ├── SelectServerGroup.tsx     # 복수 소속 시 복사단 선택
 │   │   ├── SelectParish.tsx          # manager-only 본당 선택(복사단 리스트 뷰로 이동)
 │   │   └── components/               # page 의 components
-│   │       ├── Layout.tsx            # 상단바 구성
+│   │       ├── Layout.tsx            # 상단바 구성, 안에 실페이지를 Outlet으로 렌더링함.
 │   │       ├── RoleGuard.tsx         # 라우트 가드 (RequireAccess 등)
 │   │       ├── MyInfoCard.tsx
 │   │       ├── ServerStats.tsx       # 플래너 Dashboard의 [복사단 현황]
