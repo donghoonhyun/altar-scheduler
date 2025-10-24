@@ -68,7 +68,7 @@ src/
 
 ## 📌5. UI Layout 설계
 
-### 5.1 Laout 구성
+### 🧩5.1 Laout 구성
 
 ```ts
   Layout.tsx
@@ -84,7 +84,7 @@ src/
   └── Footer (예정)
 ```
 
-### 5.2 역할별 책임 분리
+### 🧩5.2 역할별 책임 분리
 
 ```ts
   | 구분            | 파일                        | 역할            | 표시 내용            | 데이터 소스                              |
@@ -99,7 +99,7 @@ src/
 
 ## 📌6. 컬러와 폰트
 
-### 6.1 컬러 팔레트
+### 🧩6.1 컬러 팔레트
 
 | 역할 | 변수명 | 코드 | 의미 |
 |------|---------|------|------|
@@ -112,7 +112,7 @@ src/
 | Background (light) | `--color-bg-light` | `#F9FAFB` | 일반 배경 |
 | Background (dark) | `--color-bg-dark` | `#111827` | 다크모드 배경 |
 
-### 6.2 폰트 시스템
+### 🧩6.2 폰트 시스템
 
 ```css
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -129,7 +129,7 @@ src/
 
 ## 📌7. Global Style Files
 
-### 7.1 theme.css
+### 🧩7.1 theme.css
 
 ```css
 :root {
@@ -156,7 +156,7 @@ body {
 }
 ```
 
-### 7.2 index.css
+### 🧩7.2 index.css
 
 ```css
 @tailwind base;
@@ -178,7 +178,7 @@ body {
 
 ## 📌8. UI 컴포넌트 (Design System v1)
 
-### 8.1 Button
+### 🧩8.1 Button
 
 ```tsx
 import * as React from "react";
@@ -218,7 +218,7 @@ export const Button: React.FC<ButtonProps> = ({
 };
 ```
 
-### 8.2 Card
+### 🧩8.2 Card
 
 ```tsx
 import React from "react";
@@ -241,7 +241,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 );
 ```
 
-### 8.3 Container
+### 🧩8.3 Container
 
 ```tsx
 import React from "react";
@@ -258,7 +258,7 @@ export const Container: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 );
 ```
 
-### 8.4 Heading
+### 🧩8.4 Heading
 
 ```tsx
 import React from "react";
@@ -287,7 +287,9 @@ export const Heading: React.FC<HeadingProps> = ({
 };
 ```
 
-### 8.5 Status & Badge Design System (미사일정 상태 시각 규칙)
+---
+
+### 🧩8.5 Status & Badge Design System (미사일정 상태 시각 규칙)
 
 - 목적:
 본 시스템은 미사일정(mass_events) 및 관련 데이터의 상태(status)를
@@ -476,6 +478,15 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
     </DialogContent>
   </Dialog>
   ```
+
+---
+
+## 🧩8.6 Components 재사용 정책
+
+- 경로 기준
+  . 전역(공용) UI 컴포넌트 : src/components/
+  . 특정 페이지 전용 UI 조각 : src/pages/components/
+- MassEventMiniDrawer.tsx : 복사용 모바일 Drawer
 
 ---
 

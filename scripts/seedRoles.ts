@@ -24,7 +24,7 @@ const USERS = [
     uid: 'planner-test-uid',
     email: 'planner@test.com',
     password: '123456',
-    displayName: 'Planner User',
+    displayName: '김아녜스 수녀님',
     roleDocs: [
       {
         collection: 'memberships',
@@ -42,7 +42,7 @@ const USERS = [
     uid: 'server-test-uid',
     email: 'server@test.com',
     password: '123456',
-    displayName: 'Server User',
+    displayName: '홍길동 베드로',
     roleDocs: [
       {
         collection: 'memberships',

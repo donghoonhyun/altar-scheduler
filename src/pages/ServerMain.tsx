@@ -1,29 +1,22 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import dayjs from "dayjs";
-import { Card, Heading, Container, Button } from "@/components/ui";
-import { toast } from "sonner";
-import { useSession } from "@/state/session";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { MassEventDoc } from "@/types/firestore";
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { collection, doc, getDoc, query, orderBy, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import dayjs from 'dayjs';
+import { Card, Heading, Container, Button } from '@/components/ui';
+import { toast } from 'sonner';
+import { useSession } from '@/state/session';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { MassEventDoc } from '@/types/firestore';
+import MassEventMiniDrawer from '@/components/MassEventMiniDrawer';
 
 /**
- * ✅ ServerMain.tsx
+ * ✅ ServerMain.tsx (복사 메인)
  * --------------------------------------------------------
- * - 복사(Server) 로그인 사용자의 메인 홈 화면
- * - 성당명 + 복사명(세례명) 표시 (Firestore members/{uid})
- * - 월별 상태(MASS-CONFIRMED / FINAL-CONFIRMED) 반영
- * - 미니 달력: 미사 일정이 있는 날짜 표시 + 배정일 강조
- * - 미사 개수만큼 점(dot) 표시
+ * - 성당명 + 복사명 표시
+ * - 미사 달력 (실시간 반응)
+ * - 월 상태별 표시 (미확정 / 확정 / 최종확정)
+ * - 하단 Drawer: 날짜별 미사 일정 & 복사명단 보기
  * --------------------------------------------------------
  */
 export default function ServerMain() {
@@ -31,30 +24,35 @@ export default function ServerMain() {
   const navigate = useNavigate();
   const session = useSession();
 
-  const [groupName, setGroupName] = useState<string>("");
+  const [groupName, setGroupName] = useState<string>('');
   const [events, setEvents] = useState<MassEventDoc[]>([]);
-  const [monthStatus, setMonthStatus] = useState<string>("");
+  const [monthStatus, setMonthStatus] = useState<string>('');
   const [currentMonth, setCurrentMonth] = useState(dayjs());
-  const [userName, setUserName] = useState<string>("");
-  const [baptismalName, setBaptismalName] = useState<string>("");
+  const [userName, setUserName] = useState<string>('');
+  const [baptismalName, setBaptismalName] = useState<string>('');
 
-  // ✅ 로그인 복사 이름 / 세례명 가져오기 (uid 타이밍 보장)
+  // ✅ Drawer 상태
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
+  const [selectedEvents, setSelectedEvents] = useState<MassEventDoc[]>([]);
+
+  // ✅ 로그인 복사 이름 / 세례명 가져오기
   useEffect(() => {
     const loadMemberInfo = async () => {
-      if (!session.user?.uid) return; // uid가 없으면 실행 안함
+      if (!session.user?.uid) return;
       try {
-        const ref = doc(db, "members", session.user.uid);
+        const ref = doc(db, 'members', session.user.uid);
         const snap = await getDoc(ref);
         if (snap.exists()) {
           const data = snap.data();
-          setUserName(data.name_kor || "");
-          setBaptismalName(data.baptismal_name || "");
+          setUserName(data.name_kor || '');
+          setBaptismalName(data.baptismal_name || '');
         } else {
-          setUserName(session.user.displayName || "");
+          setUserName(session.user.displayName || '');
         }
       } catch (err) {
         console.error(err);
-        toast.error("복사 정보 불러오기 오류");
+        toast.error('복사 정보 불러오기 오류');
       }
     };
     loadMemberInfo();
@@ -65,12 +63,12 @@ export default function ServerMain() {
     if (!serverGroupId) return;
     const fetchGroup = async () => {
       try {
-        const ref = doc(db, "server_groups", serverGroupId);
+        const ref = doc(db, 'server_groups', serverGroupId);
         const snap = await getDoc(ref);
-        if (snap.exists()) setGroupName(snap.data().name || "");
+        if (snap.exists()) setGroupName(snap.data().name || '');
       } catch (err) {
         console.error(err);
-        toast.error("성당 정보 불러오기 오류");
+        toast.error('성당 정보 불러오기 오류');
       }
     };
     fetchGroup();
@@ -81,13 +79,13 @@ export default function ServerMain() {
     if (!serverGroupId) return;
     const fetchStatus = async () => {
       try {
-        const yyyymm = currentMonth.format("YYYYMM");
+        const yyyymm = currentMonth.format('YYYYMM');
         const ref = doc(db, `server_groups/${serverGroupId}/month_status/${yyyymm}`);
         const snap = await getDoc(ref);
         if (snap.exists()) {
-          setMonthStatus(snap.data().status || "MASS-NOTCONFIRMED");
+          setMonthStatus(snap.data().status || 'MASS-NOTCONFIRMED');
         } else {
-          setMonthStatus("MASS-NOTCONFIRMED");
+          setMonthStatus('MASS-NOTCONFIRMED');
         }
       } catch (err) {
         console.error(err);
@@ -96,50 +94,62 @@ export default function ServerMain() {
     fetchStatus();
   }, [serverGroupId, currentMonth]);
 
-  // ✅ 미사 일정 불러오기
+  // ✅ 미사 일정 실시간 구독
   useEffect(() => {
     if (!serverGroupId) return;
-    const loadEvents = async () => {
-      try {
-        const q = query(
-          collection(db, "server_groups", serverGroupId, "mass_events"),
-          orderBy("date")
-        );
-        const snap = await getDocs(q);
-        const list = snap.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as MassEventDoc)
-        );
+
+    const startOfMonth = currentMonth.startOf('month').toDate();
+    const endOfMonth = currentMonth.endOf('month').toDate();
+
+    const q = query(
+      collection(db, 'server_groups', serverGroupId, 'mass_events'),
+      where('date', '>=', startOfMonth),
+      where('date', '<=', endOfMonth),
+      orderBy('date')
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MassEventDoc));
         setEvents(list);
-      } catch (err) {
-        console.error(err);
-        toast.error("미사 일정 불러오기 오류");
+      },
+      (err) => {
+        console.error('❌ 실시간 미사 일정 구독 오류:', err);
+        toast.error('미사 일정 구독 중 오류가 발생했습니다.');
       }
-    };
-    loadEvents();
+    );
+
+    return () => unsubscribe();
   }, [serverGroupId, currentMonth]);
 
   // ✅ 월 이동
-  const handlePrevMonth = () => setCurrentMonth((prev) => prev.subtract(1, "month"));
-  const handleNextMonth = () => setCurrentMonth((prev) => prev.add(1, "month"));
+  const handlePrevMonth = () => setCurrentMonth((prev) => prev.subtract(1, 'month'));
+  const handleNextMonth = () => setCurrentMonth((prev) => prev.add(1, 'month'));
 
   // ✅ 설문 페이지 이동
   const handleGoSurvey = () => {
-    navigate(`/survey/${serverGroupId}/${currentMonth.format("YYYYMM")}`);
+    navigate(`/survey/${serverGroupId}/${currentMonth.format('YYYYMM')}`);
   };
 
-  // ✅ 달력 데이터
+  // ✅ 날짜 클릭 시 Drawer 열기
+  const handleDayClick = (dateNum: number | null) => {
+    if (!dateNum || monthStatus === 'MASS-NOTCONFIRMED') return;
+    const date = currentMonth.date(dateNum);
+    const dayEvents = events.filter((ev) =>
+      dayjs(ev.date?.toDate?.() || ev.date).isSame(date, 'day')
+    );
+    setSelectedDate(date);
+    setSelectedEvents(dayEvents);
+    setDrawerOpen(true);
+  };
+
+  const isUnconfirmed = monthStatus === 'MASS-NOTCONFIRMED';
   const daysInMonth = currentMonth.daysInMonth();
-  const startDay = currentMonth.startOf("month").day();
+  const startDay = currentMonth.startOf('month').day();
   const daysArray = Array.from({ length: startDay + daysInMonth }, (_, i) =>
     i < startDay ? null : i - startDay + 1
   );
-
-  // ✅ 날짜 클릭 (Drawer 열기 예정)
-  const handleDayClick = (dateNum: number | null) => {
-    if (!dateNum) return;
-    const date = currentMonth.date(dateNum);
-    console.log("📅 Drawer open:", date.format("YYYY-MM-DD"));
-  };
 
   return (
     <Container className="py-6 fade-in">
@@ -150,21 +160,21 @@ export default function ServerMain() {
         </Heading>
         <p className="text-sm text-gray-600 mt-0.5">
           {userName
-            ? `${userName}${baptismalName ? ` (${baptismalName})` : ""} 복사님`
-            : "복사님 정보를 불러오는 중입니다..."}
+            ? `${userName}${baptismalName ? ` (${baptismalName})` : ''} 복사님`
+            : '복사님 정보를 불러오는 중입니다...'}
         </p>
       </div>
 
       {/* 상태 카드 */}
       <Card className="p-4 mb-5 flex flex-col gap-2">
-        {/* 🔹 월 이동 + 상태 표시 */}
+        {/* 월 이동 + 상태 */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={handlePrevMonth}>
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <span className="text-lg font-semibold text-gray-800">
-              {currentMonth.format("YYYY년 M월")}
+              {currentMonth.format('YYYY년 M월')}
             </span>
             <Button variant="ghost" size="sm" onClick={handleNextMonth}>
               <ChevronRight className="w-5 h-5" />
@@ -173,34 +183,31 @@ export default function ServerMain() {
 
           <span
             className={`text-sm font-semibold ${
-              monthStatus === "FINAL-CONFIRMED"
-                ? "text-green-700"
-                : monthStatus === "MASS-CONFIRMED"
-                ? "text-blue-700"
-                : "text-gray-500"
+              monthStatus === 'FINAL-CONFIRMED'
+                ? 'text-green-700'
+                : monthStatus === 'MASS-CONFIRMED'
+                ? 'text-blue-700'
+                : 'text-gray-500'
             }`}
           >
-            {monthStatus === "FINAL-CONFIRMED"
-              ? "🛡️ 최종 확정"
-              : monthStatus === "MASS-CONFIRMED"
-              ? "🔒 일정 확정 (설문 가능)"
-              : "🕓 미확정"}
+            {monthStatus === 'FINAL-CONFIRMED'
+              ? '🛡️ 최종 확정'
+              : monthStatus === 'MASS-CONFIRMED'
+              ? '🔒 일정 확정 (설문 가능)'
+              : '🕓 미확정'}
           </span>
         </div>
 
-        {/* 🔹 안내 메시지 / 버튼 */}
-        {monthStatus === "MASS-CONFIRMED" && (
+        {monthStatus === 'MASS-CONFIRMED' && (
           <div className="text-center mt-2">
-            <p className="text-sm text-gray-600 mb-2">
-              이번 달 설문에 참여해주세요.
-            </p>
+            <p className="text-sm text-gray-600 mb-2">이번 달 설문에 참여해주세요.</p>
             <Button variant="primary" size="md" onClick={handleGoSurvey}>
               ✉️ 설문 페이지로 이동
             </Button>
           </div>
         )}
 
-        {monthStatus === "FINAL-CONFIRMED" && (
+        {monthStatus === 'FINAL-CONFIRMED' && (
           <p className="text-center text-sm text-gray-600 mt-2">
             아래 달력에서 본인 배정 일자를 확인하세요 🙏
           </p>
@@ -209,7 +216,7 @@ export default function ServerMain() {
 
       {/* ✅ 미니 달력 */}
       <div className="grid grid-cols-7 gap-1 text-center text-sm mb-8">
-        {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+        {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
           <div key={d} className="font-semibold text-gray-600 py-1">
             {d}
           </div>
@@ -220,15 +227,10 @@ export default function ServerMain() {
 
           const dateObj = currentMonth.date(day);
           const dayEvents = events.filter((ev) =>
-            dayjs(ev.date?.toDate?.() || ev.date).isSame(dateObj, "day")
+            dayjs(ev.date?.toDate?.() || ev.date).isSame(dateObj, 'day')
           );
-
-          // ✅ 내 배정일 여부
           const userId = session.user?.uid;
-          const isMyMass =
-            !!userId && dayEvents.some((ev) => ev.member_ids?.includes(userId));
-
-          // ✅ 미사 개수만큼 점(dot) 표시
+          const isMyMass = !!userId && dayEvents.some((ev) => ev.member_ids?.includes(userId));
           const dots = Array.from({ length: Math.min(dayEvents.length, 3) });
 
           return (
@@ -238,25 +240,25 @@ export default function ServerMain() {
               className={`
                 relative h-14 flex flex-col items-center justify-center rounded-md cursor-pointer transition
                 ${
-                  isMyMass
-                    ? "bg-blue-500 border border-blue-600 text-white font-bold shadow-md"
-                    : dayEvents.length > 0
-                    ? "bg-rose-100 border border-rose-200 text-rose-800 font-semibold"
-                    : "text-gray-300"
+                  !isUnconfirmed
+                    ? isMyMass
+                      ? 'bg-blue-500 border border-blue-600 text-white font-bold shadow-md'
+                      : dayEvents.length > 0
+                      ? 'bg-rose-100 border border-rose-200 text-rose-800 font-semibold'
+                      : 'text-gray-300'
+                    : 'text-gray-300'
                 }
                 hover:scale-[1.03] hover:shadow-sm
               `}
             >
               <span>{day}</span>
-
-              {/* ✅ 하단 점 표시 */}
-              {dayEvents.length > 0 && (
+              {!isUnconfirmed && dayEvents.length > 0 && (
                 <div className="absolute bottom-1 flex gap-0.5">
                   {dots.map((_, i) => (
                     <span
                       key={i}
                       className={`inline-block w-1.5 h-1.5 rounded-full ${
-                        isMyMass ? "bg-white" : "bg-rose-500"
+                        isMyMass ? 'bg-white' : 'bg-rose-500'
                       }`}
                     />
                   ))}
@@ -266,6 +268,15 @@ export default function ServerMain() {
           );
         })}
       </div>
+
+      {/* ✅ 복사용 Mini Drawer 연결 */}
+      <MassEventMiniDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        events={selectedEvents}
+        date={selectedDate}
+        serverGroupId={serverGroupId}
+      />
     </Container>
   );
 }

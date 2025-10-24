@@ -65,10 +65,13 @@ altar-scheduler/
 │   │   │   ├── heading.tsx
 │   │   │   ├── StatusBadge.tsx       # 미사배정 상태별 배지 UX
 │   │   │   └── index.ts
-│   │   └── common/
-│   │       ├── Logo.tsx
-│   │       ├── ConfirmDialog.tsx     # 컴포넌트 + openConfirm() Promise 호출 함수를 통합한 단일 모듈
-│   │       └── LoadingSpinner.tsx    # 공통 스피너
+│   │   ├── common/
+│   │   │   ├── Logo.tsx
+│   │   │   ├── ConfirmDialog.tsx     # 컴포넌트 + openConfirm() Promise 호출 함수를 통합한 단일 모듈
+│   │   │   └── LoadingSpinner.tsx    # 공통 스피너
+│   │   ├── MassEventToolbar.tsx
+│   │   ├── EventDetailDrawer.tsx
+│   │   └── MassEventMiniDrawer.tsx   # 복사용 (모바일 전용 Drawer)
 │   ├── hooks/
 │   │   └── useMassEvents.ts 
 │   ├── pages/
@@ -76,7 +79,7 @@ altar-scheduler/
 │   │   ├── Dashboard.tsx             # 플래너 메인 (조회용이고 수정은 각 기능페이지로 이동후 수행)
 │   │   ├── ServerGroupList.tsx       # 복사단 리스트(for manager)
 │   │   ├── ServerGroupWizard.tsx     # 복사단 생성/설정 마법사 (구 ParishWizard 대체)
-│   │   ├── ServerMain.tsx            # 복사용 메인
+│   │   ├── ServerMain.tsx            # 복사 전용 메인화면
 │   │   ├── ServerList.tsx            # 복사 명단 관리
 │   │   ├── MassEventPlanner.tsx      # 미사 일정/설문/배정 (2.6 섹션)
 │   │   ├── SelectServerGroup.tsx     # 복수 소속 시 복사단 선택

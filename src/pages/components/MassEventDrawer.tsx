@@ -13,7 +13,6 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import dayjs from 'dayjs';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,12 +21,11 @@ import {
   DialogDescription,
   DialogClose,
 } from '@/components/ui/dialog';
-import type { MemberDoc, MassStatus } from '@/types/firestore';
+import type { MemberDoc } from '@/types/firestore';
 import type {
   CreateMassEventRequest,
   CreateMassEventResponse,
 } from '../../../functions/src/massEvents/createMassEvent';
-// import { MASS_STATUS_LABELS } from '@/constants/massStatusLabels';
 
 interface MassEventDrawerProps {
   eventId?: string;
@@ -46,26 +44,75 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   const [title, setTitle] = useState('');
   const [requiredServers, setRequiredServers] = useState<number | null>(null);
-  const [status, setStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
   const [memberIds, setMemberIds] = useState<string[]>([]);
-  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; grade: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // ✅ 복사단 멤버 목록
+  // ✅ 복사단 멤버 목록 불러오기
   useEffect(() => {
     const fetchMembers = async () => {
       try {
         const ref = collection(db, 'server_groups', serverGroupId, 'members');
         const snaps = await getDocs(ref);
-        const list: { id: string; name: string }[] = snaps.docs
+
+        const list = snaps.docs
           .map((d) => d.data() as MemberDoc)
           .filter((m) => m.name_kor && m.baptismal_name)
-          .map((m) => ({
-            id: m.uid ?? m.id ?? crypto.randomUUID(),
-            name: `${m.name_kor} ${m.baptismal_name}`,
-          }));
+          .map((m) => {
+            const gradeStr = String(m.grade || '')
+              .trim()
+              .toUpperCase(); // ✅ 문자열 강제 변환
+            const grade = [
+              'E1',
+              'E2',
+              'E3',
+              'E4',
+              'E5',
+              'E6',
+              'M1',
+              'M2',
+              'M3',
+              'H1',
+              'H2',
+              'H3',
+            ].includes(gradeStr)
+              ? gradeStr
+              : '기타';
+
+            return {
+              id: m.uid ?? m.id ?? crypto.randomUUID(),
+              name: `${m.name_kor} ${m.baptismal_name}`,
+              grade,
+            };
+          })
+          .sort((a, b) => {
+            const order = [
+              'E1',
+              'E2',
+              'E3',
+              'E4',
+              'E5',
+              'E6',
+              'M1',
+              'M2',
+              'M3',
+              'H1',
+              'H2',
+              'H3',
+              '기타',
+            ];
+            const idxA = order.indexOf(a.grade);
+            const idxB = order.indexOf(b.grade);
+            if (idxA !== idxB) return idxA - idxB;
+            return a.name.localeCompare(b.name, 'ko');
+          });
+
         setMembers(list);
+        console.log(
+          '✅ members loaded:',
+          list.map((m) => `${m.grade}-${m.name}`)
+        ); // 디버깅용 로그
       } catch (err) {
         console.error('❌ members load error:', err);
       }
@@ -84,7 +131,6 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           const data = snap.data() as DocumentData;
           setTitle(data.title || '');
           setRequiredServers(data.required_servers || null);
-          setStatus((data.status as MassStatus) || 'MASS-NOTCONFIRMED');
           setMemberIds((data.member_ids as string[]) || []);
         }
       } catch (err) {
@@ -94,10 +140,23 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     fetchEvent();
   }, [eventId, serverGroupId, db]);
 
+  // ✅ 복사 선택 토글
+  const toggleMember = (id: string) => {
+    setMemberIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
   // ✅ 저장 처리
   const handleSave = async () => {
     if (!title || !requiredServers || (!eventId && !date)) {
       setErrorMsg('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    // ✅ 선택 인원 검증 (정확히 동일해야 함)
+    if (memberIds.length !== requiredServers) {
+      setErrorMsg(
+        `필요 인원(${requiredServers}명)에 맞게 정확히 ${requiredServers}명을 선택해야 합니다. (현재 ${memberIds.length}명 선택됨)`
+      );
       return;
     }
 
@@ -115,7 +174,6 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           {
             title,
             required_servers: requiredServers,
-            status,
             member_ids: memberIds,
             updated_at: serverTimestamp(),
           },
@@ -128,6 +186,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           functions,
           'createMassEvent'
         );
+
         const localMidnight = fromLocalDateToFirestore(date!, tz);
         const formattedDate = dayjs(localMidnight).format('YYYY-MM-DD[T]00:00:00');
         const res = await createMassEvent({
@@ -166,104 +225,109 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
+  // ✅ 학년별 그룹핑
+  const groupedMembers = Object.entries(
+    members.reduce<Record<string, { id: string; name: string }[]>>((acc, m) => {
+      const grade = m.grade || '기타';
+      if (!acc[grade]) acc[grade] = [];
+      acc[grade].push({ id: m.id, name: m.name });
+      return acc;
+    }, {})
+  );
+
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="w-96 h-full right-0 top-0 fixed p-6 flex flex-col gap-4 overflow-visible shadow-2xl">
-        <DialogTitle>{eventId ? '미사 일정 수정' : '미사 일정 등록'}</DialogTitle>
-        <DialogDescription>미사 일정을 새로 등록하거나 기존 일정을 수정합니다.</DialogDescription>
+      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-6 flex flex-col bg-white shadow-2xl overflow-y-auto fade-in">
+        {/* Header */}
+        <DialogTitle className="text-lg font-semibold">
+          {eventId ? '미사 일정 수정' : '미사 일정 등록'}
+        </DialogTitle>
+        <DialogDescription className="text-sm text-gray-600 mb-3">
+          미사 일정을 새로 등록하거나 기존 일정을 수정합니다.
+        </DialogDescription>
+        <div className="border-b border-gray-200 my-3" />
 
-        {/* 미사 제목 */}
-        <label className="block">
-          <span className="text-sm font-medium">미사 제목</span>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 w-full border rounded px-2 py-1"
-            placeholder="예: 주일 11시 미사"
-            disabled={loading}
-          />
-        </label>
-
-        {/* 필요 인원 */}
-        <label className="block">
-          <span className="text-sm font-medium">필요 인원</span>
-          <div className="flex gap-2 mt-1 flex-wrap">
-            {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
-              <label key={n} className="flex items-center gap-1">
-                <input
-                  type="radio"
-                  name="requiredServers"
-                  value={n}
-                  checked={requiredServers === n}
-                  onChange={() => setRequiredServers(n)}
-                  disabled={loading}
-                />
-                {n}명
-              </label>
-            ))}
-          </div>
-        </label>
-
-        {/* 배정 복사 */}
-        <label className="block">
-          <span className="text-sm font-medium">배정 복사</span>
-          <select
-            multiple
-            className="mt-1 w-full border rounded px-2 py-1 h-28"
-            value={memberIds}
-            onChange={(e) => setMemberIds(Array.from(e.target.selectedOptions, (opt) => opt.value))}
-            disabled={loading}
-          >
-            {members.map((m) => (
-              <option key={`${m.id}-${m.name}`} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {/* 상태 (radio 버튼으로 변경) */}
-        <label className="block">
-          <span className="text-sm font-medium">상태</span>
-          <div className="flex flex-col gap-1 mt-1">
-            {[
-              { value: 'MASS-NOTCONFIRMED', label: '미확정' },
-              { value: 'MASS-CONFIRMED', label: '미사확정' },
-              { value: 'SURVEY-CONFIRMED', label: '설문종료' },
-              { value: 'FINAL-CONFIRMED', label: '최종확정' },
-            ].map((s) => (
-              <label key={s.value} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="massStatus"
-                  value={s.value}
-                  checked={status === s.value}
-                  onChange={() => setStatus(s.value as MassStatus)}
-                  disabled={loading}
-                />
-                <StatusBadge status={s.value as MassStatus} />
-                <span className="text-sm">{s.label}</span>
-              </label>
-            ))}
-          </div>
-        </label>
-
-        {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
-
-        {/* 하단 버튼 */}
-        <div className="mt-auto flex justify-between items-center pt-2">
-          {eventId && (
-            <Button
-              variant="outline"
-              onClick={handleDelete}
+        {/* Body */}
+        <div className="flex flex-col gap-4 text-sm text-gray-700">
+          {/* 미사 제목 */}
+          <label className="block">
+            <span className="font-medium">미사 제목</span>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-1 w-full border rounded px-2 py-1"
+              placeholder="예: 주일 11시 미사"
               disabled={loading}
-              className="text-red-600 border-red-400"
-            >
-              삭제
-            </Button>
-          )}
-          <div className="flex gap-2 ml-auto">
+            />
+          </label>
+
+          {/* 필요 인원 */}
+          <label className="block">
+            <span className="font-medium">필요 인원</span>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
+                <label key={n} className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="requiredServers"
+                    value={n}
+                    checked={requiredServers === n}
+                    onChange={() => setRequiredServers(n)}
+                    disabled={loading}
+                  />
+                  {n}명
+                </label>
+              ))}
+            </div>
+          </label>
+
+          {/* 복사 배정 (학년별 그룹) */}
+          <label className="block">
+            <span className="font-medium">배정 복사 선택</span>
+            <div className="mt-2 border rounded p-3 max-h-[420px] overflow-y-auto space-y-3">
+              {groupedMembers.map(([grade, list]) => (
+                <div key={grade} className="space-y-1">
+                  {/* 학년 헤더 */}
+                  <div className="text-sm font-semibold text-gray-700 border-b border-gray-300 pb-0.5 mb-1">
+                    {grade}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {list.map((m) => (
+                      <label key={m.id} className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          value={m.id}
+                          checked={memberIds.includes(m.id)}
+                          onChange={() => toggleMember(m.id)}
+                          disabled={loading}
+                        />
+                        <span>{m.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              정확히 {requiredServers ?? '-'}명 선택해야 합니다.
+            </p>
+          </label>
+
+          {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
+
+          {/* 하단 버튼 */}
+          <div className="flex justify-end gap-2 mt-6">
+            {eventId && (
+              <Button
+                variant="outline"
+                onClick={handleDelete}
+                disabled={loading}
+                className="text-red-600 border-red-400"
+              >
+                삭제
+              </Button>
+            )}
             <DialogClose asChild>
               <Button variant="outline" disabled={loading}>
                 취소

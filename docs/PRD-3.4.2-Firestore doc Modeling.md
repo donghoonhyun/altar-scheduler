@@ -1,23 +1,34 @@
 # PRD 3.4.2 Firestore Collections Structure (Altar Scheduler)
 
+- 🎯Firestore Collections Overview
+
 ```lua
-server_groups/{serverGroupId}
- ├── members/{memberId}
- ├── mass_events/{eventId}
+server_groups/{serverGroupId} (Document)
+ ├── name: string                  // ex: "범어성당 복사단 1그룹"
+ ├── timezone: string              // ex: "Asia/Seoul"
+ ├── created_at: Timestamp
+ ├── updated_at: Timestamp
+ │
+ ├── members/{memberId} (Document)
+ │    ├── uid: string             // 자동채번
+ │    ├── name_kor: string        // ex: "심창아"
+ │    ├── baptismal_name: string  // ex: "젤뚜르다"
+ │    ├── email: "jeltoo@naver.com"
+ │    └── status: "ACTIVE"
+ ├── mass_events/{eventId} (Document)
  │    ├── title: string
  │    ├── date: Timestamp
  │    ├── required_servers: number
  │    ├── member_ids: string[]
  │    ├── created_at: Timestamp
- │    ├── updated_at: Timestamp
- │    └── (status 제거됨 ❌)
- ├── month_status/{yyyymm}
+ │    └── updated_at: Timestamp 
+ ├── month_status/{yyyymm} (Document)
  │    ├── status: string                     // ex: MASS-NOTCONFIRMED / MASS-CONFIRMED / SURVEY-CONFIRMED / FINAL-CONFIRMED
  │    ├── updated_by: string                 // email or uid
  │    ├── updated_at: Timestamp
  │    ├── note?: string
  │    └── lock?: boolean                     // autoAssign 후 편집 잠금
- ├── availability_surveys/{yyyymm}/responses/{memberId}
+ ├── availability_surveys/{yyyymm}/responses/{memberId} (Document)
  │    ├── responses: Record<eventId, "AVAILABLE"|"UNAVAILABLE">
  │    ├── created_at: Timestamp
  │    └── updated_at: Timestamp
@@ -95,7 +106,7 @@ server_groups/{sg}/month_status/{yyyymm}
 
 ```lua
 server_groups/{sg}/mass_events/{event_id}
-  date: timestamp               // 현지 자정 기준 (Timezone 정책 준수)
+  date: timestamp               // Firestore에 저장 시 UTC 기준 Timestamp, 현지 자정 기준 (Timezone 정책 준수)
   title: string                 // 예: "주일 10시 미사"
   required_servers: number      // 필요 복사 인원수
   member_ids: string[]          // 배정된 복사 ID 목록
@@ -103,6 +114,23 @@ server_groups/{sg}/mass_events/{event_id}
   updated_at: timestamp
 ```
 
+#### 2.4.1 UI 변환 정책 (useMassEvents / MassCalendar / MassEventPlanner 공통 적용)
+
+```lua
+  | 항목            |설명                                                                                                  |
+  | -------------- | ---------------------------------------------------------------------------------------------------- |
+  | Firestore 저장 형식| `date` 필드는 **UTC Timestamp** 로 Firestore에 저장됨                                           |
+  | UI 표시 형식       | `useMassEvents` 훅에서 `toLocalDateFromFirestore()` 사용하여 `'YYYY-MM-DD'` 문자열로 변환 후 렌더링 |
+  | Timezone 기준     | 모든 변환은 `Asia/Seoul` 기준 (`dayjs.tz('Asia/Seoul')`) 으로 수행                                |
+  | 비교 및 렌더링 로직 | `MassEventPlanner`, `MassCalendar` 등 UI 단에서는 문자열(`'YYYY-MM-DD'`) 기반 비교 및 표시 수행 |
+  | 이유              | React UI에서 `dayjs` 객체 간 직렬화·비교 복잡성을 줄이고, Firestore 데이터와 일관된 표시를 유지하기 위함 |
+  | 결과              | Firestore(Timestamp) ↔ UI(String) 간 양방향 변환은 `fromLocalDateToFirestore()` / `toLocalDateFromFirestore()` 유틸을 통해 관리|
+```
+
+- 정책 요약
+  . DB 원본(Timestamp) 은 Cloud Function, 서버 처리 시에도 동일하게 사용 가능
+  . UI에서는 String('YYYY-MM-DD') 변환 후 사용하여 Dashboard / Planner 간 통일성 확보
+  
 ### 2.5 Availability Surveys (가용성 설문 응답)
 
 ```lua

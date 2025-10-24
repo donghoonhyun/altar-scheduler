@@ -408,6 +408,8 @@
   ├── mass_events   { last_seq: 15 }
   └── notifications { last_seq: 102 }
 
+---
+
 ## 🎯3. 비기능 요구사항
 
 ### 📍3.1 App 환경
@@ -420,6 +422,8 @@
 - Sesurity: Google Firebase Security Rules로 역할별 접근 제어
 - 유지보수성: CSV Import/Export, Emulator 기반 테스트 지원
 - CI/CD
+
+---
 
 ### 📍3.2 1인-개발 환경
 
@@ -442,6 +446,8 @@
   프론트엔드 페이지/컴포넌트에서는 반드시 import type 으로 참조한다.
 - ESLint/TS 규칙에서 no-explicit-any를 활성화하여, 타입 안정성을 유지한다.
 - 새 Cloud Function 추가 시 반드시 Request / Response 타입을 정의하여 문서화한다.
+
+---
 
 ### 📍3.3 Test
 
@@ -469,6 +475,8 @@
   . `memberships/planner-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "planner" }`  
   . `memberships/server-test-uid_SG0001` → `{ server_group_id: "SG0001", parish_code: "DAEGU-BEOMEO", role: "server" }`  
   . `server_groups/SG0001` → `{ parish_code: "DAEGU-BEOMEO", name: "범어성당 복사단 1그룹" }`  
+
+---
 
 ### 📍3.4 Google Firebase 환경
 
