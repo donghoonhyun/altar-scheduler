@@ -68,7 +68,7 @@ export type MassStatus =
 export interface MassEventDoc {
   id: string;
   title: string;
-  date: Timestamp;
+  event_date: string;
   required_servers: number;
   status: MassStatus;
   member_ids?: string[];

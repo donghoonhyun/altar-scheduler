@@ -44,3 +44,33 @@ export const MASS_STATUS_COLORS: Record<MassStatus, { bg: string; text: string; 
       border: 'border-green-300',
     },
   };
+
+/**
+ * 🔹 MASS_STATUS_ICONS
+ * -------------------------------------------------------
+ * 상태별 아이콘 이모지 매핑
+ * -------------------------------------------------------
+ */
+export const MASS_STATUS_ICONS: Record<MassStatus, string> = {
+  'MASS-NOTCONFIRMED': '🕓',
+  'MASS-CONFIRMED': '🔒',
+  'SURVEY-CONFIRMED': '🗳️',
+  'FINAL-CONFIRMED': '🛡️',
+};
+
+/**
+ * 🔹 getMassStatusInfo()
+ * -------------------------------------------------------
+ * label, color, icon을 한 번에 반환하는 통합 헬퍼
+ * -------------------------------------------------------
+ */
+export function getMassStatusInfo(status?: string) {
+  const safeStatus = (status as MassStatus) || 'MASS-NOTCONFIRMED';
+  return {
+    label: MASS_STATUS_LABELS[safeStatus],
+    color: MASS_STATUS_COLORS[safeStatus].text,
+    bg: MASS_STATUS_COLORS[safeStatus].bg,
+    border: MASS_STATUS_COLORS[safeStatus].border,
+    icon: MASS_STATUS_ICONS[safeStatus],
+  };
+}

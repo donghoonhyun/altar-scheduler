@@ -268,6 +268,33 @@
 
 - 세부 정책 : 'PRD-2.4.9-MassEvent Drawer UI.md' 파일 내용을 참고함.
 
+#### 2.4.10 Status Component Unification (상태 표시 컴포넌트 공통화)
+
+- 목적 : 각 페이지(ServerMain, Dashboard, MonthStatusDrawer 등)에서 미사 상태(month_status.status)를 표시할 때 사용되는 문구·색상·아이콘을 일관된 기준으로 통합 관리함.
+- 주요 구성
+  (1) 상수/헬퍼 정의
+    . 파일 위치: src/constants/massStatusLabels.ts
+
+    ```ts
+    export function getMassStatusInfo(status?: string) {
+      const safeStatus = (status as MassStatus) || 'MASS-NOTCONFIRMED';
+      return {
+        label: MASS_STATUS_LABELS[safeStatus],
+        color: MASS_STATUS_COLORS[safeStatus].text,
+        bg: MASS_STATUS_COLORS[safeStatus].bg,
+        border: MASS_STATUS_COLORS[safeStatus].border,
+        icon: MASS_STATUS_ICONS[safeStatus],
+      };
+    }
+    ```
+
+  (2) 공통 컴포넌트
+    .파일 위치: src/components/StatusBadge.tsx
+
+    ```ts 적용예시
+    <StatusBadge status={monthStatus as MassStatus} size="md" />
+    ```
+
 ---
 
 ### 2.5 📍미사일정관리(MassEventPlanner)의 Tool Bar 버튼 정의
