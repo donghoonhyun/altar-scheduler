@@ -10,19 +10,19 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { getMemberNamesByIds } from '@/lib/firestore';
-import { toLocalDateFromFirestore, fromLocalDateToFirestore } from '@/lib/dateUtils';
 import type { MassEventCalendar } from '@/types/massEvent';
 import type { MassStatus } from '@/types/firestore';
 import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(timezone);
 
 /**
  * ✅ useMassEvents (월 단위 Firestore where 버전)
  * ---------------------------------------------------------
- * - 특정 복사단(serverGroupId)의 특정 월(currentMonth) 일정만 실시간 구독
- * - Firestore 쿼리 최적화 (UTC-safe)
- * - TimezoneHandling 정책 준수 (Asia/Seoul)
- * ---------------------------------------------------------
- * 반환: { events, loading, error }
+ * - Firestore mass_events.event_date(string) 기반
+ * - currentMonth(YYYYMM) 범위 내 데이터만 실시간 구독
+ * - Timezone: server_groups.timezone (default Asia/Seoul)
  * ---------------------------------------------------------
  */
 export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs) {
@@ -40,15 +40,15 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
     }
 
     const tz = 'Asia/Seoul';
-    const start = fromLocalDateToFirestore(currentMonth.startOf('month'), tz);
-    const end = fromLocalDateToFirestore(currentMonth.endOf('month').add(1, 'day'), tz);
+    const startStr = currentMonth.startOf('month').format('YYYYMMDD');
+    const endStr = currentMonth.endOf('month').format('YYYYMMDD');
 
     const colRef = collection(db, 'server_groups', serverGroupId, 'mass_events');
     const q = query(
       colRef,
-      where('date', '>=', start),
-      where('date', '<', end),
-      orderBy('date', 'asc')
+      where('event_date', '>=', startStr),
+      where('event_date', '<=', endStr),
+      orderBy('event_date', 'asc')
     );
 
     const unsubscribe = onSnapshot(
@@ -62,18 +62,22 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
               const servers =
                 memberIds.length > 0 ? await getMemberNamesByIds(serverGroupId, memberIds) : [];
 
-              const tz = d.timezone || 'Asia/Seoul';
-              const localDayjs = toLocalDateFromFirestore(d.date, tz);
-              const formattedDate = localDayjs.format('YYYY-MM-DD'); // ✅ 문자열 반환
               const status: MassStatus = (d.status as MassStatus) || 'MASS-NOTCONFIRMED';
+              const eventDateStr = d.event_date as string;
+
+              // 🔹 timezone 적용 표시용 변환 (UI label 계산용)
+              const localDay = dayjs.tz(eventDateStr, 'YYYYMMDD', tz);
+              const formattedLabel = localDay.format('YYYY-MM-DD');
 
               return {
                 id: docSnap.id,
                 title: d.title || '(제목없음)',
-                date: formattedDate, // ✅ string으로 전달 (MassEventPlanner와 동일)
+                event_date: eventDateStr, // ✅ 원본 "YYYYMMDD"
                 required_servers: d.required_servers ?? 0,
                 servers,
                 status,
+                // 🔹 UI에서 바로 날짜 정렬/표시용으로도 사용 가능
+                formatted_date: formattedLabel,
               } satisfies MassEventCalendar;
             })
           );

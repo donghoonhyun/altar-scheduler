@@ -21,8 +21,14 @@ export interface MassEvent {
 export interface MassEventCalendar {
   id: string;
   title: string;
-  date: string | { _seconds: number; _nanoseconds: number };
+  event_date: string; // Firestore 저장용 "YYYYMMDD"
   required_servers: number;
+  member_ids?: string[];
   servers?: string[];
   status?: MassStatus;
+  created_at?: Date;
+  updated_at?: Date;
+
+  /** 🔹 UI 표시용 YYYY-MM-DD 포맷 (optional) */
+  formatted_date?: string;
 }

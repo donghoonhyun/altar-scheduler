@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'; // ✅ FieldValue 사용
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { SERVERS } from './data/servers_with_id';
 import { seedMassEvents } from './utils/seedUtils';
 import { EXTRA_EVENTS } from './data/massEvents_SG00001_202509'; // 없으면 빈 배열 []
@@ -12,8 +12,6 @@ const db = getFirestore();
 
 if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
   console.log('🔥 Auth Emulator 연결:', process.env.FIREBASE_AUTH_EMULATOR_HOST);
-  // firebase-admin v11 이상에서는 아래 코드 필요 없지만 보호용으로 추가해도 무방
-  // auth.useEmulator(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`);
 }
 
 const TEST_PARISH_CODE = 'DAEGU-BEOMEO';
@@ -129,6 +127,7 @@ async function seed() {
   // 4️⃣ mass_events (2025-09)
   console.log('📌 2025-09 미사일정 시드 시작...');
   await seedMassEvents(TEST_SERVER_GROUP_ID, 2025, 9, EXTRA_EVENTS);
+  console.log('✅ mass_events 시드 완료');
 
   // 5️⃣ month_status (202509)
   const monthKey = '202509';
@@ -143,7 +142,7 @@ async function seed() {
     lock: false,
     note: '시드 초기 상태',
     updated_by: 'seed@system',
-    updated_at: FieldValue.serverTimestamp(), // ✅ Admin SDK 방식
+    updated_at: FieldValue.serverTimestamp(),
   });
 
   console.log(`✅ month_status/${monthKey} 문서 생성 (MASS-NOTCONFIRMED)`);

@@ -7,7 +7,6 @@ import { Button, Card, Container, Heading } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { MassEventCalendar } from '@/types/massEvent';
-import { toLocalDateFromFirestore } from '@/lib/dateUtils';
 import type { MassStatus } from '@/types/firestore';
 
 dayjs.extend(utc);
@@ -45,7 +44,9 @@ export default function MassCalendar({
   // 날짜별 이벤트 그룹
   const eventsByDate: Record<string, MassEventCalendar[]> = {};
   events.forEach((event) => {
-    const eventDate = toLocalDateFromFirestore(event.date, timezone);
+    // const eventDate = toLocalDateFromFirestore(event.date, timezone);
+    // const key = eventDate.format('YYYY-MM-DD');
+    const eventDate = dayjs.tz(event.event_date, 'YYYYMMDD', timezone);
     const key = eventDate.format('YYYY-MM-DD');
     if (!eventsByDate[key]) eventsByDate[key] = [];
     eventsByDate[key].push(event);

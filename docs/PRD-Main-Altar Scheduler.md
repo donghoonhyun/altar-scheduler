@@ -199,7 +199,7 @@
 - 요청 파라미터:
 {
   title: string;
-  date: string; // YYYY-MM-DD
+  event_date: string; // YYYY-MM-DD
   requiredServers: number;
 }
 - 동작:
@@ -207,9 +207,9 @@
   . Firestore mass_events/{id} 문서 생성 : server_groups/{server_group_id}/mass_events/{event_id}
   . 생성 필드: server_group_id, title, date, required_servers, status, created_at, updated_at
   {
-    server_group_id: string;        // FK (복사단 구분용)
+    server_group_id: string;       // FK (복사단 구분용)
     title: string;
-    date: timestamp;
+    event_date: string;             // ex: "20251024" , 변환예제:const event_date = dayjs(selectedDate).format("YYYYMMDD");
     required_servers: number;
     status: "MASS-NOTCONFIRMED";   // 초기 상태
     created_at: timestamp;
@@ -221,7 +221,7 @@
 - 신규 생성
   . Cloud Function createMassEvent 호출
   . 기능:
-    EventId (ME000001 형식) 채번
+    EventId 자동채번
     counters/mass_events 증가 처리
     기본 status = MASS-NOTCONFIRMED 설정
     Firestore server_groups/{sg}/mass_events/{eventId}에 문서 생성
@@ -238,7 +238,19 @@
 
 ##### 2.4.2.3 Timezone Handling (저장 및 표시 로직)
 
-- 프로젝트 파일 'PRD-2.4.2.3-TimezoneHandling.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-2.4.2.3-TimezoneHandling.md' 파일 내용을 참고함.
+- mass_events.event_date 는 UTC Timestamp가 아닌,
+  해당 본당의 현지(Local) 기준 날짜를 나타내는 문자열("YYYYMMDD") 로 저장한다.
+- Timezone(server_groups.timezone)은 Firestore 저장 시에는 사용되지 않으며,
+  UI의 달력·요일 계산 및 Cloud Function 내부 계산 시에만 참고한다.
+
+변환 예시:
+
+```ts
+  const tz = serverGroup.timezone || "Asia/Seoul";
+  const label = dayjs.tz(event_date, "YYYYMMDD", tz).format("M월 D일 (ddd)");
+
+```
 
 #### 2.4.3 필요 인원(required_servers) 설정
 
@@ -246,15 +258,15 @@
 
 #### 2.4.7 MassEvent Calendar UI
 
-- 프로젝트 파일 'PRD-2.4.7-MassEvent Calendar UI.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-2.4.7-MassEvent Calendar UI.md' 파일 내용을 참고함.
 
 #### 2.4.8 MassEvent Planner UI
 
-- 프로젝트 파일 'PRD-2.4.8-MassEvent Planner UI.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-2.4.8-MassEvent Planner UI.md' 파일 내용을 참고함.
 
 #### 2.4.9 MassEvent Drawer UI
 
-- 프로젝트 파일 'PRD-2.4.9-MassEvent Drawer UI.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-2.4.9-MassEvent Drawer UI.md' 파일 내용을 참고함.
 
 ---
 
@@ -288,7 +300,7 @@
 #### 2.5.5 [자동 배정] 버튼 (Auto Assignment)
 
 - 버튼 활성화 조건 : 선택된 월이 'SURVEY-CONFIRMED'(설문종료) 상태에서만 활성화됨.
-- 프로젝트 파일 'PRD 2.5.5 Auto ServerAssignment Logic.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD 2.5.5 Auto ServerAssignment Logic.md' 파일 내용을 참고함.
 
 #### 2.5.7 [월 상태변경] 버튼
 
@@ -300,7 +312,7 @@
 
 ### 📍2.6 복사 가용성 설문 관리 (Availability)
 
-- 프로젝트 파일 'PRD-2.6-Availability Survey.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-2.6-Availability Survey.md' 파일 내용을 참고함.
 
 ### 2.6.1 설문 생성 (SendSurveyDrawer)
 
@@ -324,7 +336,7 @@
 
 ### 📍2.8 자동 배정 로직 (Auto Server Assignment Logic)
 
-- 프로젝트 파일 'PRD-2.5.5-Auto ServerAssignment.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-2.5.5-Auto ServerAssignment.md' 파일 내용을 참고함.
 
 ---
 
@@ -482,11 +494,11 @@
 
 #### 3.4.1 Firebase 환경구성
 
-- 프로젝트 파일 'PRD-3.4.1-Firebase Setup.md' 파일 내용을 참고함.
+- 세부 정책 : 'PRD-3.4.1-Firebase Setup.md' 파일 내용을 참고함.
 
 ### 3.4.2 Firestore doc modeling (서브컬렉션로 단위 격리)
 
-- 프로젝트 파일 'PRD-3.4.2-Firestore doc Modeling.md' 파일 내용을 참고함.
+- 세부 정책 : : 'PRD-3.4.2-Firestore doc Modeling.md' 파일 내용을 참고함.
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 
 ## 🎯4. 향후 확장
@@ -494,3 +506,5 @@
 - 다국어 지원 (한국어/영어/스페인어 등)
 - 복사/부모 전용 앱 (푸시 알림 연동)
 - 교구 단위 통계/리포트
+
+---

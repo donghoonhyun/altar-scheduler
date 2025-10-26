@@ -109,10 +109,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           });
 
         setMembers(list);
-        console.log(
-          '✅ members loaded:',
-          list.map((m) => `${m.grade}-${m.name}`)
-        ); // 디버깅용 로그
+        // console.log(
+        //   '✅ members loaded:',
+        //   list.map((m) => `${m.grade}-${m.name}`)
+        // ); // 디버깅용 로그
       } catch (err) {
         console.error('❌ members load error:', err);
       }

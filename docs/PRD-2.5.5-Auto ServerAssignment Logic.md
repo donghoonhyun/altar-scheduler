@@ -25,9 +25,10 @@ Firestore 컬렉션:
 
 | 필드명                 | 타입       | 설명                                                           |
 | ------------------- | -------- | ------------------------------------------------------------ |
-| `required_servers`  | number   | 필요한 복사 인원                                                    |
-| `member_ids`        | string[] | 배정된 복사 ID 목록                                                 |
-| `available_members` | string[] | 설문에서 가능 응답한 복사 목록                                            |
+| `event_date`         | string   | (yyyymmdd) 현지 기준 날짜 문자열                                |
+| `required_servers`  | number   | 필요한 복사 인원                                               |
+| `member_ids`        | string[] | 배정된 복사 ID 목록                                            |
+| `available_members` | string[] | 설문에서 가능 응답한 복사 목록                                   |
 | `status`            | string   | `MASS-NOTCONFIRMED` / `SURVEY-CONFIRMED` / `FINAL-CONFIRMED` |
 
 ---
