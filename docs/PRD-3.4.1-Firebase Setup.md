@@ -88,7 +88,8 @@ if (isLocal) {
 }
 ```
 
-> 💡 Production 빌드 시에는 `isLocal=false` → 실제 Firebase 서비스로 자동 전환됨.
+💡 Production 빌드 시에는 `isLocal=false` → 실제 Firebase 서비스로 자동 전환됨.
+💡 모든 서버 함수는 Asia/Seoul (KST) 기준으로 실행된다. 별도의 timezone 변환은 필요하지 않음.
 
 ### 4️⃣ Firestore 보안 규칙 (로컬 전용)
 

@@ -56,11 +56,14 @@ const CopyPrevMonthDrawer: React.FC<CopyPrevMonthDrawerProps> = ({
       const data = snap.data();
       const status = data.status;
 
-      if (status !== 'MASS-CONFIRMED') {
+      // ✅ 허용 가능한 상태 목록
+      const allowedStatuses = ['MASS-CONFIRMED', 'SURVEY-CONFIRMED', 'FINAL-CONFIRMED'];
+
+      if (!allowedStatuses.includes(status)) {
         alert(
           `⚠️ ${prevMonth.format(
             'M월'
-          )} 상태가 '확정' 상태가 아닙니다.\n\n확정 상태에서만 전월 일정을 복사할 수 있습니다.`
+          )} 상태가 '확정', '설문마감', '최종확정' 중 하나가 아닙니다.\n\n'미확정' 상태에서는 전월 일정을 복사할 수 없습니다.`
         );
         return false;
       }

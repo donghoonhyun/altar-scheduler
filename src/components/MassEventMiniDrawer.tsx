@@ -11,7 +11,8 @@ interface MassEventMiniDrawerProps {
   onClose: () => void;
   events: MassEventDoc[];
   date: dayjs.Dayjs | null;
-  serverGroupId?: string; // ✅ 추가
+  serverGroupId?: string;
+  monthStatus?: string; // ✅ 추가
 }
 
 export default function MassEventMiniDrawer({
@@ -20,11 +21,17 @@ export default function MassEventMiniDrawer({
   events,
   date,
   serverGroupId,
+  monthStatus = 'MASS-NOTCONFIRMED',
 }: MassEventMiniDrawerProps) {
   const [namesMap, setNamesMap] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
+    // ✅ ‘최종확정’ 상태가 아닐 경우 이름 조회 스킵
     if (!isOpen || events.length === 0 || !serverGroupId) return;
+    if (monthStatus !== 'FINAL-CONFIRMED') {
+      setNamesMap({});
+      return;
+    }
 
     const fetchNames = async () => {
       const newMap: Record<string, string[]> = {};
@@ -34,12 +41,9 @@ export default function MassEventMiniDrawer({
         const nameList: string[] = [];
 
         for (const uid of ids) {
-          // console.log('🔍 member uid:', uid);
           try {
-            // ✅ 여기서 server_groups/{id}/members/{uid} 로 변경!
             const ref = doc(db, 'server_groups', serverGroupId, 'members', uid);
             const snap = await getDoc(ref);
-            // console.log('📄 exists:', snap.exists(), 'path:', ref.path);
 
             if (snap.exists()) {
               const d = snap.data();
@@ -48,14 +52,11 @@ export default function MassEventMiniDrawer({
                   ? `${d.name_kor} ${d.baptismal_name}`
                   : d.name_kor || '이름없음';
               nameList.push(displayName);
-            } else {
-              console.warn('⚠️ member 문서 없음:', uid);
             }
           } catch (e) {
             console.error('❌ 이름 조회 오류:', e);
           }
         }
-
         newMap[ev.id] = nameList;
       }
 
@@ -63,7 +64,7 @@ export default function MassEventMiniDrawer({
     };
 
     fetchNames();
-  }, [isOpen, events, serverGroupId]);
+  }, [isOpen, events, serverGroupId, monthStatus]);
 
   if (!date) return null;
 
@@ -113,11 +114,13 @@ export default function MassEventMiniDrawer({
                 <div className="flex flex-col gap-3">
                   {events.map((ev) => {
                     const names = namesMap[ev.id] ?? [];
+                    const showNames = monthStatus === 'FINAL-CONFIRMED' && names.length > 0;
+
                     return (
                       <Card key={ev.id} className="p-3 border border-gray-200">
                         <h3 className="font-semibold text-gray-800 mb-2">{ev.title}</h3>
                         <div className="flex flex-wrap gap-1">
-                          {names.length > 0 ? (
+                          {showNames ? (
                             names.map((n) => (
                               <span
                                 key={n}

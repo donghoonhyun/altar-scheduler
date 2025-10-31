@@ -14,7 +14,7 @@
 | ⚙️ **자동 배정(Assign)** | 각 미사에 필요한 복사 인원을 기준으로 균등 배정                                      |
 | 🔁 **교체 요청(Swap)**   | 기존 배정 복사가 대타 요청 시 다른 복사로 교체                                      |
 | 🛡️ **상태 반영**         | 배정 완료 시 `status` 필드를 `SURVEY-CONFIRMED` 또는 `FINAL-CONFIRMED`로 변경 |
-| 🕒 **시간 일관성**        | 모든 처리 시 복사단(ServerGroups)의 timezone 속성(예: `Asia/Seoul`) 기준으로 동작                                 |
+| 🕒 **시간 일관성**       | 모든 처리 로직은 `Asia/Seoul` 기준에서 동일하게 계산                           |
 
 ---
 
@@ -135,9 +135,11 @@ async function swapServerRequest(serverGroupId: string, eventId: string, oldMemb
 
 ## 🧩 6️⃣ 시간대 처리
 
-* 모든 날짜 계산은 `dateUtils` 모듈의 복사단(ServerGroups)의 timezone속성(예:`Asia/Seoul`) 기준으로 수행.
+* 모든 시간 및 날짜 계산은 대한민국 표준시(Asia/Seoul) 로 고정한다.
 * Cloud Function 환경에서는 `process.env.TZ = 'Asia/Seoul'` 설정 필수.
-* Firestore 저장 시 `fromLocalDateToFirestore()` 사용.
+* Firestore에 저장되는 날짜(event_date)는 항상 "YYYYMMDD" 문자열 기준이다.
+  . server_groups.timezone 필드 및 지역별 변환 로직은 완전히 폐기되었다.
+  . 모든 주차/요일 계산은 dayjs(event_date, "YYYYMMDD") 로 단순 처리한다.
 
 ---
 

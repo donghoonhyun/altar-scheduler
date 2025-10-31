@@ -294,6 +294,7 @@ export default function ServerMain() {
         events={selectedEvents}
         date={selectedDate}
         serverGroupId={serverGroupId}
+        monthStatus={monthStatus}
       />
     </Container>
   );

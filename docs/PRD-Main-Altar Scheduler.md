@@ -12,7 +12,7 @@
 - 아래 프로젝트 파일들을 보조로 함께 참고해야함:  
   . Folder Structure of App.txt: App의 폴더와 파일 기본 구조
   . PRD-2.13-App-UIUX.md: App의 UI/UX 기본 구조
-  . PRD-2.4.2.3-TimezoneHandling.md: 글로벌사용을 위한 timezone 처리가이드
+  . PRD-2.4.2.3-TimezoneHandling.md: KST 단일 기준 시간 처리 정책
   . Firestore Collections.md: Firebase Firestore의 컬렉션과 doc 구조 설명  
   . PRD-3.4.1-Firebase Setup.md: Cloud Functions 환경구성과 개발표준 설명
   . 개발표준가이드 지침.txt: 그외 개발가이드
@@ -239,16 +239,14 @@
 ##### 2.4.2.3 Timezone Handling (저장 및 표시 로직)
 
 - 세부 정책 : 'PRD-2.4.2.3-TimezoneHandling.md' 파일 내용을 참고함.
-- mass_events.event_date 는 UTC Timestamp가 아닌,
-  해당 본당의 현지(Local) 기준 날짜를 나타내는 문자열("YYYYMMDD") 로 저장한다.
-- Timezone(server_groups.timezone)은 Firestore 저장 시에는 사용되지 않으며,
-  UI의 달력·요일 계산 및 Cloud Function 내부 계산 시에만 참고한다.
+- mass_events.event_date 는 Firestore에 **문자열(`"YYYYMMDD"`)** 로 저장된다.  
+- UI 및 Cloud Function 모두 동일한 기준으로 계산하며 변환 함수(`dayjs.tz`) 는 사용하지 않는다.  
 
-변환 예시:
+예시:
 
 ```ts
-  const tz = serverGroup.timezone || "Asia/Seoul";
-  const label = dayjs.tz(event_date, "YYYYMMDD", tz).format("M월 D일 (ddd)");
+  const event_date = dayjs(selectedDate).format("YYYYMMDD");
+  const label = dayjs(event_date, "YYYYMMDD").format("M월 D일 (ddd)");
 
 ```
 
@@ -304,7 +302,12 @@
 - 버튼 활성화 조건 : 선택된 달(currentMonth)이 시스템 기준 현재 월(dayjs()) 또는 다음 월(dayjs().add(1, 'month')) 과 동일할 때만 버튼 활성화됨.
 - 버튼 클릭 시 : "전월 미사일정 가져오기를 하면 선택된 월에 입력된 미사일정과 복사설문 정보가 모두 삭제됩니다" 메세지 표시 후,
     미확정 상태의 해당월 미사일정(mass_events collection의 docs)을 삭제하고 전월 일정들로 복사로직에 따라 insert.
-- 복사로직 : 날짜 그대로 복사하는 것이 아니라, 주차별 요일별로 복사하는 것이다. 예를 들어 전월 첫째주 토요일-->당월 첫째주 토요일로 복사함.
+- 복사로직 :
+  . 날짜 단위로 일별 복사하는 것이 아니라,
+  . 전월 첫번째 일요일에서 화/수/목/금/토요일까지의 7일치 요일별 미사일정배열 base 를 저장하고 난뒤에,
+    (주는 일/월/화/수/목/금/토 순서임)
+  . 당월의 1일부터 말일까지 loop 돌면서 해당요일이 base배열에 있는 미사일정을 복사하면 됨.
+  . 예를 들어 당월 1일이 토요일이면 전월 base[토]에 있는 미사일정을 단순히 복사해 나가면 됨.
 
 #### 2.5.2 [미사 일정 확정] 버튼
 
@@ -353,11 +356,14 @@
 
 ### 📍2.7 복사 메인 페이지 (ServerMain.tsx)
 
-- home url로 접근시 관리자가 아닌 경우, 복사 메인 페이지로 이동해서 표시함
+- 세부 정책 : 'PRD-2.7-ServerMain.md' 파일 내용을 참고함.
+
+- home url로 접근시 Planner 또는 관리자가 아닌 경우, 복사 메인 페이지로 이동해서 표시함
 - 표시내용 :
   . 월별 달력 : 배정이 완료된 상태의 전체 미사일정과 미사별 배정된 복사들 이름 표시
   . 본인 미사는 강조 표시함
   . 설문이 시작 된 경우 '설문 참여' 링크 표시하고 클릭시 <2.6 가용성설문> 페이지로 이동
+  . 하단에 미사일정과 배정복사를 보여주는 drawer(MassEventMiniDrawer.tsx) 배치
 
 ---
 
@@ -455,9 +461,11 @@
 
 - front end : SPA(Single Page Architecture) + vite + react.js + TailWind CSS
 - back end : Google platform Firebase 기반
+- Timezone : Asia/Seoul 고정 (KST)
 - data storage : Firestore (NoSQL)
 - hosting/deploy: Google Firebase Hosting, Functions, Auth
 - Localization: 여러 성당에서 사용 가능 (parish_code로 구분)
+- Locale : 한국어 (다국어 확장 계획 없음 – 시차 관련 로직 폐기)
 - Sesurity: Google Firebase Security Rules로 역할별 접근 제어
 - 유지보수성: CSV Import/Export, Emulator 기반 테스트 지원
 - CI/CD
@@ -522,6 +530,9 @@
 #### 3.4.1 Firebase 환경구성
 
 - 세부 정책 : 'PRD-3.4.1-Firebase Setup.md' 파일 내용을 참고함.
+- 모든 함수는 Seoul 리전(asia-northeast3) 에서 실행되며,
+  서버 환경의 Timezone은 process.env.TZ = 'Asia/Seoul' 로 고정한다.
+- UI, Functions, Firestore 모두 KST 기준으로 동작한다.  
 
 ### 3.4.2 Firestore doc modeling (서브컬렉션로 단위 격리)
 

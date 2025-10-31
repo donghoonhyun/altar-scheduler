@@ -59,9 +59,7 @@ memberships/{uid}_{server_group_id} // 복사단 단위 Planner/Server (전역 S
 ```lua
 server_groups/{server_group_id}
   parish_code: string          // src/config/parishes.ts 카탈로그 참조
-  name: string
-  timezone: string             // 예: "Asia/Seoul", "Pacific/Saipan"
-  locale: string               // 다국어 확장 대비
+  name: string    
   active: boolean              // true/false(사용/미사용)
   created_at: timestamp
   updated_at: timestamp
@@ -117,7 +115,7 @@ server_groups/{sg}/month_status/{yyyymm}
 
 ```lua
 server_groups/{sg}/mass_events/{event_id}
-  event_date: timestamp          // yyyymmdd
+  event_date: timestamp          // "YYYYMMDD" (KST 기준)
   title: string                 // 예: "주일 10시 미사"
   required_servers: number      // 필요 복사 인원수
   member_ids: string[]          // 배정된 복사 ID 목록
