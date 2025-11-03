@@ -19,7 +19,7 @@ server_groups/{serverGroupId} (Document)
  │    ├── created_at: Timestamp
  │    └── updated_at: Timestamp
  │
- ├── mass_events/{eventId} (Document)
+ ├── mass_events/{eventId} (Document) // event_id는 auto-generated
  │    ├── title: string
  │    ├── event_date: string        // ex: "20251024" (현지 기준 날짜)
  │    ├── required_servers: number
