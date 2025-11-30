@@ -49,9 +49,7 @@ server_groups/{serverGroupId} (Document)
 ## 1. 권한 SSOT
 
 ```typescript
-system_roles/{uid}                  // 전역 Admin
-parish_roles/{uid}_{parish_code}    // 본당 단위 Manager
-memberships/{uid}_{server_group_id} // 복사단 단위 Planner/Server (전역 SSOT)
+memberships/{uid}_{server_group_id} // 복사단 단위 역할정의(Planner/Server, 전역 SSOT)
 ```
 
 ## 2. 복사단 (server_groups)
@@ -69,7 +67,8 @@ server_groups/{server_group_id}
 
 ```lua  
 server_groups/{sg}/members/{member_id}  
-  uid: string                # 연결된 Firebase Auth UID
+  member_id: string          # 복사(server)의 UID
+  parent_uid: string         # 가입 회원정보(users/{uid})의 UID (FK)
   email : string
   name_kor: string
   baptismal_name: string
@@ -82,13 +81,25 @@ server_groups/{sg}/members/{member_id}
   updated_at: timestamp
 ```
 
-### 2.2 Memberships (Cache용 선택적)
+### 2.2 Mass_Presets
 
 ```lua
-server_groups/{sg}/memberships/{uid}
-  role: "planner" | "server"
-  linked_uid: string
-  active: boolean
+server_groups/{sg}/mass_presets/
+```
+
+```json 예시
+{
+  "weekdays": {
+    "0": [ { "title": "주일 10시 미사", "required_servers": 3 } ],
+    "1": [],
+    "2": [],
+    "3": [ { "title": "평일 수 미사", "required_servers": 2 } ],
+    "4": [],
+    "5": [ { "title": "평일 금 미사", "required_servers": 1 } ],
+    "6": []
+  },
+  "updated_at": "Timestamp"
+}
 ```
 
 ### 2.3 month_status (server_group별 월별 상태status 관리)
@@ -115,10 +126,11 @@ server_groups/{sg}/month_status/{yyyymm}
 
 ```lua
 server_groups/{sg}/mass_events/{event_id}
-  event_date: timestamp          // "YYYYMMDD" (KST 기준)
+  event_date: timestamp          // "YYYYMMDD" (KST 기준)  
   title: string                 // 예: "주일 10시 미사"
   required_servers: number      // 필요 복사 인원수
   member_ids: string[]          // 배정된 복사 ID 목록
+  not_available_members: string[] // 설문에 따른 참석 불가능한 복사들 ID목록
   created_at: timestamp
   updated_at: timestamp
 ```
@@ -162,7 +174,8 @@ server_groups/{sg}/notifications/{notif_id}
 users/{uid}
   uid: string
   email: string
-  display_name: string
+  user_name: string
+  baptismal_name: string
   managerParishes?: string[]   # 캐시용
   created_at: timestamp
   updated_at: timestamp

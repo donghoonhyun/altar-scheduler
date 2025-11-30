@@ -56,7 +56,7 @@
 | Collection | Document ID | 주요 필드 | 비고 |
 |-------------|--------------|------------|------|
 | `server_groups/{sg}/members/{uid}` | UID | `active:boolean`, `grade`, `baptismal_name` 등 | `active:false` 기본값 |
-| `users/{uid}` | UID | `display_name`, `email`, `created_at` | 인증 계정 정보 |
+| `users/{uid}` | UID | `user_name`, `email`, `created_at` | 인증 계정 정보 |
 | `server_groups` | SG ID | `parish_code`, `name`, `timezone` 등 | 복사단 단위 정보 |
 ```
 

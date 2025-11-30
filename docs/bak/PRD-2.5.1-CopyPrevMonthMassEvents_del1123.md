@@ -1,4 +1,4 @@
-# PRD-2.5.1 CopyPrevMonthMassEvents Logic (전월 미사일정 복사)
+# PRD-2.5.1-ApplyPresetMassEvents.md (전월 미사일정 복사 Logic)
 
 ## 🧩 1. 섹션 개요
 
@@ -13,7 +13,7 @@
 | 📅 기준 주차     | “전월의 **첫 번째 일요일이 포함된 주(일~토)**” 의 패턴(base)을 기준으로 함 |
 | 🔁 복사 방식     | 복사 당월 1일부터 말일까지 돌면서 동일 요일의 전월 패턴(base)을 매칭 복사        |
 | 💾 데이터 타입    | `event_date: string("YYYYMMDD")`            |
-| 🔒 상태 제약     | `month_status != MASS-NOTCONFIRMED` 상태에서 복사 가능 |
+| 🔒 상태 제약     | `month_status != MASS-NOTCONFIRMED` 상태에서 복사 가능, 즉 (`MASS-CONFIRMED`, `SURVEY-CONFIRMED`, `FINAL-CONFIRMED`) 세가지 상태에서 가능함 |
 | 🕒 시간 기준     | Asia/Seoul (UTC+9) 단일 기준, timezone 변환 없음    |
 | 🧹 기존 데이터 처리 | 복사 당월 일정(`mass_events`)을 모두 삭제 후 새 일정으로 교체 (사전경고 필요) |
 
@@ -23,7 +23,7 @@
 2️⃣ Drawer 모달에서 확인 후 “복사 시작” 버튼 클릭
     + 이전데이터 삭제 경고 메세지("전월 미사일정 가져오기를 하면 선택된 월에 입력된 미사일정과 복사설문 정보가 모두 삭제됩니다")
 3️⃣ Cloud Function copyPrevMonthMassEvents 호출
-4️⃣ 전월 month_status/{prevMonth}.status MASS-NOTCONFIRMED 체크(MASS-NOTCONFIRMED가 아닌 상태에서만 허용)
+4️⃣ 전월 month_status/{prevMonth}.status MASS-NOTCONFIRMED 체크(MASS-NOTCONFIRMED가 아닌 상태에서만 허용, 즉 `MASS-CONFIRMED` `SURVEY-CONFIRMED` `FINAL-CONFIRMED` 세 상태에서 가능함)
 5️⃣ 전월 기준 주간(첫 일요일 포함 주)의 미사 패턴을 요일별 배열(base)로 저장
 6️⃣ 당월 1일부터 말일까지 loop, 각 날짜의 요일 day()로 base[dow] 매칭
 7️⃣ 동일 요일의 미사 이벤트들을 그대로 복제 (title, required_servers 유지)

@@ -5,7 +5,7 @@
 본 섹션은 **MassEventPlanner 페이지**의 기능, 데이터 흐름, Drawer 인터랙션 및 Firestore 연동 정책을 정의한다.
 이 페이지는 복사단의 미사 일정을 생성·수정·삭제하고, `MassCalendar` 컴포넌트를 통해 일정 현황을 시각적으로 표시한다.
 상단에는 각 월의 상태에 따라 다르게 활성화되는 tools bar 버튼들이 배치된다.
-버튼은 [전월 미사일정 복사]  [미사 일정 확정]  [가용성 설문 링크 보내기]  [설문 종료] [자동 배정]  [월 상태변경] 등의 일괄 처리 버튼이다.
+버튼은 [미사일정 Preset]  [미사 일정 확정]  [가용성 설문 링크 보내기]  [설문 종료] [자동 배정]  [월 상태변경] 등의 일괄 처리 버튼이다.
 
 ---
 
@@ -14,8 +14,8 @@
 ```ts
 MassEventPlanner
 ├── 상단 제목 및 Tool Bar 버튼 라인
-│ ├── [전월 미사일정 복사]
-│ ├── [미사 일정 확정]
+│ ├── [미사일정 Preset]
+│ ├── [미사일정 확정]
 │ ├── [가용성 설문 링크 보내기]
 │ ├── [설문 종료]
 │ ├── [자동 배정]
@@ -198,28 +198,22 @@ Drawer에서는 상태 전이에 따라 버튼/아이콘 색상이 다르게 표
 
 ### 📍버튼 구성 및 순서
 
-- ① [전월 미사일정 복사], ② [미사 일정 확정], ③ [가용성 설문 링크 보내기], ④ [설문 종료], ⑤ [자동 배정], ⑦ [월 상태변경]
+- ① [미사일정 Preset], ② [미사 일정 확정], ③ [가용성 설문 링크 보내기], ④ [설문 종료], ⑤ [자동 배정], ⑦ [월 상태변경]
 
 ### 📍버튼별 정의
 
 버튼명: 코드명 / 버튼 활성화 조건 / 설명
 
-- 전월 미사일정 복사: btnCopyPrevMonth / 선택된 달(currentMonth)이 시스템 기준 현재 월(dayjs()) 또는 다음 월(dayjs().add(1, 'month')) 과 동일할 때만 / "전월미사일정가져오기를 하면 선택된 월의 미사일정과 복사설문 정보가 모두 삭제됩니다." 경고 후 복사 로직 실행 (주차+요일 기준 복사)
-- 미사 일정 확정: btnConfirmMass / monthStatus === 'MASS-NOTCONFIRMED' / 해당 월 상태를 MASS-CONFIRMED로 변경
+- 미사일정 Preset:
+- 미사일정 확정: btnConfirmMass / monthStatus === 'MASS-NOTCONFIRMED' / 해당 월 상태를 MASS-CONFIRMED로 변경
 - 가용성 설문 링크 보내기: btnSendSurveyLink / monthStatus === 'MASS-CONFIRMED' / 설문 URL 생성 및 공유 Drawer 열기
 - 설문 종료: btnCloseSurvey / monthStatus === 'MASS-CONFIRMED' / 자동배정 가능 상태인 SURVEY-CONFIRMED로 변경
 - 자동 배정: btnAutoAssign / monthStatus === 'SURVEY-CONFIRMED' / Cloud Function 기반 Auto Assignment 수행 (PRD-2.5.5 참조)
 - 월 상태변경: btnChangeMonthStatus / currentMonth가 금월 또는 다음월일 때 / MonthStatusDrawer 열기, 상태 일괄 변경 기능 수행
 
-### 📍① [전월 미사일정 복사] 동작 시퀀스
+### 📍① [미사일정 Preset] 동작 시퀀스
 
-1️⃣ [전월 미사일정 복사] 클릭 → ConfirmModal 표시
-2️⃣ “전월 미사일정을 복사하면 현재 월의 모든 일정이 삭제됩니다.” 안내 후 사용자 확인
-3️⃣ 현재 월의 mass_events 문서 일괄 삭제 (writeBatch.delete)
-4️⃣ 전월 mass_events 조회 및 주차+요일 매핑
-5️⃣ Firestore batch.set 으로 신규 문서 insert (MASS-NOTCONFIRMED 상태로 초기화)
-6️⃣ 완료 시 toast.success("전월 미사일정이 복사되었습니다.") 출력
-7️⃣ MassCalendar 실시간(onSnapshot) 갱신
+TBD
 
 ### 📍UI 스타일 규칙
 

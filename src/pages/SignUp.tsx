@@ -83,7 +83,7 @@ export default function SignUp() {
       await setDoc(doc(db, 'users', uid), {
         uid,
         email,
-        display_name: `${nameKor} ${baptismalName}`,
+        user_name: `${nameKor} ${baptismalName}`,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });

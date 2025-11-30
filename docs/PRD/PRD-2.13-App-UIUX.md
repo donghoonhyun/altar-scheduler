@@ -371,7 +371,7 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
   ```ts
   | 단계 | 버튼명 | 색상 그룹 | 테두리색 | 텍스트색 | Hover 시 | 설명 |
   |------|----------|-------------|------------|------------|-----------|----------|
-  | ① 확정 준비 단계 | 전월 미사일정 복사 / 미사 일정 확정 | 🔵 Blue | `border-blue-400` | `text-blue-700` | `hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800` | 미사 일정 생성 및 확정 준비 |
+  | ① 확정 준비 단계 | 미사일정 Preset / 미사일정 확정 | 🔵 Blue | `border-blue-400` | `text-blue-700` | `hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800` | 미사 일정 생성 및 확정 준비 |
   | ② 설문 단계 | 설문 링크 보내기 / 설문 종료 | 🟠 Amber | `border-amber-500` | `text-amber-700` | `hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800` | 설문 진행 및 마감 단계 |
   | ③ 최종 확정 단계 | 자동 배정 (최종 확정) | 🔴 Red | `border-red-500` | `text-red-700` | `hover:bg-red-50 hover:border-red-600 hover:text-red-800` | 자동배정 및 확정 완료 |
   | ⚙️ 관리 기능 | 월 상태변경 | ⚪ Gray | `border-gray-400` | `text-gray-700` | `hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800` | 설정 / 상태 관리 기능 |
@@ -448,7 +448,7 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
       {/* Header */}
       <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-2">
         <Clipboard size={20} className="text-blue-600" />
-        전월 미사일정 복사
+        미사일정 Preset
         <span className="text-gray-500 text-base ml-1">
           ({currentMonth.format('YYYY년 M월')})
         </span>

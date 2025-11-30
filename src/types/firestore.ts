@@ -6,7 +6,7 @@ import type { Timestamp } from 'firebase/firestore';
 export interface UserDoc {
   uid: string;
   email: string;
-  display_name: string;
+  user_name: string;
   managerParishes?: string[];
   role?: 'manager' | 'server' | 'admin';
   created_at?: Timestamp;

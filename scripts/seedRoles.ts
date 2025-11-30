@@ -3,7 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { SERVERS } from './data/servers_with_id';
 import { seedMassEvents } from './utils/seedUtils';
-import { EXTRA_EVENTS } from './data/massEvents_SG00001_202509'; // 없으면 빈 배열 []
+import { EXTRA_EVENTS } from './data/massEvents_SG00001_202511'; // 없으면 빈 배열 []
 
 initializeApp({ projectId: 'altar-scheduler-dev' });
 
@@ -22,7 +22,7 @@ const USERS = [
     uid: 'planner-test-uid',
     email: 'planner@test.com',
     password: '123456',
-    displayName: '김아녜스 수녀님',
+    userName: '김아녜스 수녀님',
     roleDocs: [
       {
         collection: 'memberships',
@@ -40,7 +40,7 @@ const USERS = [
     uid: 'server-test-uid',
     email: 'server@test.com',
     password: '123456',
-    displayName: '홍길동 베드로',
+    userName: '홍길동 베드로',
     roleDocs: [
       {
         collection: 'memberships',
@@ -69,7 +69,7 @@ async function seed() {
         uid: u.uid,
         email: u.email,
         password: u.password,
-        displayName: u.displayName,
+        displayName: u.userName,
       });
       console.log(`✅ Auth 사용자 생성: ${u.email}`);
     }
@@ -89,7 +89,7 @@ async function seed() {
     await db.collection('users').doc(u.uid).set({
       uid: u.uid,
       email: u.email,
-      display_name: u.displayName,
+      user_name: u.userName,
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -124,13 +124,13 @@ async function seed() {
   await batch.commit();
   console.log(`✅ ${SERVERS.length}명 복사단원 추가 완료`);
 
-  // 4️⃣ mass_events (2025-09)
-  console.log('📌 2025-09 미사일정 시드 시작...');
-  await seedMassEvents(TEST_SERVER_GROUP_ID, 2025, 9, EXTRA_EVENTS);
+  // 4️⃣ mass_events (2025-11)
+  console.log('📌 2025-11 미사일정 시드 시작...');
+  await seedMassEvents(TEST_SERVER_GROUP_ID, 2025, 11, EXTRA_EVENTS);
   console.log('✅ mass_events 시드 완료');
 
-  // 5️⃣ month_status (202509)
-  const monthKey = '202509';
+  // 5️⃣ month_status (202511)
+  const monthKey = '202511';
   const monthStatusRef = db
     .collection('server_groups')
     .doc(TEST_SERVER_GROUP_ID)
