@@ -17,6 +17,7 @@
 - ServerMain 화면은 항상 **복사단 선택 → 복사 선택 → 달력 표시** 순서로 동작.
 - 달력은 "내가 등록한 모든 복사"의 스케줄을 함께 보여주고,
   복사 버튼으로 개별 filtering 가능.
+- 가입방식 : 이메일입력 방식, 구글 OAuth 두가지 제공. 이후 카카오톡, 네이버, Apple 추가 예정
 
 ---
 
@@ -35,9 +36,26 @@
 > 회원가입 시 **성당/복사단/복사 정보는 입력하지 않음**  
 > → 복사 정보는 로그인 후 직접 추가
 
+### 2.2 가입 로그인 절차 Flow
+
+```ts
+[1] OAuth 로그인 (Google)
+→ [2] users/{uid} 존재 여부 체크
+       존재하면 → 그대로 로그인 후 Home
+       없으면 → 세례명/이름 입력 페이지(CompleteProfile)
+→ [3] users/{uid} 생성
+→ [4] ServerMain 진입
+```
+
+### 2.3 가입방식 상세
+
+#### 2.3.1 email password 방식
+
+#### 2.3.1 OAuth (Google) 방식
+
 ---
 
-### 2.2 Firestore 생성 문서
+### 2.4 Firestore 생성 문서
 
 #### `users/{uid}`
 
@@ -53,6 +71,8 @@
 }
 ```
 
+---
+
 ## 3. 복사(Server Member) 등록 (회원가입 이후)
 
 회원은 로그인 후 ServerMain 화면에서 복사 정보를 원하는 만큼 등록할 수 있다.
@@ -67,6 +87,10 @@
 | 학년(grade: E1~H3)        | 필수 |
 
 ### 3.2 Firestore 문서 구조
+
+복사등록시 아래 두군데 저장되어야 함.
+
+(1)복사단 멤버정보
 
 ```ts
 server_groups/{sg}/members/{memberId}
@@ -85,6 +109,22 @@ server_groups/{sg}/members/{memberId}
 - memberId는 auto-id
 - 생성 직후 active:false 이며 Planner 승인 필요
 
+(2)가입User의 복사단 별 권한(Role)정보 (주의:등록한 복사정보는 저장하지 않음)
+
+```ts
+memberships/{uid}_{server_group_id}
+{
+  uid: xxx
+  server_group_id: SG00001
+  role: "server"|"planner"
+  active: false
+  created_at: "<Timestamp>",
+  updated_at: "<Timestamp>"
+}
+```
+
+---
+
 ## 4. 승인 절차 (Planner)
 
 | 동작              | 결과                 |
@@ -95,6 +135,8 @@ server_groups/{sg}/members/{memberId}
 - 승인 주체: 해당 server_group의 Planner
 - UI 위치: ServerList.tsx
 - 리스트는 Firestore onSnapshot 기반 실시간 갱신.
+
+---
 
 ## 5. 로그인(SignIn) 및 권한(RoleGuard)
 
@@ -138,6 +180,22 @@ ServerMain은 다음 구조를 항상 유지한다:
    - 선택된 복사단의 mass_events 표시
    - 내가 등록한 모든 복사의 일정을 구분 표시(색과 강조테두리)
    - 복사 버튼으로 필터링 가능 (특정 복사만 강조해서 보기)
+
+### 6.2 복사 추가(add-member)
+
+AddMember 페이지
+ ├─ 사용자가 성당 선택 (PARISHES)
+ ├─ 해당 성당의 복사단 server_groups 로딩
+ ├─ 복사 정보 입력(이름/세례명/학년)
+ ├─ server_groups/{sg}/members 에 복사의 정보 생성
+ |    - active: false
+ └─ memberships/{uid}_{serverGroupId} 문서 생성 또는 업데이트
+      - role: "server"
+      - active: false
+
+- 사용자가 복사 추가(AddMember)를 완료하면,
+  session.currentServerGroupId = selectedGroup 으로 갱신하여
+  ServerMain은 해당 복사단을 기준으로 렌더링한다.
 
 ---
 
@@ -211,9 +269,10 @@ server_groups/{sg}/members/{memberId}     # 복사 정보
 
 ## 11. UX 요약
 
-- 회원가입 → 매우 단순(이름/세례명/이메일/비번)
+- 회원가입 → 매우 단순(이름/이메일/비번)
 - 로그인 후 → 복사단 선택
-- [+복사추가] 로 자녀 여러 명 등록 가능
+- [+복사추가] 로 자녀 여러 명 등록 가능,
+  복사추가 클릭시 추가 페이지(/add-member)로 이동해서 등록신청 후 server-main으로 돌아옴
 - 복사 active:true 이후 기능 사용 가능
 - 달력은 multi-member view + 필터링
 

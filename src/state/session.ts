@@ -19,8 +19,9 @@ export interface Session {
   loading: boolean;
   groupRoles: Record<string, 'planner' | 'server'>;
   groupRolesLoaded: boolean;
-  currentServerGroupId?: string | null;
+  currentServerGroupId: string | null;
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
+  setCurrentServerGroupId?: (id: string | null) => void; // ⭐ 추가됨
 }
 
 const initialSession: Session = {
@@ -34,8 +35,14 @@ const initialSession: Session = {
 
 let cachedSession: Session = { ...initialSession };
 
-export function useSession(): Session {
+export function useSession() {
   const [session, setSession] = useState<Session>(cachedSession);
+
+  // ⭐ setter 함수 구현
+  const setCurrentServerGroupId = (id: string | null) => {
+    cachedSession = { ...cachedSession, currentServerGroupId: id };
+    setSession((prev) => ({ ...prev, currentServerGroupId: id }));
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -55,56 +62,60 @@ export function useSession(): Session {
       try {
         const roles: Record<string, 'planner' | 'server'> = {};
         const serverGroups: Session['serverGroups'] = {};
+        const userUid = user.uid;
 
-        // memberships (planner)
+        /** 1) memberships로 planner/server 역할 로드 */
         const membershipSnap = await getDocs(
-          query(collection(db, 'memberships'), where('uid', '==', user.uid))
+          query(collection(db, 'memberships'), where('uid', '==', userUid))
         );
 
         for (const d of membershipSnap.docs) {
           const data = d.data();
-          if (data.server_group_id && data.role) {
-            roles[data.server_group_id] = data.role;
-            const sgDoc = await getDoc(doc(db, 'server_groups', data.server_group_id));
-            if (sgDoc.exists()) {
-              const sgData = sgDoc.data();
-              const parishCode = sgData.parish_code || '';
-              const parishName =
-                PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
+          if (!data.server_group_id || !data.role) continue;
 
-              serverGroups[data.server_group_id] = {
-                parishCode,
-                parishName,
-                groupName: sgData.name || data.server_group_id,
-              };
-            }
-          }
-        }
-
-        // members (server, active=true)
-        const serverSnap = await getDocs(
-          query(
-            collectionGroup(db, 'members'),
-            where('uid', '==', user.uid),
-            where('active', '==', true)
-          )
-        );
-
-        for (const d of serverSnap.docs) {
-          const sgId = d.ref.parent.parent?.id;
-          if (!sgId) continue;
-          roles[sgId] = 'server';
+          const sgId = data.server_group_id;
+          roles[sgId] = data.role;
 
           const sgDoc = await getDoc(doc(db, 'server_groups', sgId));
           if (sgDoc.exists()) {
-            const sgData = sgDoc.data();
-            const parishCode = sgData.parish_code || '';
+            const sg = sgDoc.data();
+            const parishCode = sg.parish_code || '';
             const parishName = PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
 
             serverGroups[sgId] = {
               parishCode,
               parishName,
-              groupName: sgData.name || sgId,
+              groupName: sg.name ?? sgId,
+            };
+          }
+        }
+
+        /** 2) server_groups/{sg}/members 에서 active=true 복사 취득 */
+        const memberSnap = await getDocs(
+          query(
+            collectionGroup(db, 'members'),
+            where('parent_uid', '==', userUid),
+            where('active', '==', true)
+          )
+        );
+
+        for (const d of memberSnap.docs) {
+          const path = d.ref.path.split('/');
+          const sgId = path[1];
+          if (!sgId) continue;
+
+          if (!roles[sgId]) roles[sgId] = 'server';
+
+          const sgDoc = await getDoc(doc(db, 'server_groups', sgId));
+          if (sgDoc.exists()) {
+            const sg = sgDoc.data();
+            const parishCode = sg.parish_code || '';
+            const parishName = PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
+
+            serverGroups[sgId] = {
+              parishCode,
+              parishName,
+              groupName: sg.name ?? sgId,
             };
           }
         }
@@ -113,11 +124,16 @@ export function useSession(): Session {
         newSession.serverGroups = serverGroups;
         newSession.groupRolesLoaded = true;
 
-        if (Object.keys(roles).length > 0) {
-          newSession.currentServerGroupId = Object.keys(roles)[0];
+        /** 3) 기본 currentServerGroupId 설정 */
+        const sgKeys = Object.keys(serverGroups);
+        if (sgKeys.length > 0) {
+          newSession.currentServerGroupId = sgKeys[0];
+        } else {
+          newSession.currentServerGroupId = null;
         }
 
         newSession.loading = false;
+
         cachedSession = newSession;
         setSession(newSession);
       } catch (err) {
@@ -134,5 +150,8 @@ export function useSession(): Session {
     return () => unsub();
   }, []);
 
-  return session;
+  return {
+    ...session,
+    setCurrentServerGroupId, // ⭐ setter 추가 반환
+  };
 }

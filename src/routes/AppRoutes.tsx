@@ -3,10 +3,10 @@ import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useSession } from '../state/session';
 import Layout from '../pages/components/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import PendingApproval from '../pages/PendingApproval';
 
 import Login from '../pages/Login';
 import SignUp from '../pages/SignUp';
+
 import Dashboard from '../pages/Dashboard';
 import ServerMain from '../pages/ServerMain';
 import ServerGroupList from '../pages/ServerGroupList';
@@ -16,16 +16,17 @@ import Forbidden from '../pages/components/Forbidden';
 import MassEventPlanner from '../pages/MassEventPlanner';
 import RoleGuard from '../pages/components/RoleGuard';
 import ServerSurvey from '@/pages/ServerSurvey';
+import AddMember from '@/pages/AddMember';
 
 export default function AppRoutes() {
   const session = useSession();
 
-  // ✅ 세션 초기화 중
+  // 1) 세션 로딩 중
   if (session.loading) {
     return <LoadingSpinner label="세션 초기화 중..." size="lg" />;
   }
 
-  // ✅ 로그인되지 않은 경우
+  // 2) 로그인 안됨
   if (!session.user) {
     return (
       <Routes>
@@ -36,7 +37,38 @@ export default function AppRoutes() {
     );
   }
 
-  // ✅ 서버 메인 Wrapper (planner/server 구분)
+  /**
+   * InitialRoute
+   * '/' 진입 시 Planner / Server / 신규 사용자 분기 처리
+   */
+  const InitialRoute = () => {
+    if (session.loading || !session.groupRolesLoaded) {
+      return <LoadingSpinner label="세션 동기화 중..." />;
+    }
+
+    const roles = session.groupRoles; // { [groupId]: 'planner' | 'server' }
+    const groupIds = Object.keys(roles);
+
+    // 1) 플래너 역할 우선 진입
+    const plannerGroup = groupIds.find((g) => roles[g] === 'planner');
+    if (plannerGroup) {
+      return <Navigate to={`/server-groups/${plannerGroup}`} replace />;
+    }
+
+    // 2) 서버 역할로 진입
+    const serverGroup = groupIds.find((g) => roles[g] === 'server');
+    if (serverGroup) {
+      return <Navigate to={`/server-groups/${serverGroup}`} replace />;
+    }
+
+    // 3) 어떤 역할도 없으면 AddMember 로
+    return <Navigate to="/add-member" replace />;
+  };
+
+  /**
+   * ServerMainWrapper
+   * /server-groups/:serverGroupId/* 에 진입 시 Planner/Server 분기
+   */
   const ServerMainWrapper = () => {
     const { serverGroupId } = useParams<{ serverGroupId: string }>();
 
@@ -44,10 +76,16 @@ export default function AppRoutes() {
       return <div className="p-4 text-gray-500">세션 동기화 중...</div>;
     }
 
-    const role = serverGroupId ? session.groupRoles[serverGroupId] : null;
+    if (!serverGroupId) {
+      return <Navigate to="/" replace />;
+    }
+
+    const role = session.groupRoles[serverGroupId];
 
     if (role === 'planner') return <Dashboard />;
     if (role === 'server') return <ServerMain />;
+
+    // Server도 Planner도 아닌데 특정 그룹 접근 → Forbidden
     return <Navigate to="/forbidden" replace />;
   };
 
@@ -55,7 +93,9 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         <>
-          {/* 복사단 리스트 */}
+          {/* ------------------------------- */}
+          {/* Planner 전용 라우트               */}
+          {/* ------------------------------- */}
           <Route
             path="/server-groups"
             element={
@@ -65,7 +105,6 @@ export default function AppRoutes() {
             }
           />
 
-          {/* 복사 명단 관리 */}
           <Route
             path="/server-groups/:serverGroupId/servers"
             element={
@@ -75,7 +114,6 @@ export default function AppRoutes() {
             }
           />
 
-          {/* 복사단 생성 마법사 */}
           <Route
             path="/server-groups/new"
             element={
@@ -85,7 +123,6 @@ export default function AppRoutes() {
             }
           />
 
-          {/* 미사 일정 플래너 */}
           <Route
             path="/server-groups/:serverGroupId/mass-events"
             element={
@@ -95,7 +132,9 @@ export default function AppRoutes() {
             }
           />
 
-          {/* 복사용 설문 페이지 */}
+          {/* ------------------------------- */}
+          {/* Server 전용 라우트               */}
+          {/* ------------------------------- */}
           <Route
             path="/survey/:serverGroupId/:yyyymm"
             element={
@@ -105,17 +144,9 @@ export default function AppRoutes() {
             }
           />
 
-          {/* 복사 메인 페이지 */}
-          <Route
-            path="/server-groups/:serverGroupId/server-main"
-            element={
-              <RoleGuard require="server">
-                <ServerMain />
-              </RoleGuard>
-            }
-          />
-
-          {/* 서버/플래너 공용 Wrapper */}
+          {/* ------------------------------- */}
+          {/* Planner / Server 공통 Wrapper     */}
+          {/* ------------------------------- */}
           <Route
             path="/server-groups/:serverGroupId/*"
             element={
@@ -125,23 +156,27 @@ export default function AppRoutes() {
             }
           />
 
-          {/* 기본 경로 분기 */}
-          <Route
-            path="/"
-            element={
-              session.currentServerGroupId ? (
-                <Navigate to={`/server-groups/${session.currentServerGroupId}`} replace />
-              ) : (
-                <Navigate to="/server-groups" replace />
-              )
-            }
-          />
-
-          {/* 승인 대기 */}
-          <Route path="/pending" element={<PendingApproval />} />
+          {/* ------------------------------- */}
+          {/* 홈 경로: Role 기반 자동 라우팅    */}
+          {/* ------------------------------- */}
+          <Route path="/" element={<InitialRoute />} />
         </>
 
-        {/* 공통 */}
+        {/* ------------------------------- */}
+        {/* 복사 추가 페이지 (로그인만 필요)  */}
+        {/* ------------------------------- */}
+        <Route
+          path="/add-member"
+          element={
+            <RoleGuard>
+              <AddMember />
+            </RoleGuard>
+          }
+        />
+
+        {/* ------------------------------- */}
+        {/* 공통 Route                        */}
+        {/* ------------------------------- */}
         <Route path="/forbidden" element={<Forbidden />} />
         <Route path="*" element={<Navigate to="/forbidden" replace />} />
       </Route>

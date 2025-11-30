@@ -3,29 +3,38 @@
 - 🎯Firestore Collections Overview
 
 ```lua
+users/{uid}     // 회원가입 authentication uid
+ ├── uid: string,
+ ├── email: string,
+ └── created_at, updated_at
+
+memberships/{uid}_{server_group_id}
+ ├── uid: string,
+ ├── server_group_id: string,
+ ├── role: "planner" | "server",
+ ├── active: boolean, // 유효성 여부
+ └── created_at, updated_at
+
 server_groups/{serverGroupId} (Document)
  ├── name: string
  ├── timezone: string              // ex: "Asia/Seoul"
- ├── created_at: Timestamp
- ├── updated_at: Timestamp
+ ├── created_at, updated_at
  │
- ├── members/{memberId} (Document)
- │    ├── uid: string
+ ├── members/{memberId} (Document)  // 복사명단, docid=autogen.
+ │    ├── parent_id: string         // 등록신청한 User의 uid (주로 부모 또는 본인)
  │    ├── name_kor: string
  │    ├── baptismal_name: string
  │    ├── email: string
  │    ├── grade: string (E1~H3)
- │    ├── active: boolean
- │    ├── created_at: Timestamp
- │    └── updated_at: Timestamp
+ │    ├── active: boolean     // 관리자 승인여부 
+ │    └── created_at, updated_at
  │
  ├── mass_events/{eventId} (Document) // event_id는 auto-generated
  │    ├── title: string
  │    ├── event_date: string        // ex: "20251024" (현지 기준 날짜)
  │    ├── required_servers: number
- │    ├── member_ids: string[]     // 배정된 복사 UID 목록
- │    ├── created_at: Timestamp
- │    └── updated_at: Timestamp
+ │    ├── member_ids: string[]     // 배정된 복사 UID 목록 
+ │    └── created_at, updated_at
  │
  ├── month_status/{yyyymm} (Document)
  │    ├── status: string           // MASS-NOTCONFIRMED / MASS-CONFIRMED / SURVEY-CONFIRMED / FINAL-CONFIRMED
@@ -36,9 +45,8 @@ server_groups/{serverGroupId} (Document)
  │
  ├── availability_surveys/{yyyymm}/responses/{memberId}
  │    ├── responses: Record<eventId, false> | null
- │    ├── dates: Record<eventId, string(yyyymmdd)> | null
- │    ├── created_at: Timestamp
- │    └── updated_at: Timestamp
+ │    ├── dates: Record<eventId, string(yyyymmdd)> | null 
+ │    └── created_at, updated_at
  │
  └── notifications/{notifId}
       ├── message: string
@@ -48,9 +56,16 @@ server_groups/{serverGroupId} (Document)
 
 ## 1. 권한 SSOT
 
-```typescript
-memberships/{uid}_{server_group_id} // 복사단 단위 역할정의(Planner/Server, 전역 SSOT)
+### 1.1 memberships
+
+```ts
+  memberships/{uid}_{server_group_id} 
 ```
+
+- 정의 : user가 속해 있는 복사단 단위 역할정의(Planner/Server, 전역 SSOT)
+- 용도 : 복사(또는 부모)가 회원 가입 이후 복사등록 시, 회원uid + 복사단id로 저장되고,
+        조회는 화면에서 복사단을 선택하는 콤보 등에서 주로 사용함
+- 주의 : memberships의 uid는 가입 때 uid이고 server의 member_id 아님.
 
 ## 2. 복사단 (server_groups)
 
