@@ -1,8 +1,10 @@
 // ✅ src/pages/MassEventPlanner.tsx (최종 버전)
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
+import { Home, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   getFirestore,
   collection,
@@ -17,7 +19,7 @@ import { toast } from 'sonner';
 import MassCalendar from './components/MassCalendar';
 import MassEventDrawer from './components/MassEventDrawer';
 import MonthStatusDrawer from './components/MonthStatusDrawer';
-import CopyPrevMonthDrawer from './components/CopyPrevMonthDrawer';
+import ApplyPresetDrawer from './components/ApplyPresetDrawer';
 import ConfirmMassDrawer from './components/ConfirmMassDrawer';
 import { SendSurveyDrawer } from '@/components/SendSurveyDrawer';
 import CloseSurveyDrawer from './components/CloseSurveyDrawer';
@@ -31,6 +33,7 @@ import { MassEventToolbar } from '@/components/MassEventToolbar';
 dayjs.extend(weekOfYear);
 
 const MassEventPlanner: React.FC = () => {
+  const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const db = getFirestore();
   const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
@@ -52,7 +55,7 @@ const MassEventPlanner: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const [monthStatusDrawerOpen, setMonthStatusDrawerOpen] = useState(false);
-  const [copyDrawerOpen, setCopyDrawerOpen] = useState(false);
+  const [applyPresetDrawerOpen, setApplyPresetDrawerOpen] = useState(false);
   const [confirmDrawerOpen, setConfirmDrawerOpen] = useState(false);
   const [surveyDrawerOpen, setSurveyDrawerOpen] = useState(false);
   const [closeSurveyDrawerOpen, setCloseSurveyDrawerOpen] = useState(false);
@@ -73,78 +76,11 @@ const MassEventPlanner: React.FC = () => {
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
-    setSelectedEventId(undefined);
-    setSelectedDate(null);
+    // setSelectedEventId(undefined); // 하이라이트 유지를 위해 주석 처리
+    // setSelectedDate(null); // 하이라이트 유지를 위해 주석 처리
   };
 
-  /** ✅ 전월 미사일정 복사 로직 (event_date 기준) */
-  const handleCopyPrevMonth = async () => {
-    if (!serverGroupId) return;
-    try {
-      setLoading(true);
-      const prevMonth = currentMonth.subtract(1, 'month');
 
-      const currMonthKey = currentMonth.format('YYYYMM');
-      const prevMonthKey = prevMonth.format('YYYYMM');
-
-      const currStart = `${currMonthKey}01`;
-      const currEnd = `${currMonthKey}31`;
-      const prevStart = `${prevMonthKey}01`;
-      const prevEnd = `${prevMonthKey}31`;
-
-      // ✅ 현재 월 일정 삭제
-      const currQuery = query(
-        collection(db, `server_groups/${serverGroupId}/mass_events`),
-        where('event_date', '>=', currStart),
-        where('event_date', '<=', currEnd)
-      );
-      const currSnap = await getDocs(currQuery);
-      const batch = writeBatch(db);
-      currSnap.forEach((docSnap) => batch.delete(docSnap.ref));
-
-      // ✅ 전월 일정 조회
-      const prevQuery = query(
-        collection(db, `server_groups/${serverGroupId}/mass_events`),
-        where('event_date', '>=', prevStart),
-        where('event_date', '<=', prevEnd)
-      );
-      const prevSnap = await getDocs(prevQuery);
-      if (prevSnap.empty) {
-        toast.warning('⚠️ 전월 미사일정이 존재하지 않습니다.');
-        setLoading(false);
-        return;
-      }
-
-      // ✅ 주차·요일 기준으로 복사
-      prevSnap.forEach((snap) => {
-        const ev = snap.data();
-        const prevDate = dayjs(ev.event_date, 'YYYYMMDD');
-        const newDate = currentMonth
-          .startOf('month')
-          .add(prevDate.week() - prevMonth.startOf('month').week(), 'week')
-          .day(prevDate.day());
-
-        const newEventDate = newDate.format('YYYYMMDD');
-
-        batch.set(doc(collection(db, `server_groups/${serverGroupId}/mass_events`)), {
-          title: ev.title,
-          event_date: newEventDate,
-          required_servers: ev.required_servers,
-          member_ids: [],
-          created_at: new Date(),
-          updated_at: new Date(),
-        });
-      });
-
-      await batch.commit();
-      toast.success('✅ 전월 미사일정이 복사되었습니다.');
-    } catch (err) {
-      console.error(err);
-      toast.error('전월 미사일정 복사 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /** ✅ 상태 변경 드로어 동작 */
   const handleConfirmMass = async () => {
@@ -168,14 +104,19 @@ const MassEventPlanner: React.FC = () => {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold flex items-center gap-2 mb-4">📅 미사 일정 관리</h2>
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
+          <ArrowLeft size={24} />
+        </Button>
+        <h2 className="text-xl font-bold flex items-center gap-2">📅 미사 일정 관리</h2>
+      </div>
 
       {/* ✅ Toolbar */}
       <MassEventToolbar
         monthStatus={monthStatus}
         isLocked={isLocked}
         isCopyEnabled={isCopyEnabled}
-        onCopyPrevMonth={() => setCopyDrawerOpen(true)}
+        onApplyPreset={() => setApplyPresetDrawerOpen(true)}
         onConfirmMass={() => setConfirmDrawerOpen(true)}
         onOpenSurvey={() => setSurveyDrawerOpen(true)}
         onCloseSurvey={() => setCloseSurveyDrawerOpen(true)}
@@ -193,6 +134,7 @@ const MassEventPlanner: React.FC = () => {
         onMonthChange={(newMonth) => setCurrentMonth(newMonth)}
         monthStatus={monthStatus}
         onOpenMonthStatusDrawer={() => setMonthStatusDrawerOpen(true)}
+        selectedEventId={selectedEventId}
       />
 
       {/* ✅ Drawer 연결 */}
@@ -202,13 +144,17 @@ const MassEventPlanner: React.FC = () => {
           date={selectedDate}
           serverGroupId={serverGroupId}
           onClose={handleCloseDrawer}
+          monthStatus={monthStatus}
         />
       )}
 
-      <CopyPrevMonthDrawer
-        open={copyDrawerOpen}
-        onClose={() => setCopyDrawerOpen(false)}
-        onConfirm={handleCopyPrevMonth}
+      <ApplyPresetDrawer
+        open={applyPresetDrawerOpen}
+        onClose={() => setApplyPresetDrawerOpen(false)}
+        onConfirm={async () => {
+          // 필요시 추가 로직
+          setCurrentMonth(currentMonth.clone()); // 강제 리렌더
+        }}
         serverGroupId={serverGroupId!}
         currentMonth={currentMonth}
       />

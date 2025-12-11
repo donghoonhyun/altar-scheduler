@@ -32,6 +32,7 @@ interface MassEventDrawerProps {
   date: Date | null;
   serverGroupId: string;
   onClose: () => void;
+  monthStatus?: string;
 }
 
 const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
@@ -39,6 +40,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   date,
   serverGroupId,
   onClose,
+  monthStatus,
 }) => {
   const db = getFirestore();
 
@@ -152,8 +154,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
       return;
     }
 
-    // ✅ 선택 인원 검증 (정확히 동일해야 함)
-    if (memberIds.length !== requiredServers) {
+    // ✅ 선택 인원 검증 (정확히 동일해야 함) - 단, 미확정(MASS-NOTCONFIRMED) 상태일 땐 검증 스킵
+    const isPlanPhase = monthStatus === 'MASS-NOTCONFIRMED';
+    if (!isPlanPhase && memberIds.length !== requiredServers) {
       setErrorMsg(
         `필요 인원(${requiredServers}명)에 맞게 정확히 ${requiredServers}명을 선택해야 합니다. (현재 ${memberIds.length}명 선택됨)`
       );
@@ -282,37 +285,39 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             </div>
           </label>
 
-          {/* 복사 배정 (학년별 그룹) */}
-          <label className="block">
-            <span className="font-medium">배정 복사 선택</span>
-            <div className="mt-2 border rounded p-3 max-h-[420px] overflow-y-auto space-y-3">
-              {groupedMembers.map(([grade, list]) => (
-                <div key={grade} className="space-y-1">
-                  {/* 학년 헤더 */}
-                  <div className="text-sm font-semibold text-gray-700 border-b border-gray-300 pb-0.5 mb-1">
-                    {grade}
+          {/* 복사 배정 (학년별 그룹) - 미확정 상태에서는 숨김 */}
+          {monthStatus !== 'MASS-NOTCONFIRMED' && (
+            <label className="block">
+              <span className="font-medium">배정 복사 선택</span>
+              <div className="mt-2 border rounded p-3 max-h-[420px] overflow-y-auto space-y-3">
+                {groupedMembers.map(([grade, list]) => (
+                  <div key={grade} className="space-y-1">
+                    {/* 학년 헤더 */}
+                    <div className="text-sm font-semibold text-gray-700 border-b border-gray-300 pb-0.5 mb-1">
+                      {grade}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {list.map((m) => (
+                        <label key={m.id} className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            value={m.id}
+                            checked={memberIds.includes(m.id)}
+                            onChange={() => toggleMember(m.id)}
+                            disabled={loading}
+                          />
+                          <span>{m.name}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {list.map((m) => (
-                      <label key={m.id} className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          value={m.id}
-                          checked={memberIds.includes(m.id)}
-                          onChange={() => toggleMember(m.id)}
-                          disabled={loading}
-                        />
-                        <span>{m.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              정확히 {requiredServers ?? '-'}명 선택해야 합니다.
-            </p>
-          </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                정확히 {requiredServers ?? '-'}명 선택해야 합니다.
+              </p>
+            </label>
+          )}
 
           {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
 

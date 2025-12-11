@@ -1,0 +1,21 @@
+{
+    "projectName": "altar-scheduler",
+    "language": "typescript",
+    "frameworks": [
+        "react",
+        "firebase-functions",
+        "tailwind"
+    ],
+    "include": [
+        "src/**/*",
+        "functions/src/**/*",
+        "PRD-*.md",
+        "docs/**/*"
+    ],
+    "rules": {
+        "typescript": {
+            "noAny": true,
+            "strict": true
+        }
+    }
+}

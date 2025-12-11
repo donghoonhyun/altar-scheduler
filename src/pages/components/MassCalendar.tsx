@@ -20,6 +20,7 @@ interface MassCalendarProps {
   timezone?: string;
   monthStatus?: MassStatus;
   onOpenMonthStatusDrawer?: () => void;
+  selectedEventId?: string;
 }
 
 export default function MassCalendar({
@@ -29,6 +30,7 @@ export default function MassCalendar({
   timezone = 'Asia/Seoul',
   monthStatus,
   onOpenMonthStatusDrawer,
+  selectedEventId,
 }: MassCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(dayjs().tz(timezone).startOf('month'));
   const today = dayjs().tz(timezone).format('YYYY-MM-DD');
@@ -100,9 +102,12 @@ export default function MassCalendar({
               e.stopPropagation();
               onDayClick?.(date.toDate(), ev.id);
             }}
-            className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 
-                       dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 
-                       flex flex-col gap-1 transition-all duration-200"
+            className={cn(
+              "p-2 rounded-lg border flex flex-col gap-1 transition-all duration-200",
+              selectedEventId === ev.id 
+                ? "bg-amber-50 border-amber-500 ring-2 ring-amber-200 dark:bg-amber-900/30 dark:border-amber-400"
+                : "border-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600"
+            )}
           >
             <div className="text-xs font-medium text-gray-800 dark:text-gray-100">
               {ev.title}

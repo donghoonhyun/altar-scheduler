@@ -129,7 +129,7 @@ export async function getMassEvents(serverGroupId: string): Promise<MassEventCal
 
       list.push({
         id: docSnap.id,
-        date: d.date,
+        event_date: d.event_date || d.date, // 호환성 고려
         title: d.title,
         required_servers: d.required_servers,
         servers,
@@ -160,7 +160,7 @@ export async function getMassEventById(
 
   return {
     id: eventId,
-    date: d.date,
+    event_date: d.event_date || d.date, // 호환성 고려
     title: d.title,
     required_servers: d.required_servers,
     servers,

@@ -8,7 +8,7 @@ interface MassEventToolbarProps {
   monthStatus: string;
   isLocked: boolean;
   isCopyEnabled: boolean;
-  onCopyPrevMonth: () => void;
+  onApplyPreset: () => void;
   onConfirmMass: () => void;
   onOpenSurvey: () => void;
   onCloseSurvey: () => void;
@@ -20,7 +20,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
   monthStatus,
   isLocked,
   isCopyEnabled,
-  onCopyPrevMonth,
+  onApplyPreset,
   onConfirmMass,
   onOpenSurvey,
   onCloseSurvey,
@@ -39,9 +39,9 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
           'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
         )}
         disabled={!isCopyEnabled}
-        onClick={onCopyPrevMonth}
+        onClick={onApplyPreset}
       >
-        <Copy className="w-3.5 h-3.5 mr-1" /> 전월 미사일정 복사
+        <Copy className="w-3.5 h-3.5 mr-1" /> Preset 초기화
       </Button>
 
       <Button

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { openConfirm } from '@/components/common/ConfirmDialog';
@@ -18,6 +19,7 @@ interface Member {
 
 export default function ServerList() {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
+  const navigate = useNavigate();
   const [pendingMembers, setPendingMembers] = useState<Member[]>([]);
   const [activeMembers, setActiveMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,14 @@ export default function ServerList() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6 fade-in">
-      <h1 className="text-2xl font-bold mb-6">복사단원 관리</h1>
+      {/* ✅ 상단 네비게이션 */}
+      {/* ✅ 상단 네비게이션 */}
+      <div className="flex items-center gap-2 mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
+          <ArrowLeft size={24} />
+        </Button>
+        <h1 className="text-2xl font-bold">복사단원 관리</h1>
+      </div>
 
       {/* ✅ 승인 대기중 */}
       <Card className="p-4">

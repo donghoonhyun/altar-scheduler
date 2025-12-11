@@ -65,6 +65,8 @@ export default function ServerMain() {
     return () => unsub();
   }, [serverGroupId, session.user]);
 
+  const [checkedMemberIds, setCheckedMemberIds] = useState<string[]>([]);
+  
   // 3) month_status
   useEffect(() => {
     if (!serverGroupId) return;
@@ -79,6 +81,20 @@ export default function ServerMain() {
 
     return () => unsub();
   }, [serverGroupId, currentMonth]);
+
+  // members 변경 시 checkedMemberIds 동기화 (기본 모두 체크)
+  useEffect(() => {
+    const activeIds = members.filter((m) => m.active).map((m) => m.memberId);
+    setCheckedMemberIds(activeIds);
+  }, [members]);
+
+  const handleToggleMember = (memberId: string) => {
+    setCheckedMemberIds((prev) =>
+      prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
 
   // 4) mass_events
   useEffect(() => {
@@ -122,10 +138,8 @@ export default function ServerMain() {
     i < startDay ? null : i - startDay + 1
   );
 
-  const approvedMemberIds = members.filter((m) => m.active).map((m) => m.memberId);
-
   const isMyEvent = (ev: MassEventDoc) =>
-    ev.member_ids?.some((mid: string) => approvedMemberIds.includes(mid));
+    ev.member_ids?.some((mid: string) => checkedMemberIds.includes(mid));
 
   return (
     <div className="p-4">
@@ -138,6 +152,8 @@ export default function ServerMain() {
           members={members}
           userUid={session.user.uid}
           serverGroupId={serverGroupId}
+          checkedMemberIds={checkedMemberIds}
+          onToggle={handleToggleMember}
         />
       )}
 

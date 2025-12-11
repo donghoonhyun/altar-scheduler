@@ -1,14 +1,18 @@
 // src/pages/components/MyMembersPanel.tsx
 import { useNavigate } from 'react-router-dom';
 import type { MemberDoc } from '@/types/firestore';
+import { cn } from '@/lib/utils';
+import { Check, Plus } from 'lucide-react';
 
 interface Props {
   members: (MemberDoc & { memberId: string })[];
   serverGroupId: string;
   userUid: string;
+  checkedMemberIds: string[];
+  onToggle: (id: string) => void;
 }
 
-export default function MyMembersPanel({ members }: Props) {
+export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: Props) {
   const navigate = useNavigate();
 
   // members 컬렉션의 active 필드 기준으로 승인/대기 분리
@@ -16,44 +20,55 @@ export default function MyMembersPanel({ members }: Props) {
   const pending = members.filter((m) => m.active === false);
 
   return (
-    <div className="p-3 border rounded mb-4 bg-white shadow-sm">
-      {/* 1) 승인된 복사 */}
+    <div className="p-3 border rounded-xl mb-4 bg-white shadow-sm">
+      {/* 1) 승인된 복사 (Toggle Buttons) */}
       <div className="mb-3">
-        <div className="font-semibold mb-2 text-blue-700">내 복사</div>
-        {approved.length === 0 ? (
-          <div className="text-gray-500 text-sm">승인된 복사가 없습니다</div>
+        <div className="font-semibold mb-2 text-gray-800 text-sm">나의 복사 (선택하여 일정 보기)</div>
+        {approved.length === 0 && pending.length === 0 ? (
+          <div className="text-gray-500 text-sm">등록된 복사가 없습니다</div>
         ) : (
-          <ul className="text-sm">
-            {approved.map((m) => (
-              <li key={m.memberId} className="py-1">
-                ✅ {m.name_kor} ({m.baptismal_name}) — {m.grade}
-              </li>
+          <div className="flex flex-wrap gap-2">
+            {/* 승인된 복사 버튼 */}
+            {approved.map((m) => {
+              const checked = checkedMemberIds.includes(m.memberId);
+              return (
+                <button
+                  key={m.memberId}
+                  onClick={() => onToggle(m.memberId)}
+                  className={cn(
+                    'flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
+                    checked
+                      ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  )}
+                >
+                  {checked && <Check size={14} strokeWidth={3} />}
+                  {m.name_kor} ({m.baptismal_name})
+                </button>
+              );
+            })}
+
+            {/* 승인 대기 중 복사 */}
+            {pending.map((m) => (
+              <div
+                key={m.memberId}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                title="관리자 승인 대기 중"
+              >
+                ⏳ {m.name_kor} (승인대기)
+              </div>
             ))}
-          </ul>
+
+            {/* 복사 추가 버튼 (Small) */}
+            <button
+              onClick={() => navigate('/add-member')}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium border border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <Plus size={14} /> 복사 추가
+            </button>
+          </div>
         )}
       </div>
-
-      {/* 2) 승인 대기 중 */}
-      {pending.length > 0 && (
-        <div className="mb-3">
-          <div className="font-semibold mb-2 text-gray-700">승인 대기 중</div>
-          <ul className="text-sm text-gray-600">
-            {pending.map((m) => (
-              <li key={m.memberId} className="py-1">
-                ⏳ {m.name_kor} ({m.baptismal_name}) — {m.grade}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* 3) 복사 추가 페이지로 이동 */}
-      <button
-        onClick={() => navigate('/add-member')}
-        className="w-full bg-green-600 text-white py-2 rounded font-semibold"
-      >
-        + 복사 추가하기
-      </button>
     </div>
   );
 }

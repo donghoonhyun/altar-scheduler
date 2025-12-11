@@ -147,6 +147,44 @@ async function seed() {
 
   console.log(`✅ month_status/${monthKey} 문서 생성 (MASS-NOTCONFIRMED)`);
 
+  // 6️⃣ mass_presets (from 2025-11 1st week: 20251102~20251108)
+  console.log('📌 미사 프리셋 시드 시작...');
+  const presetWeekdays: Record<string, any[]> = {
+    '0': [], '1': [], '2': [], '3': [], '4': [], '5': [], '6': []
+  };
+
+  // 2025년 11월 2일(일) ~ 8일(토)이 첫번째 온전한 주
+  const DATE_DOW_MAP: Record<string, string> = {
+    '20251102': '0', // Sun
+    '20251103': '1', // Mon
+    '20251104': '2', // Tue
+    '20251105': '3', // Wed
+    '20251106': '4', // Thu
+    '20251107': '5', // Fri
+    '20251108': '6', // Sat
+  };
+
+  EXTRA_EVENTS.forEach((e) => {
+    const dow = DATE_DOW_MAP[e.event_date];
+    if (dow) {
+      presetWeekdays[dow].push({
+        title: e.title,
+        required_servers: e.required_servers,
+      });
+    }
+  });
+
+  await db
+    .collection('server_groups')
+    .doc(TEST_SERVER_GROUP_ID)
+    .collection('mass_presets')
+    .doc('default')
+    .set({
+      weekdays: presetWeekdays,
+      updated_at: FieldValue.serverTimestamp(),
+    });
+  console.log('✅ mass_presets/default 문서 생성');
+
   console.log('🎉 모든 시드 작업 완료');
 }
 

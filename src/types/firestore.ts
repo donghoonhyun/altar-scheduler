@@ -39,6 +39,7 @@ export interface MemberDoc {
   phone_guardian?: string;
   phone_student?: string;
   notes?: string;
+  active: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

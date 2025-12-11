@@ -1,4 +1,4 @@
-# PRD 2.4.4 MassEvent Planner
+# PRD 2.4.8 MassEvent Planner
 
 ## 🧩 1. 섹션 개요
 

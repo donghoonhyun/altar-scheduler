@@ -2,6 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from '../../state/session';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui';
 
 interface RoleBadgeProps {
   serverGroupId?: string;
@@ -56,31 +63,36 @@ const RoleBadge: React.FC<RoleBadgeProps> = ({ serverGroupId }) => {
         [{label}] {serverGroup?.parishName} {serverGroup?.groupName}
       </button>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-            <h3 className="text-lg font-bold mb-4">나의 정보</h3>
+      {/* ✅ 표준 Dialog 컴포넌트 사용 */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+            <DialogTitle>나의 정보</DialogTitle>
+            <DialogDescription>
+              현재 로그인된 계정의 정보입니다.
+            </DialogDescription>
+          </div>
 
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>이메일:</strong> {session.user?.email}
-              </p>
-              <p>
-                <strong>이름:</strong> {session.user?.displayName || memberInfo?.name_kor || '-'}
-              </p>
-              <p>
-                <strong>역할:</strong> {label}
-              </p>
-              <p>
-                <strong>본당:</strong> {serverGroup?.parishName}
-              </p>
-              <p>
-                <strong>복사단:</strong> {serverGroup?.groupName}
-              </p>
-            </div>
+          <div className="space-y-3 text-sm py-4">
+            <p>
+              <strong>이메일:</strong> {session.user?.email}
+            </p>
+            <p>
+              <strong>이름:</strong>{' '}
+              {session.user?.displayName || memberInfo?.name_kor || '-'}
+            </p>
+            <p>
+              <strong>역할:</strong> {label}
+            </p>
+            <p>
+              <strong>본당:</strong> {serverGroup?.parishName}
+            </p>
+            <p>
+              <strong>복사단:</strong> {serverGroup?.groupName}
+            </p>
 
             {role === 'server' && memberInfo && (
-              <div className="mt-4 space-y-2 text-sm">
+              <div className="mt-4 pt-4 border-t space-y-2">
                 <p>
                   <strong>세례명:</strong> {memberInfo.baptismal_name || '-'}
                 </p>
@@ -91,19 +103,20 @@ const RoleBadge: React.FC<RoleBadgeProps> = ({ serverGroupId }) => {
                   <strong>비고:</strong> {memberInfo.notes || '-'}
                 </p>
                 <p>
-                  <strong>승인여부:</strong> {memberInfo.active ? '승인됨' : '승인대기'}
+                  <strong>승인여부:</strong>{' '}
+                  {memberInfo.active ? '승인됨' : '승인대기'}
                 </p>
               </div>
             )}
-
-            <div className="flex justify-end mt-6">
-              <button onClick={() => setShowModal(false)} className="px-4 py-1 bg-gray-300 rounded">
-                닫기
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+            <Button variant="secondary" onClick={() => setShowModal(false)}>
+              닫기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

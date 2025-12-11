@@ -14,6 +14,8 @@ import ServerList from '../pages/ServerList';
 import ServerGroupWizard from '../pages/ServerGroupWizard';
 import Forbidden from '../pages/components/Forbidden';
 import MassEventPlanner from '../pages/MassEventPlanner';
+import MassEventPresets from '../pages/MassEventPresets';
+
 import RoleGuard from '../pages/components/RoleGuard';
 import ServerSurvey from '@/pages/ServerSurvey';
 import AddMember from '@/pages/AddMember';
@@ -128,6 +130,15 @@ export default function AppRoutes() {
             element={
               <RoleGuard require="planner">
                 <MassEventPlanner />
+              </RoleGuard>
+            }
+          />
+
+          <Route
+            path="/server-groups/:serverGroupId/presets"
+            element={
+              <RoleGuard require="planner">
+                <MassEventPresets />
               </RoleGuard>
             }
           />
