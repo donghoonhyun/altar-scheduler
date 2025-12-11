@@ -5,7 +5,7 @@ import { collection, doc, onSnapshot, orderBy, query, where } from 'firebase/fir
 import { db } from '@/lib/firebase';
 import dayjs, { Dayjs } from 'dayjs';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import ServerGroupSelector from './components/ServerGroupSelector';
 import MyMembersPanel from './components/MyMembersPanel';
@@ -13,15 +13,17 @@ import MassEventMiniDrawer from '@/components/MassEventMiniDrawer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
 import type { MassEventDoc, MassStatus, MemberDoc } from '@/types/firestore';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type MemberItem = MemberDoc & { memberId: string; active?: boolean };
 
 export default function ServerMain() {
   const session = useSession();
   const navigate = useNavigate();
-
-  const serverGroupId = session.currentServerGroupId ?? undefined;
+  
+  // URL에서 ServerGroup ID 획득 (Source of Truth)
+  const { serverGroupId } = useParams<{ serverGroupId: string }>();
 
   const [groupName, setGroupName] = useState<string>('');
   const [members, setMembers] = useState<MemberItem[]>([]);
@@ -36,7 +38,10 @@ export default function ServerMain() {
 
   // 1) server_group 정보
   useEffect(() => {
-    if (!serverGroupId) return;
+    if (!serverGroupId) {
+      setGroupName('');
+      return;
+    }
     const ref = doc(db, 'server_groups', serverGroupId);
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) setGroupName(snap.data().name || '');
@@ -47,7 +52,10 @@ export default function ServerMain() {
 
   // 2) 내 members
   useEffect(() => {
-    if (!serverGroupId || !session.user) return;
+    if (!serverGroupId || !session.user) {
+      setMembers([]);
+      return;
+    }
 
     const q = query(
       collection(db, 'server_groups', serverGroupId, 'members'),
@@ -69,8 +77,10 @@ export default function ServerMain() {
   
   // 3) month_status
   useEffect(() => {
-    if (!serverGroupId) return;
-
+    if (!serverGroupId) {
+      setMonthStatus('MASS-NOTCONFIRMED');
+      return;
+    }
     const yyyymm = currentMonth.format('YYYYMM');
     const ref = doc(db, 'server_groups', serverGroupId, 'month_status', yyyymm);
 
@@ -81,6 +91,33 @@ export default function ServerMain() {
 
     return () => unsub();
   }, [serverGroupId, currentMonth]);
+
+  // 3.5) 설문 진행 중인 달 조회 (MASS-CONFIRMED 상태)
+  const [surveyNoticeMonth, setSurveyNoticeMonth] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!serverGroupId) {
+      setSurveyNoticeMonth(null);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'server_groups', serverGroupId, 'month_status'),
+      where('status', '==', 'MASS-CONFIRMED')
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        // 여러 달이 진행 중일 경우 가장 빠른 달 하나만 표시 (YYYYMM 오름차순 정렬)
+        const sortedMonths = snap.docs.map(d => d.id).sort();
+        setSurveyNoticeMonth(sortedMonths[0]);
+      } else {
+        setSurveyNoticeMonth(null);
+      }
+    });
+
+    return () => unsub();
+  }, [serverGroupId]);
 
   // members 변경 시 checkedMemberIds 동기화 (기본 모두 체크)
   useEffect(() => {
@@ -98,7 +135,10 @@ export default function ServerMain() {
 
   // 4) mass_events
   useEffect(() => {
-    if (!serverGroupId) return;
+    if (!serverGroupId) {
+      setEvents([]);
+      return;
+    }
 
     const start = currentMonth.startOf('month').format('YYYYMMDD');
     const end = currentMonth.endOf('month').format('YYYYMMDD');
@@ -157,6 +197,25 @@ export default function ServerMain() {
         />
       )}
 
+      {/* 2.5) 설문 알림 (Callout) */}
+      {surveyNoticeMonth && serverGroupId && (
+        <div 
+          onClick={() => navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}`)}
+          className="mt-4 mb-2 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition shadow-sm fade-in"
+        >
+          <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+             <ClipboardCheck size={24} />
+          </div>
+          <div className="flex-1">
+             <h3 className="text-sm font-bold text-blue-900">미사일정 설문이 시작되었습니다</h3>
+             <p className="text-xs text-blue-700 mt-1">
+               {dayjs(surveyNoticeMonth, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
+             </p>
+          </div>
+          <ChevronRight className="text-blue-400" size={20} />
+        </div>
+      )}
+
       {/* 🔥 3) 복사 0명일 때 안내 카드 */}
       {members.length === 0 && (
         <div className="mt-4 p-4 bg-white rounded-xl shadow text-center">
@@ -179,12 +238,10 @@ export default function ServerMain() {
       {members.length === 0 && null}
 
       {/* 🔥 members.length ≥ 1 일 때만 달력 렌더링 */}
-      {members.length > 0 && (
+      {serverGroupId && members.length > 0 && (
         <>
           {/* 달력 상단 */}
           <div className="flex justify-between items-center mb-3">
-            <div className="text-lg font-semibold">{groupName}</div>
-
             <div className="flex gap-2 items-center">
               <button onClick={() => setCurrentMonth((m) => m.subtract(1, 'month'))}>
                 <ChevronLeft />
@@ -219,18 +276,42 @@ export default function ServerMain() {
               const mine = evts.some(isMyEvent);
               const any = evts.length > 0;
 
+              const isToday = dayjs().isSame(dateObj, 'day');
+              // MASS-NOTCONFIRMED가 아니면 점으로 표시
+              const showDots = monthStatus !== 'MASS-NOTCONFIRMED';
+
               return (
                 <div
                   key={idx}
                   onClick={() => handleDayClick(day)}
-                  className={`
-                    h-14 flex items-center justify-center rounded cursor-pointer transition
-                    ${mine ? 'bg-blue-600 text-white font-bold' : ''}
-                    ${!mine && any ? 'bg-rose-100 text-rose-700' : ''}
-                    ${!any ? 'text-gray-300' : ''}
-                  `}
+                  className={cn(
+                    "h-14 flex flex-col items-center justify-start pt-1 rounded cursor-pointer transition border relative hover:bg-gray-50",
+                    isToday ? "border-blue-500 ring-1 ring-blue-500 z-10" : "border-transparent",
+                    !showDots && mine && "bg-blue-600 text-white font-bold hover:bg-blue-700",
+                    !showDots && !mine && any && "bg-rose-100 text-rose-700 hover:bg-rose-200",
+                    !showDots && !any && "text-gray-300",
+                    showDots && "bg-white"
+                  )}
                 >
-                  <span>{day}</span>
+                  <span className={cn(
+                    "text-sm", 
+                    isToday && "font-bold text-blue-600",
+                    !showDots && mine && "text-white"
+                  )}>{day}</span>
+                  
+                  {showDots && (
+                    <div className="flex gap-0.5 flex-wrap justify-center px-1 mt-1">
+                      {evts.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            isMyEvent(ev) ? "bg-blue-500" : "bg-gray-300"
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

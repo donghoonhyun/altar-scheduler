@@ -1,10 +1,15 @@
-// src/pages/components/ServerGroupSelector.tsx
+import { useNavigate, useParams } from "react-router-dom";
 import { useSession } from "@/state/session";
 
 export default function ServerGroupSelector() {
   const session = useSession();
+  const navigate = useNavigate();
+  const { serverGroupId } = useParams<{ serverGroupId: string }>();
 
   const groups = Object.entries(session.serverGroups); // [ [sgId, {parishName, groupName}], ... ]
+  
+  // 현재 선택된 ID: URL 파라미터 우선, 없으면 세션 값
+  const currentId = serverGroupId || session.currentServerGroupId || "";
 
   // 아직 복사단 선택 전
   if (groups.length === 0) {
@@ -19,19 +24,21 @@ export default function ServerGroupSelector() {
 
   return (
     <div className="mb-4">
-      <label className="block text-sm text-gray-600 mb-1">복사단 선택</label>
+      {/* Label Removed */}
 
       <select
-        className="border p-2 rounded w-full bg-white"
-        value={session.currentServerGroupId ?? ""}
+        className="border p-1 rounded w-full text-xs bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        value={currentId}
         onChange={(e) => {
-          if (session.setCurrentServerGroupId) {
-            session.setCurrentServerGroupId(e.target.value);
+          const val = e.target.value;
+          if (val) {
+             // URL 변경으로 이동
+             navigate(`/server-groups/${val}`);
+             // 세션 상태도 업데이트 (선택사항이나 싱크 맞추기 위해)
+             session.setCurrentServerGroupId?.(val);
           }
         }}
       >
-        <option value="">복사단 선택하세요</option>
-
         {groups.map(([sgId, info]) => (
           <option key={sgId} value={sgId}>
             {info.parishName} - {info.groupName}

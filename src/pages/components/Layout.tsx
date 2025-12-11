@@ -22,13 +22,13 @@ export default function Layout() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.location.href = "/"}
-            className="flex items-center gap-1 bg-gray-200 text-gray-700 px-3 py-1 rounded-xl text-sm hover:bg-gray-300 transition"
+            className="flex items-center gap-1 bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-xs hover:bg-gray-300 transition"
           >
-            <Home size={16} /> Home
+            <Home size={14} /> Home
           </button>
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-3 py-1 rounded-xl text-sm hover:bg-red-600 transition"
+            className="bg-red-500 text-white px-2 py-1 rounded-lg text-xs hover:bg-red-600 transition"
           >
             로그아웃
           </button>
