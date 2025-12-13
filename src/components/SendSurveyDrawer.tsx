@@ -31,12 +31,23 @@ interface MemberDoc {
 }
 
 interface AvailabilitySurveyDoc {
-  start_date?: Date;
-  end_date?: Date;
+  start_date?: any;
+  end_date?: any;
   member_ids?: string[];
   status?: 'OPEN' | 'CLOSED';
-  created_at?: Date;
-  updated_at?: Date;
+  created_at?: any;
+  updated_at?: any;
+  responses?: Record<string, {
+      uid: string;
+      unavailable: string[] | Record<string, any>; // Support both new array and old map
+      updated_at: any;
+  }>;
+}
+
+interface MassEventDoc {
+    id: string;
+    title: string;
+    event_date: string;
 }
 
 interface SendSurveyDrawerProps {
@@ -64,7 +75,9 @@ export function SendSurveyDrawer({
   const [endDate, setEndDate] = useState<Date>(dayjs().add(7, 'day').toDate());
   const [surveyUrl, setSurveyUrl] = useState<string | null>(null);
   const [existingSurvey, setExistingSurvey] = useState<AvailabilitySurveyDoc | null>(null);
+  const [massEvents, setMassEvents] = useState<Record<string, MassEventDoc>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null); // For showing details
 
   // ---------- 🔹 Load members & existing survey ----------
   useEffect(() => {
@@ -96,6 +109,19 @@ export function SendSurveyDrawer({
           if (data.status === 'OPEN') {
             setExistingSurvey(data);
             setSurveyUrl(`${APP_BASE_URL}/survey/${serverGroupId}/${currentMonth}`);
+
+            // Fetch Mass Events for details
+             const startStr = dayjs(currentMonth + '01').startOf('month').format('YYYYMMDD');
+             const endStr = dayjs(currentMonth + '01').endOf('month').format('YYYYMMDD');
+             
+             const eventsRef = collection(db, `server_groups/${serverGroupId}/mass_events`);
+             const eq = query(eventsRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr));
+             const eSnap = await getDocs(eq);
+             const eMap: Record<string, MassEventDoc> = {};
+             eSnap.forEach(d => {
+                 eMap[d.id] = { id: d.id, ...d.data() } as MassEventDoc;
+             });
+             setMassEvents(eMap);
           }
         } else {
           setExistingSurvey(null);
@@ -180,8 +206,107 @@ export function SendSurveyDrawer({
 
         {/* ✅ 기존 설문 존재 시 안내 */}
         {existingSurvey && (
-          <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-sm text-gray-700">
-            📌 이미 설문이 시작되었습니다. 아래의 URL을 복사해 다시 공유할 수 있습니다.
+          <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-md p-3 text-sm text-green-700">
+                ✅ 설문이 진행 중입니다. ({dayjs(existingSurvey.start_date?.toDate()).format('M/D')} ~ {dayjs(existingSurvey.end_date?.toDate()).format('M/D')})
+              </div>
+
+              {/* Submission Statistics */}
+              {(() => {
+                  const targetMembers = members.filter(m => existingSurvey.member_ids?.includes(m.id));
+                  const submittedCount = targetMembers.filter(m => existingSurvey.responses?.[m.id]).length;
+                  const notSubmittedCount = targetMembers.length - submittedCount;
+                  
+                  return (
+                      <div className="flex gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                              <span className="font-medium">제출:</span>
+                              <span className="text-green-600 font-bold">{submittedCount}명</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <span className="font-medium">미제출:</span>
+                              <span className="text-gray-500 font-bold">{notSubmittedCount}명</span>
+                          </div>
+                      </div>
+                  );
+              })()}
+
+              {/* Members Status List */}
+              <div className="border rounded-md max-h-[450px] overflow-y-auto">
+                 {members
+                   .filter(m => existingSurvey.member_ids?.includes(m.id))
+                   .sort((a, b) => {
+                       // Sort by name_kor first, then by grade
+                       const nameCompare = a.name_kor.localeCompare(b.name_kor, 'ko');
+                       if (nameCompare !== 0) return nameCompare;
+                       return (a.grade || '').localeCompare(b.grade || '', 'ko');
+                   })
+                   .map(m => {
+                     const response = existingSurvey.responses?.[m.id];
+                     const isSubmitted = !!response;
+                     const isExpanded = expandedMemberId === m.id;
+                     
+                     // Helper to get unavailable event IDs safely
+                     let unavailableIds: string[] = [];
+                     if (response?.unavailable) {
+                         if (Array.isArray(response.unavailable)) {
+                             unavailableIds = response.unavailable;
+                         } else {
+                             unavailableIds = Object.keys(response.unavailable);
+                         }
+                     }
+                     const unavailableCount = unavailableIds.length;
+
+                     return (
+                         <div key={m.id} className="border-b last:border-b-0">
+                             <div 
+                                className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                                onClick={() => isSubmitted && setExpandedMemberId(isExpanded ? null : m.id)}
+                             >
+                                 <div className="flex items-center gap-2">
+                                     <span className="font-medium">{m.name_kor}</span>
+                                     {m.baptismal_name && (
+                                         <span className="text-xs text-gray-500">({m.baptismal_name})</span>
+                                     )}
+                                     <span className="text-xs text-gray-500">{m.grade}</span>
+                                 </div>
+                                 <div>
+                                     {isSubmitted ? (
+                                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                                             제출완료 {unavailableCount > 0 && `(불참 ${unavailableCount})`}
+                                         </span>
+                                     ) : (
+                                         <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+                                             미제출
+                                         </span>
+                                     )}
+                                 </div>
+                             </div>
+                             
+                             {/* Detail Expansion */}
+                             {isExpanded && isSubmitted && (
+                                 <div className="bg-slate-50 p-3 text-sm border-t">
+                                     <p className="font-semibold mb-2 text-gray-700">참석 불가능한 일정:</p>
+                                     {unavailableIds.length === 0 ? (
+                                         <p className="text-gray-500">없음 (모두 참석 가능)</p>
+                                     ) : (
+                                         <ul className="space-y-1">
+                                             {unavailableIds.map(eid => {
+                                                 const ev = massEvents[eid];
+                                                 return (
+                                                     <li key={eid} className="flex gap-2 text-gray-600">
+                                                         <span>• {ev ? `${dayjs(ev.event_date).format('M/D(ddd)')} ${ev.title}` : '알 수 없는 일정'}</span>
+                                                     </li>
+                                                 )
+                                             })}
+                                         </ul>
+                                     )}
+                                 </div>
+                             )}
+                         </div>
+                     );
+                 })}
+              </div>
           </div>
         )}
 

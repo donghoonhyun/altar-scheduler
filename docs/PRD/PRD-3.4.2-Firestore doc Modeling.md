@@ -121,7 +121,7 @@ server_groups/{sg}/mass_presets/
 
 ```lua
 server_groups/{sg}/month_status/{yyyymm}
-  status: string               // MASS-NOTCONFIRMED / MASS-CONFIRMED / SURVEY-CONFIRMED / FINAL-CONFIRMED
+  status: string               // "MASS-NOTCONFIRMED" / "MASS-CONFIRMED" / "SURVEY-CONFIRMED" / "FINAL-CONFIRMED"
   updated_by: string           // 마지막 수정자 email or uid
   updated_at: timestamp        // Firestore serverTimestamp()
   note?: string                // 상태 변경 사유 등
@@ -145,18 +145,25 @@ server_groups/{sg}/mass_events/{event_id}
   title: string                 // 예: "주일 10시 미사"
   required_servers: number      // 필요 복사 인원수
   member_ids: string[]          // 배정된 복사 ID 목록
+  main_member_id: string        // 주복사 ID (member_ids 중 한 명)
   not_available_members: string[] // 설문에 따른 참석 불가능한 복사들 ID목록
   created_at: timestamp
   updated_at: timestamp
 ```
   
-### 2.5 Availability Surveys (가용성 설문 응답)
+### 2.5 Availability Surveys (가용성 설문 & 응답)
 
 ```lua
-server_groups/{sg}/availability_surveys/{yyyymm}/responses/{member_id}
+server_groups/{sg}/availability_surveys/{yyyymm}
+  member_ids: string[]          // 설문 응답대상자 ID 목록
   responses: {
-    [event_id: string]: "AVAILABLE" | "UNAVAILABLE"
+    [member_id: string]: {
+      unavailable: string[] // 설문 응답자별 미참석 event_id 목록
+    }
   }
+  status: string               // "OPEN" / "CLOSED"
+  start_date: timestamp        // 설문 시작일
+  end_date: timestamp          // 설문 종료일
   created_at: timestamp
   updated_at: timestamp
 ```

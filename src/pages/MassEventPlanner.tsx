@@ -64,12 +64,11 @@ const MassEventPlanner: React.FC = () => {
 
   /** ✅ 날짜 클릭 시 Drawer 열기 */
   const handleDayClick = (date: Date, eventId?: string) => {
+    setSelectedDate(date);  // Always set the date
     if (eventId) {
       setSelectedEventId(eventId);
-      setSelectedDate(null);
     } else {
       setSelectedEventId(undefined);
-      setSelectedDate(date);
     }
     setDrawerOpen(true);
   };

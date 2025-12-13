@@ -1,9 +1,10 @@
 // ServerMain.tsx
 import { useEffect, useState } from 'react';
 import { useSession } from '@/state/session';
-import { collection, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, where, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import dayjs, { Dayjs } from 'dayjs';
+import { toast } from 'sonner';
 
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -92,7 +93,7 @@ export default function ServerMain() {
     return () => unsub();
   }, [serverGroupId, currentMonth]);
 
-  // 3.5) 설문 진행 중인 달 조회 (MASS-CONFIRMED 상태)
+  // 3.5) 설문 진행 중인 달 조회 (MASS-CONFIRMED 상태 & Survey Status='OPEN')
   const [surveyNoticeMonth, setSurveyNoticeMonth] = useState<string | null>(null);
   
   useEffect(() => {
@@ -101,19 +102,37 @@ export default function ServerMain() {
       return;
     }
 
+    // 1) MASS-CONFIRMED 인 달 찾기
     const q = query(
       collection(db, 'server_groups', serverGroupId, 'month_status'),
       where('status', '==', 'MASS-CONFIRMED')
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      if (!snap.empty) {
-        // 여러 달이 진행 중일 경우 가장 빠른 달 하나만 표시 (YYYYMM 오름차순 정렬)
-        const sortedMonths = snap.docs.map(d => d.id).sort();
-        setSurveyNoticeMonth(sortedMonths[0]);
-      } else {
+    const unsub = onSnapshot(q, async (snap) => {
+      if (snap.empty) {
         setSurveyNoticeMonth(null);
+        return;
       }
+      
+      const potentialMonths = snap.docs.map(d => d.id).sort();
+      let foundOpenSurvey = null;
+
+      // 2) 실제 설문이 OPEN 상태인지 확인
+      for (const m of potentialMonths) {
+          try {
+              const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', m);
+              const surveySnap = await getDoc(surveyRef); // onSnapshot 대신 getDoc? 실시간성 필요하면 onSnapshot이 맞지만, loop 돌리기 힘들다. 
+              // 일단 여기서는 간단히 getDoc으로 확인. (상태 바뀌면 어차피 refresh 되거나, month_status가 바뀌면서 트리거됨)
+              // 더 정확히 하려면 availability_surveys 컬렉션을 'OPEN' 조건으로 쿼리하는게 나을 수도 있음.
+              
+              if (surveySnap.exists() && surveySnap.data().status === 'OPEN') {
+                  foundOpenSurvey = m;
+                  break; // 가장 빠른 하나만
+              }
+          } catch (e) { console.error(e); }
+      }
+      
+      setSurveyNoticeMonth(foundOpenSurvey);
     });
 
     return () => unsub();
@@ -163,6 +182,9 @@ export default function ServerMain() {
 
   // 날짜 클릭 → Drawer
   const handleDayClick = (day: number) => {
+    // 미확정 상태면 클릭 무시
+    if (monthStatus === 'MASS-NOTCONFIRMED') return;
+
     const date = currentMonth.date(day);
     const filtered = events.filter((ev) => dayjs(ev.event_date, 'YYYYMMDD').isSame(date, 'day'));
 
@@ -200,7 +222,14 @@ export default function ServerMain() {
       {/* 2.5) 설문 알림 (Callout) */}
       {surveyNoticeMonth && serverGroupId && (
         <div 
-          onClick={() => navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}`)}
+          onClick={() => {
+              if (checkedMemberIds.length !== 1) {
+                  toast.error("설문을 진행할 복사를 한 명만 선택해주세요.");
+                  return;
+              }
+              const targetId = checkedMemberIds[0];
+              navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}?memberId=${targetId}`);
+          }}
           className="mt-4 mb-2 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition shadow-sm fade-in"
         >
           <div className="bg-blue-100 p-2 rounded-full text-blue-600">
@@ -279,18 +308,22 @@ export default function ServerMain() {
               const isToday = dayjs().isSame(dateObj, 'day');
               // MASS-NOTCONFIRMED가 아니면 점으로 표시
               const showDots = monthStatus !== 'MASS-NOTCONFIRMED';
+              const isSelected = drawerOpen && drawerDate?.isSame(dateObj, 'day');
 
               return (
                 <div
                   key={idx}
                   onClick={() => handleDayClick(day)}
                   className={cn(
-                    "h-14 flex flex-col items-center justify-start pt-1 rounded cursor-pointer transition border relative hover:bg-gray-50",
+                    "h-14 flex flex-col items-center justify-start pt-1 rounded transition border relative",
+                    // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
+                    !showDots ? "cursor-default" : "cursor-pointer hover:bg-gray-50",
                     isToday ? "border-blue-500 ring-1 ring-blue-500 z-10" : "border-transparent",
                     !showDots && mine && "bg-blue-600 text-white font-bold hover:bg-blue-700",
                     !showDots && !mine && any && "bg-rose-100 text-rose-700 hover:bg-rose-200",
                     !showDots && !any && "text-gray-300",
-                    showDots && "bg-white"
+                    showDots && !isSelected && "bg-white",
+                    isSelected && "bg-yellow-100 border-yellow-400 ring-1 ring-yellow-400 z-20"
                   )}
                 >
                   <span className={cn(

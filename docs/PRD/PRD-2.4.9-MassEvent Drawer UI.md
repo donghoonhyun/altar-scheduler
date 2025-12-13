@@ -11,13 +11,16 @@
 
 ```
 MassEventDrawer
- ├── 헤더: 일정 제목 및 상태 표시
+ ├── 헤더: 📝 일정 제목 및 날짜/요일 표시
  ├── 본문: 일정 입력 폼
  │     ├── 미사명(title)
- │     ├── 미사일자(date)
- │     ├── 필요 복사 수(required_servers)
- │     ├── 배정 복사 선택(members)
- │     ├── 상태(status)
+ │     ├── 필요 인원(required_servers)
+ │     ├── 배정된 복사 (기존 배정 표시 - 수정 시에만)
+ │     │     └── 주복사 표시 (파란색 배지)
+ │     └── 배정 복사 선택(members) - 미확정 상태가 아닐 때만
+ │           ├── 학년별 그룹핑
+ │           ├── 불참 설문 복사 표시 (주황색)
+ │           └── 주복사 선택 (라디오 버튼)
  └── 하단 버튼영역: 저장 / 삭제 / 닫기
 ```
 
@@ -27,10 +30,13 @@ MassEventDrawer
 
 | 기능     | 설명                                                               |
 | ------ | ---------------------------------------------------------------- |
-| 일정 추가  | 새로운 날짜 클릭 시 빈 Drawer를 열어 미사명, 일자, 복사 수, 배정 복사를 입력 후 저장           |
-| 일정 수정  | 기존 이벤트 클릭 시 해당 데이터로 Drawer를 열고 상태 및 복사 목록 수정 가능                  |
+| 일정 추가  | 새로운 날짜 클릭 시 빈 Drawer를 열어 미사명, 필요 인원을 입력 후 저장           |
+| 일정 수정  | 기존 이벤트 클릭 시 해당 데이터로 Drawer를 열고 복사 배정 및 주복사 지정 가능                  |
 | 일정 삭제  | 현재 일정 문서를 Firestore에서 삭제 (`deleteDoc()`)                         |
-| 상태 변경  | 관리자가 설문 확정(`SURVEY-CONFIRMED`), 최종 확정(`FINAL-CONFIRMED`)으로 변경 가능 |
+| 배정된 복사 표시 | 기존에 배정된 복사 목록을 상단에 표시, 주복사는 파란색 배지로 강조 |
+| 주복사 지정 | 배정된 복사 중 한 명을 주복사로 지정 (필수) |
+| 불참 설문 복사 표시 | 설문에서 해당 일정을 불참으로 표시한 복사를 주황색으로 강조 |
+| 불참 복사 선택 경고 | 불참 설문한 복사 선택 시 경고 메시지 표시 (선택은 가능) |
 | 실시간 반영 | Firestore `onSnapshot` 기반으로 수정 즉시 UI 반영됨                         |
 
 ---
@@ -39,9 +45,14 @@ MassEventDrawer
 
 | 상태명        | 타입            | 설명                                                                              |
 | ---------- | ------------- | ------------------------------------------------------------------------------- |
-| `formData` | 객체            | Drawer 내부 입력 폼 상태 (`title`, `date`, `required_servers`, `member_ids`, `status`) |
+| `title` | string | 미사 제목 |
+| `requiredServers` | number | 필요 복사 인원 수 |
+| `memberIds` | string[] | 배정된 복사 ID 목록 |
+| `mainMemberId` | string | 주복사 ID |
+| `unavailableMembers` | Set<string> | 설문에서 불참으로 표시한 복사 ID 집합 |
 | `loading`  | boolean       | Firestore 업데이트 중 표시                                                             |
-| `error`    | string | null | Firestore 작업 실패 시 메시지                                                           |
+| `errorMsg`    | string | Firestore 작업 실패 시 메시지                                                           |
+| `showUnavailableWarning` | boolean | 불참 복사 선택 시 경고 표시 여부 |
 
 ---
 
@@ -51,6 +62,7 @@ MassEventDrawer
 * **삭제(delete)**: `deleteDoc()` 사용
 * **경로**: `server_groups/{serverGroupId}/mass_events/{eventId}`
 * **시간 필드**: `updated_at`은 `serverTimestamp()`로 기록
+* **설문 데이터**: `availability_surveys/{yyyymm}` 문서에서 불참 복사 정보 조회
 
 ---
 
@@ -58,11 +70,10 @@ MassEventDrawer
 
 | 필드명                | 입력형태        | 검증 규칙                                                      |
 | ------------------ | ----------- | ---------------------------------------------------------- |
-| `title`            | TextInput   | 필수, 2~30자                                                  |
-| `date`             | DatePicker  | 필수, `Asia/Seoul` 기준, `dateUtils` 변환 사용                     |
-| `required_servers` | NumberInput | 1~10 범위                                                    |
-| `members`          | MultiSelect | 복사단 멤버 목록에서 선택                                             |
-| `status`           | Select      | `MASS-NOTCONFIRMED`, `SURVEY-CONFIRMED`, `FINAL-CONFIRMED` |
+| `title`            | TextInput   | 필수, 미사 제목                                                  |
+| `required_servers` | Radio Buttons | 1~6명 중 선택                                                    |
+| `member_ids`          | Checkbox (학년별 그룹) | 복사단 멤버 목록에서 선택, required_servers와 정확히 일치해야 함                                             |
+| `main_member_id`           | Radio Button      | 배정된 복사 중 한 명을 주복사로 지정 (필수) |
 
 ---
 
@@ -70,11 +81,15 @@ MassEventDrawer
 
 | 요소        | 규칙                                                                   |
 | --------- | -------------------------------------------------------------------- |
-| **헤더**    | 미사명(`title`) 표시, 오른쪽에 상태 아이콘 표시                                      |
-| **입력 폼**  | 세로 정렬(`flex-col`), 섹션 간 간격(`gap-3`) 유지                               |
-| **저장 버튼** | 파란색(`bg-blue-600 hover:bg-blue-700`), 상태별 라벨 변경 (예: '추가하기' / '수정하기') |
-| **삭제 버튼** | 빨간색(`bg-red-500 hover:bg-red-600`), 삭제 확인 모달 표시 후 실행                 |
-| **닫기 버튼** | 회색(`bg-gray-300 hover:bg-gray-400`)                                  |
+| **헤더**    | 📝 아이콘 + 제목 + 날짜/요일 표시, 하단에 설명 텍스트 및 구분선 |
+| **배정된 복사** | 파란색 배경 영역에 배정된 복사 표시, 주복사는 파란색 배지(`bg-blue-600`)로 강조 |
+| **입력 폼**  | 세로 정렬(`flex-col`), 섹션 간 간격(`gap-4`) 유지                               |
+| **복사 선택** | 학년별 그룹핑, 불참 설문 복사는 주황색(`text-orange-600`) 텍스트로 표시 |
+| **주복사 선택** | 선택된 복사에만 라디오 버튼 표시, 파란색 텍스트로 "주복사" 표시 |
+| **경고 메시지** | 불참 복사 선택 시 상단에 주황색 경고 메시지 3초간 표시 (`animate-pulse`) |
+| **저장 버튼** | 파란색(`bg-blue-600 hover:bg-blue-700`), 상태별 라벨 변경 (예: '저장' / '수정') |
+| **삭제 버튼** | 빨간색 테두리(`text-red-600 border-red-400`), 삭제 확인 후 실행                 |
+| **취소 버튼** | 회색 테두리(`variant="outline"`)                                  |
 
 ---
 

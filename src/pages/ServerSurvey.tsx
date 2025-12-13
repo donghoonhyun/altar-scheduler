@@ -1,6 +1,6 @@
 // src/pages/ServerSurvey.tsx
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   getFirestore,
   collection,
@@ -29,6 +29,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+
 import { ChevronLeft, ChevronRight, Home, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,11 @@ export default function ServerSurvey() {
   const db = getFirestore();
   const auth = getAuth();
   const [user, loadingUser] = useAuthState(auth);
+  
+  const [searchParams] = useSearchParams();
+  const targetMemberId = searchParams.get('memberId') || user?.uid;
+  const [targetMemberName, setTargetMemberName] = useState('');
+  const [surveyPeriod, setSurveyPeriod] = useState('');
 
   const [currentDate, setCurrentDate] = useState(dayjs(yyyymm)); // 달력 표시용 (기본은 설문 월)
   const [events, setEvents] = useState<MassEventDoc[]>([]);
@@ -60,6 +66,8 @@ export default function ServerSurvey() {
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  const [accessDenied, setAccessDenied] = useState(false);
+
   // 1. 데이터 로드
   useEffect(() => {
     const fetchSurveyData = async () => {
@@ -67,38 +75,14 @@ export default function ServerSurvey() {
       try {
         setLoading(true);
 
-        // (1) 설문 상태 확인
-        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
-        const surveySnap = await getDoc(surveyRef);
-        // 상태가 명시적으로 CLOSED가 아니면 OPEN으로 간주 하거나, 문서가 없으면 OPEN? 
-        // 기존 로직: OPEN 아니면 Closed.
-        // 하지만 아직 AvailabilitySurvey 문서를 생성하지 않았을 수도 있음 (Planner가 OPEN해야 생성됨).
-        // 일단 존재하고 OPEN이어야 한다고 가정 (Planner 로직에 따름).
-        // 만약 문서가 없으면? -> 아직 설문 시작 전일 수 있음. Or Planner가 만들지 않음.
-        // 여기서는 플래너가 '확정'하면 설문이 시작된다고 했으므로 MonthStatus를 확인하는게 더 정확할 수 있으나,
-        // 기존 로직을 존중하여 availability_surveys 문서를 확인. 
-        // (TIP: MassPlanner Confirm 시 availability_surveys 문서를 생성하는지 확인 필요. 
-        //  현재 확인 불가하므로, 만약 문서가 없으면 "설문이 존재하지 않습니다" 처리. 
-        //  단, 이전 대화에서 플래너 로직을 짤 때 availability_surveys 생성 로직은 SendSurveyDrawer에 있었음.
-        //  단순 상태 변경(MASS-CONFIRMED)만으로는 availability_surveys 문서가 없을 수 있음.
-        //  따라서 문서가 없어도 MASS-CONFIRMED 상태라면 보여줘야 할 수도 있음.
-        //  하지만 안전하게 일단 진행.)
-        
-        // * 수정: MonthStatus 확인으로 변경하거나, 관대하게 처리. 
-        // 여기서는 그냥 "이벤트 로드"에 집중. 설문 상태 체크는 일단 Pass or Warn.
-        // 기존 로직 유지: status !== 'OPEN' -> Closed. (문서 없으면 Closed로 처리했었음)
-        // 사용자가 "설문시작" -> "SendSurveyDrawer" -> "Create Survey Doc"? 
-        // 확인 불가하나 일단 Events 불러오는게 중요. 에러 안나게 처리.
-        
-        /* 
-        if (!surveySnap.exists() || surveySnap.data().status !== 'OPEN') {
-           // 문서가 없어도 테스트 가능하게 일단 주석처리 or open 로직 완화
-           // setSurveyClosed(true);
-           // return;
-        } 
-        */
+        if (targetMemberId) {
+             const mRef = doc(db, `server_groups/${serverGroupId}/members/${targetMemberId}`);
+             getDoc(mRef).then(snap => {
+                 if(snap.exists()) setTargetMemberName(snap.data().name_kor);
+             }).catch(console.error);
+        }
 
-        // (2) 미사 일정 로드 (event_date string 사용)
+        // (2) 미사 일정 로드 (event_date string 사용) - 권한 체크 전에 먼저 로드
         const startStr = dayjs(yyyymm + '01').startOf('month').format('YYYYMMDD');
         const endStr = dayjs(yyyymm + '01').endOf('month').format('YYYYMMDD');
 
@@ -120,20 +104,55 @@ export default function ServerSurvey() {
         });
         setEvents(list);
 
-        // (3) 기존 응답 로드
-        if (user) {
-          const responseRef = doc(
-            db,
-            `server_groups/${serverGroupId}/availability_responses/${user.uid}_${yyyymm}`
-          );
-          const responseSnap = await getDoc(responseRef);
-          if (responseSnap.exists()) {
-            const r = responseSnap.data();
-            const ids = Object.keys(r.unavailable || {});
-            setUnavailableIds(ids);
-            setHasExistingResponse(true);
-          }
+        // (1) 설문 문서 로드
+        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
+        const surveySnap = await getDoc(surveyRef);
+
+        if (!surveySnap.exists()) {
+           setSurveyClosed(true); // 문서가 없으면 로드 불가
+           setLoading(false);
+           return;
         }
+
+        const surveyData = surveySnap.data();
+        
+        // STATUS CHECK
+        if (surveyData.status !== 'OPEN') {
+           setSurveyClosed(true);
+        }
+
+        // Survey Period
+        if (surveyData.start_date && surveyData.end_date) {
+            const start = surveyData.start_date.toDate();
+            const end = surveyData.end_date.toDate();
+            setSurveyPeriod(`${dayjs(start).format('M월 D일')}~${dayjs(end).format('M월 D일')}`);
+        }
+
+        // MEMBER CHECK (로그인 유저가 대상인지)
+        if (user && targetMemberId) {
+            const members = surveyData.member_ids || [];
+            if (!members.includes(targetMemberId)) {
+                setAccessDenied(true);
+                setLoading(false);
+                return;
+            }
+
+            // (3) 기존 응답 로드 (responses 맵 내에서 확인)
+            const responsesMap = surveyData.responses || {};
+            const myResponse = responsesMap[targetMemberId];
+            if (myResponse) {
+                // Support both array (new) and map (old/legacy) for unavailable
+                let ids: string[] = [];
+                if (Array.isArray(myResponse.unavailable)) {
+                    ids = myResponse.unavailable;
+                } else if (myResponse.unavailable && typeof myResponse.unavailable === 'object') {
+                     ids = Object.keys(myResponse.unavailable);
+                }
+                setUnavailableIds(ids);
+                setHasExistingResponse(true);
+            }
+        }
+
       } catch (err) {
         console.error(err);
         toast.error('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -143,7 +162,7 @@ export default function ServerSurvey() {
     };
 
     fetchSurveyData();
-  }, [serverGroupId, yyyymm, user]); // db is stable
+  }, [serverGroupId, yyyymm, user, targetMemberId]); // db is stable
 
   // 2. 캘린더 데이터 계산
   const daysInMonth = useMemo(() => {
@@ -201,30 +220,31 @@ export default function ServerSurvey() {
       toast.error('로그인이 필요합니다.');
       return;
     }
+    if (!targetMemberId) {
+        toast.error('대상 복사가 식별되지 않았습니다.');
+        return;
+    }
     if (surveyClosed) {
       toast.warning('마감된 설문입니다.');
       return;
     }
     
-    // 유효성 체크? "하나라도 체크해야" 같은 조건은 필요 없음. 기본이 "모두 가능"일 수 있으니.
-    // 사용자가 의도적으로 "모두 가능"을 냈는지 알 수 없지만, default가 available 이므로 OK.
-    
     try {
       setIsSubmitting(true);
+       // 변경: availability_surveys 문서 내에 responses 필드 업데이트
        const ref = doc(
         db,
-        `server_groups/${serverGroupId}/availability_responses/${user.uid}_${yyyymm}`
+        `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`
       );
 
-      const unavailableMap: Record<string, false> = {};
-      unavailableIds.forEach(id => unavailableMap[id] = false);
-
       await setDoc(ref, {
-         server_group_id: serverGroupId,
-         uid: user.uid,
-         yyyymm,
-         unavailable: unavailableIds.length > 0 ? unavailableMap : {},
-         updated_at: serverTimestamp()
+         responses: {
+             [targetMemberId]: {
+                 uid: targetMemberId,
+                 unavailable: unavailableIds, // Save as array
+                 updated_at: Timestamp.now()
+             }
+         }
       }, { merge: true });
 
       toast.success('설문이 제출되었습니다.');
@@ -250,26 +270,41 @@ export default function ServerSurvey() {
 
   if (loading || loadingUser) return <LoadingSpinner label="로딩 중..." />;
 
-  // 5. 렌더링
+
+
+  // 6. 렌더링
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
       <div className="bg-white shadow-sm sticky top-0 z-10">
-          <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="max-w-md mx-auto px-4 py-2 flex items-center justify-between min-h-[3.5rem]">
               <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
                   <ArrowLeft size={20} />
               </Button> 
-              <h1 className="font-bold text-lg">
-                  {dayjs(yyyymm).format('YYYY년 M월')} 설문
-              </h1>
-              <div className="w-10"></div>{/* Spacer */}
+              <div className="flex flex-col items-center">
+                <h1 className="font-bold text-lg leading-tight">
+                    {dayjs(yyyymm).format('YYYY년 M월')} 설문 {targetMemberName && `(${targetMemberName})`}
+                </h1>
+                {surveyPeriod && (
+                    <span className="text-xs text-gray-500 mt-0.5">
+                        설문 기간: {surveyPeriod}
+                    </span>
+                )}
+              </div>
+              <div className="w-8"></div>{/* Spacer */}
           </div>
       </div>
 
       <div className="max-w-md mx-auto p-4">
-        {surveyClosed && (
+        {surveyClosed && !accessDenied && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded">
                 🚫 설문이 종료되었습니다.
+            </div>
+        )}
+        
+        {accessDenied && (
+             <div className="mb-4 p-3 bg-orange-100 text-orange-700 text-sm rounded">
+                ⚠️ 설문 대상자가 아닙니다.
             </div>
         )}
 
@@ -342,9 +377,12 @@ export default function ServerSurvey() {
                 />
                 <label htmlFor="all-ok" className="text-sm font-medium cursor-pointer flex-1">
                     모든 일정에 참석 가능합니다
+                    
+                
                 </label>
+                
             </div>
-
+            
             <Button 
                 onClick={handleSubmit} 
                 disabled={isSubmitting || surveyClosed}
@@ -359,6 +397,12 @@ export default function ServerSurvey() {
                     ✅ 제출되었습니다.
                 </div>
             )}
+            <p className="text-center text-xs text-blue-600 font-semibold mt-2">
+                설문이 종료될 때까지 수정할 수 있습니다.
+            </p>
+
+            
+            
         </div>
       </div>
 
@@ -409,6 +453,8 @@ export default function ServerSurvey() {
               </DialogFooter>
           </DialogContent>
       </Dialog>
+
+
     </div>
   );
 }
