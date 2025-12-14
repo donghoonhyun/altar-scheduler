@@ -74,6 +74,7 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
                 title: d.title || '(제목없음)',
                 event_date: eventDateStr, // ✅ 원본 "YYYYMMDD"
                 required_servers: d.required_servers ?? 0,
+                member_ids: memberIds,
                 servers,
                 status,
                 // 🔹 UI에서 바로 날짜 정렬/표시용으로도 사용 가능

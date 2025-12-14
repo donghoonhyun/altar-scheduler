@@ -26,6 +26,9 @@ import type {
   CreateMassEventRequest,
   CreateMassEventResponse,
 } from '../../../functions/src/massEvents/createMassEvent';
+import type { MassEventCalendar } from '@/types/massEvent';
+import { RefreshCw } from 'lucide-react';
+import { useCallback } from 'react';
 
 interface MassEventDrawerProps {
   eventId?: string;
@@ -33,6 +36,7 @@ interface MassEventDrawerProps {
   serverGroupId: string;
   onClose: () => void;
   monthStatus?: string;
+  events?: MassEventCalendar[];
 }
 
 const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
@@ -41,6 +45,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   serverGroupId,
   onClose,
   monthStatus,
+  events = [],
 }) => {
   const db = getFirestore();
 
@@ -54,84 +59,84 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [showUnavailableWarning, setShowUnavailableWarning] = useState(false);
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hideUnavailable, setHideUnavailable] = useState(false);
+
   // ✅ 복사단 멤버 목록 불러오기
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        const ref = collection(db, 'server_groups', serverGroupId, 'members');
-        const snaps = await getDocs(ref);
+  const fetchMembers = useCallback(async () => {
+    try {
+      const ref = collection(db, 'server_groups', serverGroupId, 'members');
+      const snaps = await getDocs(ref);
 
-        const list = snaps.docs
-          .map((d) => {
-            const data = d.data() as MemberDoc;
-            return {
-              docId: d.id,  // Firestore document ID
-              data
-            };
-          })
-          .filter(({ data: m }) => m.name_kor && m.baptismal_name)
-          .map(({ docId, data: m }) => {
-            const gradeStr = String(m.grade || '')
-              .trim()
-              .toUpperCase(); // ✅ 문자열 강제 변환
-            const grade = [
-              'E1',
-              'E2',
-              'E3',
-              'E4',
-              'E5',
-              'E6',
-              'M1',
-              'M2',
-              'M3',
-              'H1',
-              'H2',
-              'H3',
-            ].includes(gradeStr)
-              ? gradeStr
-              : '기타';
+      const list = snaps.docs
+        .map((d) => {
+          const data = d.data() as MemberDoc;
+          return {
+            docId: d.id,  // Firestore document ID
+            data
+          };
+        })
+        .filter(({ data: m }) => m.name_kor && m.baptismal_name)
+        .map(({ docId, data: m }) => {
+          const gradeStr = String(m.grade || '')
+            .trim()
+            .toUpperCase(); // ✅ 문자열 강제 변환
+          const grade = [
+            'E1',
+            'E2',
+            'E3',
+            'E4',
+            'E5',
+            'E6',
+            'M1',
+            'M2',
+            'M3',
+            'H1',
+            'H2',
+            'H3',
+          ].includes(gradeStr)
+            ? gradeStr
+            : '기타';
 
-            const memberId = m.uid || docId;
-            
-            return {
-              id: memberId,  // Use uid if available, otherwise Firestore document ID
-              name: `${m.name_kor} ${m.baptismal_name}`,
-              grade,
-            };
-          })
-          .sort((a, b) => {
-            const order = [
-              'E1',
-              'E2',
-              'E3',
-              'E4',
-              'E5',
-              'E6',
-              'M1',
-              'M2',
-              'M3',
-              'H1',
-              'H2',
-              'H3',
-              '기타',
-            ];
-            const idxA = order.indexOf(a.grade);
-            const idxB = order.indexOf(b.grade);
-            if (idxA !== idxB) return idxA - idxB;
-            return a.name.localeCompare(b.name, 'ko');
-          });
+          const memberId = m.uid || docId;
+          
+          return {
+            id: memberId,  // Use uid if available, otherwise Firestore document ID
+            name: `${m.name_kor} ${m.baptismal_name}`,
+            grade,
+          };
+        })
+        .sort((a, b) => {
+          const order = [
+            'E1',
+            'E2',
+            'E3',
+            'E4',
+            'E5',
+            'E6',
+            'M1',
+            'M2',
+            'M3',
+            'H1',
+            'H2',
+            'H3',
+            '기타',
+          ];
+          const idxA = order.indexOf(a.grade);
+          const idxB = order.indexOf(b.grade);
+          if (idxA !== idxB) return idxA - idxB;
+          return a.name.localeCompare(b.name, 'ko');
+        });
 
-        setMembers(list);
-        // console.log(
-        //   '✅ members loaded:',
-        //   list.map((m) => `${m.grade}-${m.name}`)
-        // ); // 디버깅용 로그
-      } catch (err) {
-        console.error('❌ members load error:', err);
-      }
-    };
-    fetchMembers();
+      setMembers(list);
+    } catch (err) {
+      console.error('❌ members load error:', err);
+    }
   }, [db, serverGroupId]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   // ✅ 기존 이벤트 불러오기
   useEffect(() => {
@@ -157,51 +162,58 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   }, [eventId, serverGroupId, db]);
 
   // ✅ Fetch survey responses to identify unavailable members
-  useEffect(() => {
-    const fetchSurveyData = async () => {
-      if (!date) return;
+  const fetchSurveyData = useCallback(async () => {
+    if (!date) return;
+    
+    try {
+      const yyyymm = dayjs(date).format('YYYYMM');
+      const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
+      const surveySnap = await getDoc(surveyRef);
       
-      try {
-        const yyyymm = dayjs(date).format('YYYYMM');
-        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
-        const surveySnap = await getDoc(surveyRef);
+      if (surveySnap.exists()) {
+        const surveyData = surveySnap.data();
+        const responses = surveyData.responses || {};
+        const unavailableMap = new Map<string, string[]>();
         
-        if (surveySnap.exists()) {
-          const surveyData = surveySnap.data();
-          const responses = surveyData.responses || {};
-          const unavailableMap = new Map<string, string[]>();
+        Object.entries(responses).forEach(([memberId, response]: [string, any]) => {
+          let unavailableIds: string[] = [];
+          if (Array.isArray(response.unavailable)) {
+            unavailableIds = response.unavailable;
+          } else if (response.unavailable && typeof response.unavailable === 'object') {
+            unavailableIds = Object.keys(response.unavailable);
+          }
           
-          Object.entries(responses).forEach(([memberId, response]: [string, any]) => {
-            let unavailableIds: string[] = [];
-            if (Array.isArray(response.unavailable)) {
-              unavailableIds = response.unavailable;
-            } else if (response.unavailable && typeof response.unavailable === 'object') {
-              unavailableIds = Object.keys(response.unavailable);
-            }
-            
-            if (unavailableIds.length > 0) {
-              unavailableMap.set(memberId, unavailableIds);
+          if (unavailableIds.length > 0) {
+            unavailableMap.set(memberId, unavailableIds);
+          }
+        });
+        
+        // For the current event, find which members marked it as unavailable
+        if (eventId) {
+          const unavailableSet = new Set<string>();
+          unavailableMap.forEach((eventIds, memberId) => {
+            if (eventIds.includes(eventId)) {
+              unavailableSet.add(memberId);
             }
           });
-          
-          // For the current event, find which members marked it as unavailable
-          if (eventId) {
-            const unavailableSet = new Set<string>();
-            unavailableMap.forEach((eventIds, memberId) => {
-              if (eventIds.includes(eventId)) {
-                unavailableSet.add(memberId);
-              }
-            });
-            setUnavailableMembers(unavailableSet);
-          }
+          setUnavailableMembers(unavailableSet);
         }
-      } catch (err) {
-        console.error('❌ Survey data fetch error:', err);
       }
-    };
-    
+    } catch (err) {
+      console.error('❌ Survey data fetch error:', err);
+    }
+  }, [date, db, serverGroupId, eventId]);
+
+  useEffect(() => {
     fetchSurveyData();
-  }, [eventId, date, serverGroupId, db]);
+  }, [fetchSurveyData]);
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchMembers(), fetchSurveyData()]);
+    setIsRefreshing(false);
+  };
 
   // ✅ 복사 선택 토글
   const toggleMember = (id: string) => {
@@ -314,7 +326,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   // ✅ 학년별 그룹핑
   const groupedMembers = Object.entries(
-    members.reduce<Record<string, { id: string; name: string }[]>>((acc, m) => {
+    members
+      .filter(m => !hideUnavailable || !unavailableMembers.has(m.id)) // 🔹 필터링 추가
+      .reduce<Record<string, { id: string; name: string }[]>>((acc, m) => {
       const grade = m.grade || '기타';
       if (!acc[grade]) acc[grade] = [];
       acc[grade].push({ id: m.id, name: m.name });
@@ -410,13 +424,36 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             <label className="block">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium">배정 복사 선택</span>
-                {showUnavailableWarning && (
-                  <span className="text-xs text-orange-600 font-medium animate-pulse">
-                    ⚠️ 불참으로 설문한 복사입니다
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                    {/* 🔹 설문 불가 제외 체크박스 */}
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none hover:bg-gray-50 px-2 py-1 rounded transition-colors border border-transparent hover:border-gray-200">
+                      <input 
+                        type="checkbox" 
+                        checked={hideUnavailable}
+                        onChange={(e) => setHideUnavailable(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-gray-600 font-medium">설문 불가 제외</span>
+                    </label>
+
+                    {showUnavailableWarning && (
+                    <span className="text-xs text-orange-600 font-medium animate-pulse">
+                        ⚠️ 불참으로 설문한 복사입니다
+                    </span>
+                    )}
+                    <Button
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleRefresh} 
+                        disabled={isRefreshing}
+                        className="h-6 w-6 p-0 rounded-full hover:bg-gray-100"
+                        title="데이터 새로고침"
+                    >
+                        <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                    </Button>
+                </div>
               </div>
-              <div className="mt-2 border rounded p-3 max-h-[420px] overflow-y-auto space-y-3">
+              <div className="mt-2 border rounded p-3 max-h-[600px] overflow-y-auto space-y-3">
                 {groupedMembers.map(([grade, list]) => (
                   <div key={grade} className="space-y-1">
                     {/* 학년 헤더 */}
@@ -442,6 +479,37 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                               <span className={isUnavailable ? 'text-orange-600 font-medium' : ''}>
                                 {m.name}
                               </span>
+                              {/* 🔹 배정 횟수 배지 */}
+                              {(() => {
+                                const count = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length + (isSelected ? 1 : 0);
+                                // Note: The user requested "assigned in this month". 
+                                // Ideally we should count from 'events' prop.
+                                // If 'isSelected' is true it means they are assigned to THIS event too (or about to be).
+                                // Let's just count from `events` prop which contains all loaded events for the month.
+                                // However, `events` from useMassEvents usually includes the current event too if it's already saved.
+                                // Use pure calculation from `events` prop.
+                                // But `events` prop is passed from parent. Does it contain the *current* updated state of *this* event?
+                                // Usually `useMassEvents` updates via snapshot. If we are editing, the `events` list might have the OLD state of this event.
+                                // So strictly speaking: count = (other events count) + (1 if currently selected).
+                                
+                                // Let's simplify: Just count based on `events` passed from parent. 
+                                // But wait, if I am checking a checkbox, I want to see the count update? 
+                                // The user said "previously assigned mass numbers" (implied/translated).
+                                // Actually "해당월에 배정된 미사수". 
+                                // Let's try to be smart.
+                                // Count in OTHER events + 1 if selected in THIS event.
+                                const otherEventsCount = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length;
+                                const totalCount = otherEventsCount + (isSelected ? 1 : 0);
+                                
+                                return totalCount > 0 ? (
+                                    <span 
+                                      className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium cursor-help"
+                                      title="이번 달 미사에 배정된 총 횟수"
+                                    >
+                                        {totalCount}
+                                    </span>
+                                ) : null;
+                              })()}
                             </label>
                             {isSelected && (
                               <label className="flex items-center gap-1 ml-5 text-xs">

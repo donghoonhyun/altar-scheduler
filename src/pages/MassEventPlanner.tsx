@@ -13,6 +13,7 @@ import {
   doc,
   query,
   where,
+  setDoc,
 } from 'firebase/firestore';
 import { toast } from 'sonner';
 
@@ -88,6 +89,14 @@ const MassEventPlanner: React.FC = () => {
   };
   const handleCloseSurvey = async () => {
     await updateStatus('SURVEY-CONFIRMED', 'planner@test.com');
+
+    // ✅ 설문 문서 상태도 CLOSED로 변경 (복사 메인 등에서의 감시를 위해)
+    if (serverGroupId) {
+        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${monthKey}`);
+        // merge: true로 부분 업데이트
+        await setDoc(surveyRef, { status: 'CLOSED' }, { merge: true });
+    }
+
     toast.success('📊 설문이 종료되었습니다.');
   };
   const handleAutoAssign = async () => {
@@ -144,6 +153,7 @@ const MassEventPlanner: React.FC = () => {
           serverGroupId={serverGroupId}
           onClose={handleCloseDrawer}
           monthStatus={monthStatus}
+          events={events}
         />
       )}
 

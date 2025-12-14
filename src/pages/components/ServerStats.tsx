@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { PARISH_MAP } from '../../config/parishes';
+import { Button } from '@/components/ui/button';
 
 interface ServerStatsProps {
   parishCode: string;
@@ -65,12 +66,13 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
       </div>
 
       {/* ✅ 복사단 명단 관리 버튼 */}
-      <button
+      <Button
+        variant="primary"
         onClick={() => navigate(`/server-groups/${serverGroupId}/servers`)}
-        className="w-full bg-blue-600 text-white text-sm py-2 rounded-md hover:bg-blue-700 transition"
+        className="w-full"
       >
         복사단 명단 관리하기
-      </button>
+      </Button>
     </div>
   );
 };

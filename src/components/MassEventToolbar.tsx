@@ -63,14 +63,17 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         variant="outline"
         size="sm"
         className={cn(
-          'h-7 text-[12px] px-2 py-1 border border-amber-500 text-amber-700',
-          'hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800',
+          'h-7 text-[12px] px-2 py-1 border',
+          monthStatus === 'MASS-CONFIRMED'
+            ? 'border-amber-500 text-amber-700 hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800'
+            : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600',
           'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
         )}
-        disabled={monthStatus !== 'MASS-CONFIRMED'}
+        disabled={monthStatus === 'MASS-NOTCONFIRMED'}
         onClick={onOpenSurvey}
       >
-        <Send className="w-3.5 h-3.5 mr-1" /> 설문 진행
+        <Send className="w-3.5 h-3.5 mr-1" /> 
+        {monthStatus === 'SURVEY-CONFIRMED' || monthStatus === 'FINAL-CONFIRMED' ? '설문 보기' : '설문 진행'}
       </Button>
 
       <Button

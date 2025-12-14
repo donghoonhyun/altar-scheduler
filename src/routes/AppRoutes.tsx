@@ -19,6 +19,7 @@ import MassEventPresets from '../pages/MassEventPresets';
 import RoleGuard from '../pages/components/RoleGuard';
 import ServerSurvey from '@/pages/ServerSurvey';
 import AddMember from '@/pages/AddMember';
+import ServerAssignmentStatus from '@/pages/ServerAssignmentStatus';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -139,6 +140,15 @@ export default function AppRoutes() {
             element={
               <RoleGuard require="planner">
                 <MassEventPresets />
+              </RoleGuard>
+            }
+          />
+
+          <Route
+            path="/server-groups/:serverGroupId/assignment-status"
+            element={
+              <RoleGuard require="planner">
+                <ServerAssignmentStatus />
               </RoleGuard>
             }
           />

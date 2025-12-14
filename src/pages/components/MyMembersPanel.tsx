@@ -23,7 +23,16 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
     <div className="p-3 border rounded-xl mb-4 bg-white shadow-sm">
       {/* 1) 승인된 복사 (Toggle Buttons) */}
       <div className="mb-3">
-        <div className="font-semibold mb-2 text-gray-800 text-sm">나의 복사 (선택하여 일정 보기)</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-semibold text-gray-800 text-sm">나의 복사 (선택하여 일정 보기)</div>
+          <button
+            onClick={() => navigate('/add-member')}
+            className="text-gray-400 hover:text-blue-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+            title="복사 추가"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
         {approved.length === 0 && pending.length === 0 ? (
           <div className="text-gray-500 text-sm">등록된 복사가 없습니다</div>
         ) : (
@@ -36,7 +45,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
                   key={m.memberId}
                   onClick={() => onToggle(m.memberId)}
                   className={cn(
-                    'flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
+                    'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border',
                     checked
                       ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
                       : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
@@ -52,20 +61,12 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
             {pending.map((m) => (
               <div
                 key={m.memberId}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
                 title="관리자 승인 대기 중"
               >
                 ⏳ {m.name_kor} (승인대기)
               </div>
             ))}
-
-            {/* 복사 추가 버튼 (Small) */}
-            <button
-              onClick={() => navigate('/add-member')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium border border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            >
-              <Plus size={14} /> 복사 추가
-            </button>
           </div>
         )}
       </div>

@@ -231,13 +231,29 @@ export default function ServerSurvey() {
     
     try {
       setIsSubmitting(true);
-       // 변경: availability_surveys 문서 내에 responses 필드 업데이트
-       const ref = doc(
+
+      // ✅ 제출 직전 최신 상태 확인 (Double Check)
+      const surveyRef = doc(
         db,
         `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`
       );
+      const latestSnap = await getDoc(surveyRef);
 
-      await setDoc(ref, {
+      if (!latestSnap.exists()) {
+          toast.error("설문 정보를 찾을 수 없습니다.");
+          setSurveyClosed(true);
+          return;
+      }
+      
+      if (latestSnap.data().status !== 'OPEN') {
+          toast.warning("이미 마감된 설문입니다.");
+          setSurveyClosed(true);
+          return;
+      }
+
+       // 변경: availability_surveys 문서 내에 responses 필드 업데이트
+
+      await setDoc(surveyRef, {
          responses: {
              [targetMemberId]: {
                  uid: targetMemberId,
@@ -384,9 +400,10 @@ export default function ServerSurvey() {
             </div>
             
             <Button 
+                variant="primary"
                 onClick={handleSubmit} 
                 disabled={isSubmitting || surveyClosed}
-                className="w-full text-lg py-6"
+                className="w-full"
                 size="lg"
             >
                 {isSubmitting ? '저장 중...' : (hasExistingResponse ? '수정 제출' : '확정 제출')}
@@ -447,7 +464,7 @@ export default function ServerSurvey() {
               </div>
 
               <DialogFooter className="sm:justify-center">
-                  <Button onClick={() => setDetailOpen(false)} className="w-full">
+                  <Button variant="primary" onClick={() => setDetailOpen(false)} className="w-full">
                       확인
                   </Button>
               </DialogFooter>

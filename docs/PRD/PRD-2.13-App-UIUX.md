@@ -92,6 +92,7 @@ src/
   | Layout.tsx     | 전역                        | App 공통 Shell  | 로그인 사용자, 로그아웃 버튼 | `useSession().user`                 |
   | ServerMain.tsx | Server 페이지                | 복사 개인화 헤더     | 성당명 + 복사명        | Firestore `server_groups/{id}` + 세션 |
   | Dashboard.tsx  | Planner 페이지               | 플래너 개인화 헤더    | 성당명 + 플래너명       | 동일                                  |
+  | ServerAssignmentStatus.tsx | Planner 페이지 | 복사별 배정 현황 | '복사별 배정 현황' + 월 nav | Firestore Members + MassEvents |
   | 기타 페이지      | (예: Forbidden, Pending 등) | 공통 Layout만 사용 | 없음               | -                                   |
 ```
 
@@ -217,6 +218,15 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 ```
+
+#### 🧩8.1.1 Button Variant Usage Guide
+
+| Variant | 역할 | 사용 예시 | 색상 |
+|---------|------|-----------|------|
+| **primary** | 주요 액션 (Main Action) | 저장, 제출, 일정 계획, 확인(Dialog) | `bg-blue-500` (파랑) |
+| **secondary** | 강조 액션 (Accent Action) | 새로운 흐름으로 이동, 특수 기능 진입 (예: 복사배정현황) | `bg-yellow-300` (노랑) |
+| **outline** | 보조 액션 (Auxiliary Action) | 취소, 뒤로가기, 기준정보 설정(Presets) | `border-gray-300` (회색 테두리) |
+| **ghost** | 아이콘 버튼, 약한 강조 | 닫기(X), 새로고침, 단순 토글 | 투명 (hover시 회색) |
 
 ### 🧩8.2 Card
 

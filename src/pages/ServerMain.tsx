@@ -93,7 +93,7 @@ export default function ServerMain() {
     return () => unsub();
   }, [serverGroupId, currentMonth]);
 
-  // 3.5) 설문 진행 중인 달 조회 (MASS-CONFIRMED 상태 & Survey Status='OPEN')
+  // 3.5) 설문 진행 중인 달 조회 (Survey Status='OPEN') - Realtime
   const [surveyNoticeMonth, setSurveyNoticeMonth] = useState<string | null>(null);
   
   useEffect(() => {
@@ -102,54 +102,52 @@ export default function ServerMain() {
       return;
     }
 
-    // 1) MASS-CONFIRMED 인 달 찾기
-    const q = query(
-      collection(db, 'server_groups', serverGroupId, 'month_status'),
-      where('status', '==', 'MASS-CONFIRMED')
-    );
+    // 현재 보고 있는 달에 대한 설문 상태 감시
+    const yyyymm = currentMonth.format('YYYYMM');
+    const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', yyyymm);
 
-    const unsub = onSnapshot(q, async (snap) => {
-      if (snap.empty) {
+    const unsub = onSnapshot(surveyRef, (snap) => {
+      if (snap.exists() && snap.data().status === 'OPEN') {
+        setSurveyNoticeMonth(yyyymm);
+      } else {
         setSurveyNoticeMonth(null);
-        return;
       }
-      
-      const potentialMonths = snap.docs.map(d => d.id).sort();
-      let foundOpenSurvey = null;
-
-      // 2) 실제 설문이 OPEN 상태인지 확인
-      for (const m of potentialMonths) {
-          try {
-              const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', m);
-              const surveySnap = await getDoc(surveyRef); // onSnapshot 대신 getDoc? 실시간성 필요하면 onSnapshot이 맞지만, loop 돌리기 힘들다. 
-              // 일단 여기서는 간단히 getDoc으로 확인. (상태 바뀌면 어차피 refresh 되거나, month_status가 바뀌면서 트리거됨)
-              // 더 정확히 하려면 availability_surveys 컬렉션을 'OPEN' 조건으로 쿼리하는게 나을 수도 있음.
-              
-              if (surveySnap.exists() && surveySnap.data().status === 'OPEN') {
-                  foundOpenSurvey = m;
-                  break; // 가장 빠른 하나만
-              }
-          } catch (e) { console.error(e); }
-      }
-      
-      setSurveyNoticeMonth(foundOpenSurvey);
     });
 
     return () => unsub();
-  }, [serverGroupId]);
+  }, [serverGroupId, currentMonth]);
 
-  // members 변경 시 checkedMemberIds 동기화 (기본 모두 체크)
+  // members 변경 시 checkedMemberIds 동기화 (기본: 세션 스토리지 값 -> 없으면 첫 번째)
   useEffect(() => {
     const activeIds = members.filter((m) => m.active).map((m) => m.memberId);
-    setCheckedMemberIds(activeIds);
-  }, [members]);
+    
+    // 1. Session Storage에서 마지막 선택값 확인
+    if (serverGroupId) {
+        const storageKey = `altar_last_member_${serverGroupId}`;
+        const storedId = sessionStorage.getItem(storageKey);
+
+        if (storedId && activeIds.includes(storedId)) {
+            setCheckedMemberIds([storedId]);
+            return;
+        }
+    }
+
+    // 2. 없으면 첫 번째 복사 선택
+    if (activeIds.length > 0) {
+      setCheckedMemberIds([activeIds[0]]);
+    } else {
+      setCheckedMemberIds([]);
+    }
+  }, [members, serverGroupId]);
 
   const handleToggleMember = (memberId: string) => {
-    setCheckedMemberIds((prev) =>
-      prev.includes(memberId)
-        ? prev.filter((id) => id !== memberId)
-        : [...prev, memberId]
-    );
+    // 라디오 버튼 방식: 클릭 시 해당 멤버 무조건 선택
+    setCheckedMemberIds([memberId]);
+    
+    // 선택 상태 세션 스토리지에 저장 (페이지 복귀 시 유지를 위해)
+    if (serverGroupId) {
+        sessionStorage.setItem(`altar_last_member_${serverGroupId}`, memberId);
+    }
   };
 
   // 4) mass_events
@@ -339,7 +337,9 @@ export default function ServerMain() {
                           key={ev.id}
                           className={cn(
                             "w-1.5 h-1.5 rounded-full",
-                            isMyEvent(ev) ? "bg-blue-500" : "bg-gray-300"
+                            isMyEvent(ev) && monthStatus === 'FINAL-CONFIRMED' 
+                              ? "bg-blue-500" 
+                              : "bg-gray-300"
                           )}
                         />
                       ))}
