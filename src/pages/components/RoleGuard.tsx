@@ -53,7 +53,12 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   }, [session.user, session.loading, session.groupRolesLoaded, db]);
 
   // 1) 초기 로딩 중일 때
-  if (session.loading || !session.groupRolesLoaded || !checked) {
+  // require가 있다면 세션 로딩과 멤버 상태 확인(checked)이 모두 필요
+  // require가 없다면 세션 로딩만 확인되면 통과 (checked 여부 불필요)
+  const isReady = !session.loading && session.groupRolesLoaded;
+  const isCheckRequired = !!require;
+
+  if (!isReady || (isCheckRequired && !checked)) {
     return <div className="p-4 text-gray-500">세션 동기화 중...</div>;
   }
 

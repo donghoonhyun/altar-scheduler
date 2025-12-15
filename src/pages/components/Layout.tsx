@@ -5,7 +5,7 @@ import { Outlet } from "react-router-dom";
 import { Home } from "lucide-react";
 
 export default function Layout() {
-  const { user } = useSession();
+  const { user, userInfo } = useSession();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -17,7 +17,11 @@ export default function Layout() {
       {/* 🔹공통 상단바 */}
       <header className="flex justify-between items-center px-5 py-3 bg-white/70 backdrop-blur-sm shadow-sm">
         <div className="text-gray-700 text-sm">
-          {user?.displayName || "로그인 사용자"} ({user?.email})
+          {userInfo 
+            ? `${userInfo.userName} ${userInfo.baptismalName}`.trim() 
+            : user?.displayName || "로그인 사용자"
+          }
+          <span className="ml-1 text-gray-500 text-xs">({user?.email})</span>
         </div>
         <div className="flex items-center gap-2">
           <button

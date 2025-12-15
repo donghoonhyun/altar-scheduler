@@ -21,7 +21,9 @@ export interface Session {
   groupRolesLoaded: boolean;
   currentServerGroupId: string | null;
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
-  setCurrentServerGroupId?: (id: string | null) => void; // ⭐ 추가됨
+  managerParishes: string[];
+  userInfo: { userName: string; baptismalName: string } | null;
+  setCurrentServerGroupId?: (id: string | null) => void;
 }
 
 const initialSession: Session = {
@@ -31,6 +33,8 @@ const initialSession: Session = {
   groupRolesLoaded: false,
   currentServerGroupId: null,
   serverGroups: {},
+  managerParishes: [],
+  userInfo: null,
 };
 
 let cachedSession: Session = { ...initialSession };
@@ -45,17 +49,40 @@ export function useSession() {
   };
 
   useEffect(() => {
+    // ⚠️ 안전장치: 3초가 지나도 응답이 없으면 로딩 해제 (네트워크 이슈 등 대비)
+    const timeoutId = setTimeout(() => {
+      setSession((prev) => {
+        if (prev.loading) {
+          console.warn('⚠️ Session auth check timed out. Forcing loading: false');
+          return { ...prev, loading: false };
+        }
+        return prev;
+      });
+    }, 10000);
+
     const unsub = onAuthStateChanged(auth, async (user) => {
+      clearTimeout(timeoutId); // 응답 오면 타임아웃 해제
+
       if (!user) {
         cachedSession = { ...initialSession, loading: false, groupRolesLoaded: true };
         setSession(cachedSession);
         return;
       }
+      // ... (이하 동일)
 
+      // 1) Auth 상태 확인 완료 (일단 렌더링 허용)
+      setSession({
+        ...initialSession,
+        user,
+        loading: false, // Auth 확인 끝
+        groupRolesLoaded: false, // 데이터는 아직
+      });
+
+      // 2) 비동기 데이터 로딩 시작
       const newSession: Session = {
         ...initialSession,
         user,
-        loading: true,
+        loading: false,
         groupRolesLoaded: false,
       };
 
@@ -64,30 +91,35 @@ export function useSession() {
         const serverGroups: Session['serverGroups'] = {};
         const userUid = user.uid;
 
+        /** 0) users/{uid} 사용자 프로필 로드 */
+        let userInfoData = null;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', userUid));
+          if (userDoc.exists()) {
+            const ud = userDoc.data();
+            userInfoData = {
+              userName: ud.user_name || ud.displayName || '', // DB field: user_name
+              baptismalName: ud.baptismal_name || '',
+            };
+          }
+        } catch (e) {
+          console.error('사용자 프로필 로드 실패', e);
+        }
+        newSession.userInfo = userInfoData;
+
         /** 1) memberships로 planner/server 역할 로드 */
         const membershipSnap = await getDocs(
           query(collection(db, 'memberships'), where('uid', '==', userUid))
         );
 
+        // server_group_id 수집용 Set
+        const targetSgIds = new Set<string>();
+
         for (const d of membershipSnap.docs) {
           const data = d.data();
           if (!data.server_group_id || !data.role) continue;
-
-          const sgId = data.server_group_id;
-          roles[sgId] = data.role;
-
-          const sgDoc = await getDoc(doc(db, 'server_groups', sgId));
-          if (sgDoc.exists()) {
-            const sg = sgDoc.data();
-            const parishCode = sg.parish_code || '';
-            const parishName = PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
-
-            serverGroups[sgId] = {
-              parishCode,
-              parishName,
-              groupName: sg.name ?? sgId,
-            };
-          }
+          roles[data.server_group_id] = data.role;
+          targetSgIds.add(data.server_group_id);
         }
 
         /** 2) server_groups/{sg}/members 에서 active=true 복사 취득 */
@@ -105,24 +137,45 @@ export function useSession() {
           if (!sgId) continue;
 
           if (!roles[sgId]) roles[sgId] = 'server';
+          targetSgIds.add(sgId);
+        }
 
-          const sgDoc = await getDoc(doc(db, 'server_groups', sgId));
+        /** 3) 수집된 ServerGroup 정보 병렬 조회 */
+        const sgIdsArray = Array.from(targetSgIds);
+        const sgDocs = await Promise.all(
+          sgIdsArray.map((id) => getDoc(doc(db, 'server_groups', id)))
+        );
+
+        sgDocs.forEach((sgDoc) => {
           if (sgDoc.exists()) {
             const sg = sgDoc.data();
             const parishCode = sg.parish_code || '';
-            const parishName = PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
+            const parishName =
+              PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
 
-            serverGroups[sgId] = {
+            serverGroups[sgDoc.id] = {
               parishCode,
               parishName,
-              groupName: sg.name ?? sgId,
+              groupName: sg.name ?? sgDoc.id,
             };
           }
-        }
+        });
 
         newSession.groupRoles = roles;
         newSession.serverGroups = serverGroups;
         newSession.groupRolesLoaded = true;
+
+        // ✅ managerParishes 계산: planner 권한이 있는 serverGroup의 parishCode 수집 (중복 제거)
+        const plannerParishes = new Set<string>();
+        for (const [sgId, role] of Object.entries(roles)) {
+          if (role === 'planner') {
+            const info = serverGroups[sgId];
+            if (info && info.parishCode) {
+              plannerParishes.add(info.parishCode);
+            }
+          }
+        }
+        newSession.managerParishes = Array.from(plannerParishes);
 
         /** 3) 기본 currentServerGroupId 설정 */
         const sgKeys = Object.keys(serverGroups);

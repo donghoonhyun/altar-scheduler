@@ -23,22 +23,18 @@ export default function MassEventMiniDrawer({
   serverGroupId,
   monthStatus = 'MASS-NOTCONFIRMED',
 }: MassEventMiniDrawerProps) {
-  const [namesMap, setNamesMap] = useState<Record<string, string[]>>({});
+  const [namesMap, setNamesMap] = useState<Record<string, { id: string; name: string; isMain: boolean }[]>>({});
 
   useEffect(() => {
-    // ✅ ‘최종확정’ 상태가 아닐 경우 이름 조회 스킵
+    // ✅ monthStatus와 상관없이 항상 배정 정보를 조회하도록 수정
     if (!isOpen || events.length === 0 || !serverGroupId) return;
-    if (monthStatus !== 'FINAL-CONFIRMED') {
-      setNamesMap({});
-      return;
-    }
 
     const fetchNames = async () => {
-      const newMap: Record<string, string[]> = {};
+      const newMap: Record<string, { id: string; name: string; isMain: boolean }[]> = {};
 
       for (const ev of events) {
         const ids = ev.member_ids ?? [];
-        const nameList: string[] = [];
+        const infoList: { id: string; name: string; isMain: boolean }[] = [];
 
         for (const uid of ids) {
           try {
@@ -51,20 +47,27 @@ export default function MassEventMiniDrawer({
                 d.name_kor && d.baptismal_name
                   ? `${d.name_kor} ${d.baptismal_name}`
                   : d.name_kor || '이름없음';
-              nameList.push(displayName);
+              
+              infoList.push({
+                id: uid,
+                name: displayName,
+                isMain: ev.main_member_id === uid
+              });
             }
           } catch (e) {
             console.error('❌ 이름 조회 오류:', e);
           }
         }
-        newMap[ev.id] = nameList;
+        // 주복사를 맨 앞으로 정렬 (선택사항)
+        infoList.sort((a, b) => (Number(b.isMain) - Number(a.isMain)));
+        newMap[ev.id] = infoList;
       }
 
       setNamesMap(newMap);
     };
 
     fetchNames();
-  }, [isOpen, events, serverGroupId, monthStatus]);
+  }, [isOpen, events, serverGroupId]);
 
   if (!date) return null;
 
@@ -113,20 +116,25 @@ export default function MassEventMiniDrawer({
               ) : (
                 <div className="flex flex-col gap-3">
                   {events.map((ev) => {
-                    const names = namesMap[ev.id] ?? [];
-                    const showNames = monthStatus === 'FINAL-CONFIRMED' && names.length > 0;
+                    const members = namesMap[ev.id] ?? [];
+                    const hasMembers = members.length > 0;
 
                     return (
                       <Card key={ev.id} className="p-3 border border-gray-200">
                         <h3 className="font-semibold text-gray-800 mb-2">{ev.title}</h3>
                         <div className="flex flex-wrap gap-1">
-                          {showNames ? (
-                            names.map((n) => (
+                          {hasMembers ? (
+                            members.map((m) => (
                               <span
-                                key={n}
-                                className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-sm"
+                                key={m.id}
+                                className={`px-2 py-0.5 rounded-md text-sm ${
+                                  m.isMain
+                                    ? 'bg-blue-100 text-blue-700 font-bold border border-blue-200'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}
                               >
-                                {n}
+                                {m.name}
+                                {m.isMain && <span className="text-xs ml-1">(주복사)</span>}
                               </span>
                             ))
                           ) : (

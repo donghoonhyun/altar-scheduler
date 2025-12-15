@@ -73,6 +73,7 @@ export interface MassEventDoc {
   required_servers: number;
   status: MassStatus;
   member_ids?: string[];
+  main_member_id?: string;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

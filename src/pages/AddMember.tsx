@@ -112,8 +112,8 @@ export default function AddMember() {
 
       toast.success('복사 등록 요청이 완료되었습니다! (승인 대기중)');
 
-      // 4) ServerMain 으로 이동
-      navigate('/');
+      // 4) ServerMain 으로 이동 (세션 갱신을 위해 새로고침)
+      window.location.href = '/';
     } catch (err) {
       console.error(err);
       toast.error('복사 등록 중 오류가 발생했습니다.');

@@ -1,5 +1,6 @@
 // src/routes/AppRoutes.tsx
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { useSession } from '../state/session';
 import Layout from '../pages/components/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -34,6 +35,7 @@ export default function AppRoutes() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* /signup은 공용 라우트로 이동 */}
         <Route path="/signup" element={<SignUp />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
@@ -44,28 +46,41 @@ export default function AppRoutes() {
    * InitialRoute
    * '/' 진입 시 Planner / Server / 신규 사용자 분기 처리
    */
-  const InitialRoute = () => {
-    if (session.loading || !session.groupRolesLoaded) {
-      return <LoadingSpinner label="세션 동기화 중..." />;
-    }
+  /**
+   * HomeRedirect
+   * '/' 진입 시 Planner / Server / 신규 사용자 분기 처리
+   * useEffect 기반으로 변경하여 렌더링 중 리다이렉트 충돌 방지
+   */
+  const HomeRedirect = () => {
+    const navigate = useNavigate(); // Hook 사용 필요
 
-    const roles = session.groupRoles; // { [groupId]: 'planner' | 'server' }
-    const groupIds = Object.keys(roles);
+    useEffect(() => {
+      // 로딩 중이면 대기
+      if (session.loading || !session.groupRolesLoaded) return;
 
-    // 1) 플래너 역할 우선 진입
-    const plannerGroup = groupIds.find((g) => roles[g] === 'planner');
-    if (plannerGroup) {
-      return <Navigate to={`/server-groups/${plannerGroup}`} replace />;
-    }
+      const roles = session.groupRoles;
+      const groupIds = Object.keys(roles);
 
-    // 2) 서버 역할로 진입
-    const serverGroup = groupIds.find((g) => roles[g] === 'server');
-    if (serverGroup) {
-      return <Navigate to={`/server-groups/${serverGroup}`} replace />;
-    }
+      // 1) 플래너 역할 우선 진입
+      const plannerGroup = groupIds.find((g) => roles[g] === 'planner');
+      if (plannerGroup) {
+        navigate(`/server-groups/${plannerGroup}`, { replace: true });
+        return;
+      }
 
-    // 3) 어떤 역할도 없으면 AddMember 로
-    return <Navigate to="/add-member" replace />;
+      // 2) 서버 역할로 진입
+      const serverGroup = groupIds.find((g) => roles[g] === 'server');
+      if (serverGroup) {
+        navigate(`/server-groups/${serverGroup}`, { replace: true });
+        return;
+      }
+
+      // 3) 어떤 역할도 없으면 AddMember 로
+      navigate('/add-member', { replace: true });
+    }, [session.loading, session.groupRolesLoaded, session.groupRoles, navigate]);
+
+    // 리다이렉트 전까지 로딩 표시
+    return <LoadingSpinner label="홈으로 이동 중..." />;
   };
 
   /**
@@ -94,113 +109,97 @@ export default function AppRoutes() {
 
   return (
     <Routes>
+      <Route path="/" element={<HomeRedirect />} />
+      
+      {/* 로그인 상태에서도 회원가입 페이지 접근 허용 (Google 미가입자 리다이렉트용) */}
+      <Route path="/signup" element={<SignUp />} />
+
+      {/* 3) Forbidden 페이지 */}
+      <Route path="/forbidden" element={<Forbidden />} />
+
+      {/* 4) 메인 앱 레이아웃 (Layout 적용) */}
       <Route element={<Layout />}>
-        <>
-          {/* ------------------------------- */}
-          {/* Planner 전용 라우트               */}
-          {/* ------------------------------- */}
-          <Route
-            path="/server-groups"
-            element={
-              <RoleGuard require="planner">
-                <ServerGroupList />
-              </RoleGuard>
-            }
-          />
+        {/* 복사 추가 페이지 (Layout 적용, RoleGuard 없음) */}
+        <Route path="/add-member" element={<AddMember />} />
 
-          <Route
-            path="/server-groups/:serverGroupId/servers"
-            element={
-              <RoleGuard require="planner">
-                <ServerList />
-              </RoleGuard>
-            }
-          />
-
-          <Route
-            path="/server-groups/new"
-            element={
-              <RoleGuard require="planner">
-                <ServerGroupWizard />
-              </RoleGuard>
-            }
-          />
-
-          <Route
-            path="/server-groups/:serverGroupId/mass-events"
-            element={
-              <RoleGuard require="planner">
-                <MassEventPlanner />
-              </RoleGuard>
-            }
-          />
-
-          <Route
-            path="/server-groups/:serverGroupId/presets"
-            element={
-              <RoleGuard require="planner">
-                <MassEventPresets />
-              </RoleGuard>
-            }
-          />
-
-          <Route
-            path="/server-groups/:serverGroupId/assignment-status"
-            element={
-              <RoleGuard require="planner">
-                <ServerAssignmentStatus />
-              </RoleGuard>
-            }
-          />
-
-          {/* ------------------------------- */}
-          {/* Server 전용 라우트               */}
-          {/* ------------------------------- */}
-          <Route
-            path="/survey/:serverGroupId/:yyyymm"
-            element={
-              <RoleGuard require="server">
-                <ServerSurvey />
-              </RoleGuard>
-            }
-          />
-
-          {/* ------------------------------- */}
-          {/* Planner / Server 공통 Wrapper     */}
-          {/* ------------------------------- */}
-          <Route
-            path="/server-groups/:serverGroupId/*"
-            element={
-              <RoleGuard>
-                <ServerMainWrapper />
-              </RoleGuard>
-            }
-          />
-
-          {/* ------------------------------- */}
-          {/* 홈 경로: Role 기반 자동 라우팅    */}
-          {/* ------------------------------- */}
-          <Route path="/" element={<InitialRoute />} />
-        </>
-
-        {/* ------------------------------- */}
-        {/* 복사 추가 페이지 (로그인만 필요)  */}
-        {/* ------------------------------- */}
+        {/* Planner 전용 라우트 */}
         <Route
-          path="/add-member"
+          path="/server-groups"
           element={
-            <RoleGuard>
-              <AddMember />
+            <RoleGuard require="planner">
+              <ServerGroupList />
             </RoleGuard>
           }
         />
 
-        {/* ------------------------------- */}
-        {/* 공통 Route                        */}
-        {/* ------------------------------- */}
-        <Route path="/forbidden" element={<Forbidden />} />
-        <Route path="*" element={<Navigate to="/forbidden" replace />} />
+        <Route
+          path="/server-groups/:serverGroupId/servers"
+          element={
+            <RoleGuard require="planner">
+              <ServerList />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/new"
+          element={
+            <RoleGuard require="planner">
+              <ServerGroupWizard />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/:serverGroupId/mass-events"
+          element={
+            <RoleGuard require="planner">
+              <MassEventPlanner />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/:serverGroupId/presets"
+          element={
+            <RoleGuard require="planner">
+              <MassEventPresets />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/:serverGroupId/assignment-status"
+          element={
+            <RoleGuard require="planner">
+              <ServerAssignmentStatus />
+            </RoleGuard>
+          }
+        />
+
+        {/* Server 전용 라우트 */}
+        <Route
+          path="/survey/:serverGroupId/:yyyymm"
+          element={
+            <RoleGuard require="server">
+              <ServerSurvey />
+            </RoleGuard>
+          }
+        />
+
+        {/* Planner / Server 공통 Wrapper */}
+        <Route
+          path="/server-groups/:serverGroupId/*"
+          element={
+            <RoleGuard>
+              <ServerMainWrapper />
+            </RoleGuard>
+          }
+        />
       </Route>
+
+      {/* Catch-all: 잘못된 경로는 홈으로 리다이렉트하여 재처리 */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

@@ -39,12 +39,15 @@
 ### 2.2 가입 로그인 절차 Flow
 
 ```ts
-[1] OAuth 로그인 (Google)
+[1] OAuth 로그인 (Google 팝업)
 → [2] users/{uid} 존재 여부 체크
-       존재하면 → 그대로 로그인 후 Home
-       없으면 → 세례명/이름 입력 페이지(CompleteProfile)
-→ [3] users/{uid} 생성
-→ [4] ServerMain 진입
+       존재하면 → 확인 [3]으로 이동
+       없으면 → 메세지 표시후 가입 화면으로 redirect
+→ [3] ServerMain 진입
+→ [4] 프로필 정보(user_name, baptismal_name) 누락 시
+       → ServerMain 화면 위로 [프로필 정보 입력] 팝업 노출
+       → "저장" 시 DB 업데이트 및 리로드
+       → "나중에 하기" 시 세션 동안 팝업 숨김
 ```
 
 ### 2.3 가입방식 상세
@@ -52,6 +55,10 @@
 #### 2.3.1 email password 방식
 
 #### 2.3.1 OAuth (Google) 방식
+
+- **Firebase Auth `signInWithPopup` 직접 사용** (SDK Pure Call).
+- 복잡한 리다이렉트 재시도 로직을 제거하여 안정성과 속도 확보.
+- 인앱 브라우저 등 팝업 제한 환경 대비: (필요 시 추후 리다이렉트 방식 검토, 현재는 팝업 우선)
 
 ---
 

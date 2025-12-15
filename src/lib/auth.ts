@@ -13,16 +13,10 @@ import {
   type User,
 } from 'firebase/auth';
 
-import { app } from './firebase';
+import { auth } from './firebase';
+export { auth };
 
-// Auth 인스턴스
-export const auth = getAuth(app);
-
-// ✅ 개발 환경이면 Auth Emulator 연결
-if (import.meta.env.DEV) {
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-  console.log('✅ Auth Emulator 연결됨 (auth.ts)');
-}
+/* ---------------- Google ---------------- */
 
 // Google Provider
 const googleProvider = new GoogleAuthProvider();
@@ -33,11 +27,12 @@ export async function signInWithGoogle(): Promise<User | null> {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (err) {
-    console.warn('Popup 실패, redirect로 시도:', err);
-    await signInWithRedirect(auth, googleProvider);
-    return null;
+    console.error('Popup 로그인 실패:', err);
+    throw err; // 리다이렉트 대신 에러 전파 (UI에서 경고)
   }
 }
+
+
 
 export async function checkRedirectResult(): Promise<User | null> {
   try {
@@ -45,7 +40,7 @@ export async function checkRedirectResult(): Promise<User | null> {
     return result?.user ?? null;
   } catch (err) {
     console.error('Redirect 로그인 에러:', err);
-    return null;
+    throw err; // 에러를 상위로 전파하여 UI에서 처리
   }
 }
 

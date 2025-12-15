@@ -15,7 +15,7 @@
       ".git",
       "firebase-debug.log",
       "firebase-debug.*.log",
-      "*.local", 
+      "*.local",
       "lib/**/*.map"
     ],
     "predeploy": [
@@ -24,8 +24,12 @@
     ]
   },
   "hosting": {
-    "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
         "source": "**",
