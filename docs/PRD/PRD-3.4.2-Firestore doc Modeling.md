@@ -70,13 +70,18 @@ server_groups/{serverGroupId} (Document)
 ## 2. 복사단 (server_groups)
 
 ```lua
-server_groups/{server_group_id}
+server_groups/{server_group_id} // auto-generated 아님.rule based
   parish_code: string          // src/config/parishes.ts 카탈로그 참조
   name: string    
   active: boolean              // true/false(사용/미사용)
+  timezone: string             // 'Asia/Seoul'
+  locale: string               // 'ko-KR'
   created_at: timestamp
   updated_at: timestamp
 ```
+- server_group_id 채번 규칙
+  - 'SG' + 5자리 number seq number : ex: SG00001
+  - seq number : counters컬렉션의 server_groups 카운터로 생성됨
 
 ### 2.1 Members
 

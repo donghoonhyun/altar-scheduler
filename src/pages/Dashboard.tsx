@@ -34,15 +34,20 @@ const Dashboard: React.FC = () => {
   if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
 
   return (
-    <Container className="min-h-screen py-8 bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 transition-all duration-300">
-      {/* ✅ 상단 인사 + 역할 배지 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+    <Container className="min-h-screen py-6 transition-all duration-300">
+      {/* 👋 상단 인사말 */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <Heading size="md" className="mb-1">
-            안녕하세요, <span className="text-blue-600 dark:text-blue-300">{userName}</span>{' '}
-            플래너님 👋
-          </Heading>
-          <p className="text-gray-600 dark:text-gray-400">이번 달 복사 배정 현황을 확인하세요.</p>
+          <h2 className="text-xl font-bold text-gray-800">
+            <span className="text-blue-500 font-extrabold">
+              {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
+            </span>
+            {serverGroupId && (
+              session.groupRoles[serverGroupId] === 'admin' ? '어드민' :
+              session.groupRoles[serverGroupId] === 'planner' ? '플래너' : '복사'
+            )}님 반갑습니다.
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">이번 달 복사 배정 현황을 확인하세요.</p>
         </div>
         <div className="mt-3 sm:mt-0">
           <RoleBadge serverGroupId={serverGroupId} />

@@ -5,14 +5,15 @@ import { getFirestore, collectionGroup, getDocs, query, where } from 'firebase/f
 
 interface RoleGuardProps {
   children: React.ReactNode;
-  require?: 'planner' | 'server';
+  require?: 'admin' | 'planner' | 'server';
 }
 
 /**
  * RoleGuard (개정 2025-11 PRD 반영)
  * - require 없으면 항상 접근 허용
  * - require=server 인 경우: 승인된 복사(active=true) 1개 이상 요구
- * - require=planner 는 기존대로
+ * - require=planner 인 경우: 해당 그룹의 planner 또는 admin 역할 요구
+ * - require=admin 인 경우: 해당 그룹의 admin 역할 요구
  */
 export default function RoleGuard({ children, require }: RoleGuardProps) {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
@@ -20,6 +21,12 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   const [checked, setChecked] = useState(false);
   const [hasServerRole, setHasServerRole] = useState(false);
   const db = getFirestore();
+
+  const rolePriority: Record<string, number> = {
+    'admin': 3,
+    'planner': 2,
+    'server': 1
+  };
 
   useEffect(() => {
     const checkMemberStatus = async () => {
@@ -53,8 +60,6 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   }, [session.user, session.loading, session.groupRolesLoaded, db]);
 
   // 1) 초기 로딩 중일 때
-  // require가 있다면 세션 로딩과 멤버 상태 확인(checked)이 모두 필요
-  // require가 없다면 세션 로딩만 확인되면 통과 (checked 여부 불필요)
   const isReady = !session.loading && session.groupRolesLoaded;
   const isCheckRequired = !!require;
 
@@ -68,15 +73,24 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   // 3) require 없는 페이지는 모두 접근 허용
   if (!require) return <>{children}</>;
 
-  // 4) require = planner
-  if (require === 'planner') {
-    if (!serverGroupId) return <Navigate to="/forbidden" replace />;
-    const role = session.groupRoles[serverGroupId];
-    if (role === 'planner') return <>{children}</>;
+  // 4) 로직 체크용 유저 현재 그룹 역할
+  const userRoles = (serverGroupId && session.groupRoles[serverGroupId]) || [];
+
+  // 5) require = admin
+  if (require === 'admin') {
+    if (userRoles.includes('admin')) return <>{children}</>;
     return <Navigate to="/forbidden" replace />;
   }
 
-  // 5) require = server
+  // 6) require = planner
+  if (require === 'planner') {
+    if (!serverGroupId) return <Navigate to="/forbidden" replace />;
+    // admin 도 planner 페이지 접근 허용
+    if (userRoles.includes('admin') || userRoles.includes('planner')) return <>{children}</>;
+    return <Navigate to="/forbidden" replace />;
+  }
+
+  // 7) require = server
   if (require === 'server') {
     // PRD: 승인된 복사가 하나라도 있으면 server 접근 허용
     if (hasServerRole) return <>{children}</>;

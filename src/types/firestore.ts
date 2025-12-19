@@ -7,6 +7,7 @@ export interface UserDoc {
   uid: string;
   email: string;
   user_name: string;
+  baptismal_name?: string;
   managerParishes?: string[];
   role?: 'manager' | 'server' | 'admin';
   created_at?: Timestamp;
@@ -52,7 +53,7 @@ export interface MembershipDoc {
   uid: string;
   server_group_id: string;
   parish_code: string;
-  role: 'planner' | 'server';
+  role: string | string[]; // 'admin' | 'planner' | 'server' or array containing them
   created_at: Timestamp;
   updated_at: Timestamp;
 }

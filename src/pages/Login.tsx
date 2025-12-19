@@ -4,12 +4,17 @@ import {
   signInWithEmailAndPassword, 
   GoogleAuthProvider, 
   signInWithPopup,
-  signOut 
+  signOut,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
-import { auth, db } from '../lib/firebase'; // db 추가
-import { doc, getDoc } from 'firebase/firestore'; // Firestore 함수 추가
-import { useSession } from '../state/session';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useSession } from '@/state/session';
+import { getAppTitleWithEnv } from '@/lib/env';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Button, Card, Heading, Input, Checkbox, Label } from '@/components/ui';
+import { User, Lock } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -33,6 +38,9 @@ const Login: React.FC = () => {
       setProcessing(true); // 로딩 시작
       
       const provider = new GoogleAuthProvider();
+      // Persistence 설정 (기본값: LOCAL)
+      await setPersistence(auth, browserLocalPersistence);
+
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -68,78 +76,114 @@ const Login: React.FC = () => {
   const handleEmailLogin = async () => {
     try {
       setProcessing(true);
+      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithEmailAndPassword(auth, email, password);
       console.log('Email 로그인 성공:', result.user);
       navigate('/', { replace: true });
     } catch (error) {
       console.error('Email 로그인 실패:', error);
-      alert('이메일/비밀번호 로그인 실패. 콘솔을 확인하세요.');
+      alert('이메일/비밀번호 로그인 실패. 정보를 확인해주세요.');
       setProcessing(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm text-center">
-        <h1 className="text-2xl font-bold mb-4">Altar Scheduler</h1>
-        <p className="text-gray-600 mb-6">Google 계정 또는 개발용 계정으로 로그인</p>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <Card className="w-full max-w-[400px] p-8 shadow-xl bg-white border-none">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-blue-600 mb-2">{getAppTitleWithEnv()}</h1>
+          <Heading size="md" className="mb-2 text-gray-800">반갑습니다!</Heading>
+        </div>
 
-        {/* Google 로그인 */}
-        <button
-          onClick={handleGoogleLogin}
-          disabled={processing}
-          className="flex items-center justify-center w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 mb-4 disabled:opacity-50"
-        >
-          <img
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-            alt="Google"
-            className="w-5 h-5 mr-2"
-          />
-          {processing ? '로그인 중...' : 'Google 로그인'}
-        </button>
-
-        {/* 개발용 Email/Password 로그인 */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleEmailLogin();
           }}
+          className="space-y-4"
         >
-          <input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border rounded px-3 py-2 mb-2 w-full"
-            autoComplete="email" 
+          <div className="space-y-4">
+            <div className="relative">
+              <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <Input
+                type="email"
+                placeholder="이메일 주소"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 h-11 bg-white"
+                autoComplete="email"
+                disabled={processing}
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <Input
+                type="password"
+                placeholder="비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10 h-11 bg-white"
+                autoComplete="current-password"
+                disabled={processing}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="keep-login" defaultChecked />
+              <Label htmlFor="keep-login" className="text-sm text-gray-600 cursor-pointer">
+                로그인 상태 유지
+              </Label>
+            </div>
+            <button type="button" className="text-sm text-primary font-semibold hover:underline">
+              비밀번호찾기
+            </button>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-11 text-base font-bold bg-[#8b5cf6] hover:bg-[#7c3aed]"
             disabled={processing}
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border rounded px-3 py-2 mb-4 w-full"
-            autoComplete="current-password" 
-            disabled={processing}
-          />
-          <button
-            type="submit" 
-            disabled={processing}
-            className="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 disabled:opacity-50"
           >
-            Email/Password 로그인
-          </button>
+            로그인
+          </Button>
+        </form>
+
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-gray-400">또는</span>
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={processing}
+          className="w-full h-11 border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-700 font-medium bg-white"
+        >
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google"
+            className="w-5 h-5"
+          />
+          구글 계정으로 시작하기
+        </Button>
+
+        <div className="mt-8 text-center text-sm text-gray-500">
+          아직 계정이 없나요?{' '}
           <button
-            type="button"
             onClick={() => navigate('/signup')}
-            disabled={processing}
-            className="w-full mt-2 bg-gray-200 text-gray-700 py-2 px-4 rounded hover:bg-gray-300 disabled:opacity-50"
+            className="text-[#8b5cf6] font-semibold hover:underline ml-1"
           >
             회원가입
           </button>
-        </form>
-      </div>
+        </div>
+      </Card>
     </div>
   );
 };

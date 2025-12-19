@@ -19,6 +19,25 @@ const TEST_SERVER_GROUP_ID = 'SG00001';
 
 const USERS = [
   {
+    uid: 'pongso-hyun-uid',
+    email: 'pongso.hyun@gmail.com',
+    password: '123456',
+    userName: '현동훈',
+    baptismalName: '알퐁소',
+    roleDocs: [
+      {
+        collection: 'memberships',
+        docId: `pongso-hyun-uid_${TEST_SERVER_GROUP_ID}`,
+        data: {
+          uid: 'pongso-hyun-uid',
+          server_group_id: TEST_SERVER_GROUP_ID,
+          parish_code: TEST_PARISH_CODE,
+          role: ['admin', 'planner'],
+        },
+      },
+    ],
+  },
+  {
     uid: 'planner-test-uid',
     email: 'planner@test.com',
     password: '123456',
@@ -31,7 +50,7 @@ const USERS = [
           uid: 'planner-test-uid',
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
-          role: 'planner',
+          role: ['planner'],
         },
       },
     ],
@@ -49,7 +68,7 @@ const USERS = [
           uid: 'server-test-uid',
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
-          role: 'server',
+          role: ['server'],
         },
       },
     ],
@@ -63,7 +82,12 @@ async function seed() {
   for (const u of USERS) {
     try {
       await auth.getUser(u.uid);
-      console.log(`ℹ️ 이미 존재하는 유저: ${u.email}`);
+      console.log(`ℹ️ 이미 존재하는 유저: ${u.email} (UID: ${u.uid}) -> 비밀번호 업데이트 중...`);
+      await auth.updateUser(u.uid, {
+        password: u.password,
+        displayName: u.userName,
+      });
+      console.log(`✅ Auth 사용자 업데이트 완료: ${u.email}`);
     } catch {
       await auth.createUser({
         uid: u.uid,
@@ -71,7 +95,7 @@ async function seed() {
         password: u.password,
         displayName: u.userName,
       });
-      console.log(`✅ Auth 사용자 생성: ${u.email}`);
+      console.log(`✅ Auth 사용자 신규 생성: ${u.email}`);
     }
 
     for (const r of u.roleDocs) {
@@ -86,13 +110,18 @@ async function seed() {
       console.log(`> Firestore memberships 문서 생성: ${r.docId}`);
     }
 
-    await db.collection('users').doc(u.uid).set({
+    const userData: any = {
       uid: u.uid,
       email: u.email,
       user_name: u.userName,
       created_at: new Date(),
       updated_at: new Date(),
-    });
+    };
+    if ((u as any).baptismalName) {
+      userData.baptismal_name = (u as any).baptismalName;
+    }
+
+    await db.collection('users').doc(u.uid).set(userData);
     console.log(`> Firestore users 문서 생성: ${u.uid}`);
   }
 

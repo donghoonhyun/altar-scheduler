@@ -21,6 +21,9 @@ import RoleGuard from '../pages/components/RoleGuard';
 import ServerSurvey from '@/pages/ServerSurvey';
 import AddMember from '@/pages/AddMember';
 import ServerAssignmentStatus from '@/pages/ServerAssignmentStatus';
+import AdminMain from '../pages/AdminMain';
+import MemberRoleManagement from '../pages/MemberRoleManagement';
+import ServerGroupSettings from '../pages/ServerGroupSettings';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -43,49 +46,49 @@ export default function AppRoutes() {
   }
 
   /**
-   * InitialRoute
-   * '/' 진입 시 Planner / Server / 신규 사용자 분기 처리
-   */
-  /**
    * HomeRedirect
-   * '/' 진입 시 Planner / Server / 신규 사용자 분기 처리
-   * useEffect 기반으로 변경하여 렌더링 중 리다이렉트 충돌 방지
+   * '/' 진입 시 Admin / Planner / Server / 신규 사용자 분기 처리
    */
   const HomeRedirect = () => {
-    const navigate = useNavigate(); // Hook 사용 필요
+    const navigate = useNavigate();
 
     useEffect(() => {
-      // 로딩 중이면 대기
       if (session.loading || !session.groupRolesLoaded) return;
 
       const roles = session.groupRoles;
       const groupIds = Object.keys(roles);
 
-      // 1) 플래너 역할 우선 진입
-      const plannerGroup = groupIds.find((g) => roles[g] === 'planner');
+      // 1) 어드민 역할 우선 진입
+      const adminGroup = groupIds.find((g) => roles[g].includes('admin'));
+      if (adminGroup) {
+        navigate(`/server-groups/${adminGroup}`, { replace: true });
+        return;
+      }
+
+      // 2) 플래너 역할 진입
+      const plannerGroup = groupIds.find((g) => roles[g].includes('planner'));
       if (plannerGroup) {
         navigate(`/server-groups/${plannerGroup}`, { replace: true });
         return;
       }
 
-      // 2) 서버 역할로 진입
-      const serverGroup = groupIds.find((g) => roles[g] === 'server');
+      // 3) 서버 역할로 진입
+      const serverGroup = groupIds.find((g) => roles[g].includes('server'));
       if (serverGroup) {
         navigate(`/server-groups/${serverGroup}`, { replace: true });
         return;
       }
 
-      // 3) 어떤 역할도 없으면 AddMember 로
+      // 4) 어떤 역할도 없으면 AddMember 로
       navigate('/add-member', { replace: true });
     }, [session.loading, session.groupRolesLoaded, session.groupRoles, navigate]);
 
-    // 리다이렉트 전까지 로딩 표시
     return <LoadingSpinner label="홈으로 이동 중..." />;
   };
 
   /**
    * ServerMainWrapper
-   * /server-groups/:serverGroupId/* 에 진입 시 Planner/Server 분기
+   * /server-groups/:serverGroupId/* 에 진입 시 Admin/Planner/Server 분기
    */
   const ServerMainWrapper = () => {
     const { serverGroupId } = useParams<{ serverGroupId: string }>();
@@ -98,12 +101,13 @@ export default function AppRoutes() {
       return <Navigate to="/" replace />;
     }
 
-    const role = session.groupRoles[serverGroupId];
+    const userRoles = session.groupRoles[serverGroupId] || [];
 
-    if (role === 'planner') return <Dashboard />;
-    if (role === 'server') return <ServerMain />;
+    // Admin 은 AdminMain 으로, Planner 는 Dashboard 로 진입
+    if (userRoles.includes('admin')) return <AdminMain />;
+    if (userRoles.includes('planner')) return <Dashboard />;
+    if (userRoles.includes('server')) return <ServerMain />;
 
-    // Server도 Planner도 아닌데 특정 그룹 접근 → Forbidden
     return <Navigate to="/forbidden" replace />;
   };
 
@@ -122,6 +126,31 @@ export default function AppRoutes() {
         {/* 복사 추가 페이지 (Layout 적용, RoleGuard 없음) */}
         <Route path="/add-member" element={<AddMember />} />
 
+        {/* Admin 전용 라우트 */}
+        <Route
+          path="/server-groups/:serverGroupId/admin"
+          element={
+            <RoleGuard require="admin">
+              <AdminMain />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/server-groups/:serverGroupId/admin/members"
+          element={
+            <RoleGuard require="admin">
+              <MemberRoleManagement />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/server-groups/:serverGroupId/admin/settings"
+          element={
+            <RoleGuard require="admin">
+              <ServerGroupSettings />
+            </RoleGuard>
+          }
+        />
         {/* Planner 전용 라우트 */}
         <Route
           path="/server-groups"
@@ -192,7 +221,13 @@ export default function AppRoutes() {
           path="/server-groups/:serverGroupId/*"
           element={
             <RoleGuard>
-              <ServerMainWrapper />
+              <Routes>
+                <Route path="admin" element={<RoleGuard require="admin"><AdminMain /></RoleGuard>} />
+                <Route path="admin/members" element={<RoleGuard require="admin"><MemberRoleManagement /></RoleGuard>} />
+                <Route path="admin/settings" element={<RoleGuard require="admin"><ServerGroupSettings /></RoleGuard>} />
+                <Route path="dashboard" element={<RoleGuard require="planner"><Dashboard /></RoleGuard>} />
+                <Route path="*" element={<ServerMainWrapper />} />
+              </Routes>
             </RoleGuard>
           }
         />

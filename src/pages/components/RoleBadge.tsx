@@ -50,9 +50,12 @@ const RoleBadge: React.FC<RoleBadgeProps> = ({ serverGroupId }) => {
   if (!role) return null;
 
   const serverGroup = session.serverGroups[serverGroupId];
-  const label = role === 'planner' ? 'Planner' : 'Server';
+  const label = role === 'admin' ? 'Admin' : role === 'planner' ? 'Planner' : 'Server';
 
-  const styles = role === 'planner' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+  const styles = 
+    role === 'admin' ? 'bg-purple-100 text-purple-800' :
+    role === 'planner' ? 'bg-blue-100 text-blue-800' : 
+    'bg-green-100 text-green-800';
 
   return (
     <>

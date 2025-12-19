@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'; // 없으면 임시로 clsx 사용 가능
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -25,6 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-5 py-2 text-base',
     lg: 'px-6 py-3 text-lg',
+    icon: 'p-2',
   };
 
   return (

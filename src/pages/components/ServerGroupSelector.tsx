@@ -13,37 +13,32 @@ export default function ServerGroupSelector() {
 
   // 아직 복사단 선택 전
   if (groups.length === 0) {
-    return (
-      <div className="p-3 border rounded bg-gray-50 text-gray-500 mb-4">
-        등록된 복사단이 없습니다.
-        <br />
-        플래너가 복사단을 생성하거나, 다른 복사단에서 초대받아야 합니다.
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="mb-4">
-      {/* Label Removed */}
-
+    <div className="w-full">
       <select
-        className="border p-1 rounded w-full text-xs bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full border-none px-2 py-1.5 text-sm bg-transparent text-gray-800 font-bold focus:outline-none appearance-none cursor-pointer"
+        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0rem center', backgroundSize: '1rem' }}
         value={currentId}
         onChange={(e) => {
           const val = e.target.value;
           if (val) {
-             // URL 변경으로 이동
              navigate(`/server-groups/${val}`);
-             // 세션 상태도 업데이트 (선택사항이나 싱크 맞추기 위해)
              session.setCurrentServerGroupId?.(val);
           }
         }}
       >
-        {groups.map(([sgId, info]) => (
-          <option key={sgId} value={sgId}>
-            {info.parishName} - {info.groupName}
-          </option>
-        ))}
+        {groups.map(([sgId, info]) => {
+          // "그룹" 글자가 우측에 붙어있으면 제거
+          const displayName = `${info.parishName} ${info.groupName}`.replace(/그룹$/, '').trim();
+          return (
+            <option key={sgId} value={sgId}>
+              {displayName}
+            </option>
+          );
+        })}
       </select>
     </div>
   );

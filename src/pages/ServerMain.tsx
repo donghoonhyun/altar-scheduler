@@ -208,21 +208,37 @@ export default function ServerMain() {
   useEffect(() => {
     // 이미 건너 뛰었으면 다시 안 띄움 (세션 스토리지 체크)
     const skipped = sessionStorage.getItem('profile_skip');
-    if (skipped) return;
+    if (skipped) {
+      setShowProfileUpdate(false);
+      return;
+    }
 
     // 세션 로딩이 끝났고(userInfo 체크 가능), 로그인 상태일 때
     if (!session.loading && session.user) {
-        // userInfo가 아예 없거나, userName이 비어있으면 팝업
-        if (!session.userInfo || !session.userInfo.userName) {
-            setShowProfileUpdate(true);
-        }
+      // userInfo가 아예 없거나, userName이 비어있으면 팝업
+      if (!session.userInfo || !session.userInfo.userName) {
+        setShowProfileUpdate(true);
+      } else {
+        // 정보가 있거나 로드되면 팝업을 닫음
+        setShowProfileUpdate(false);
+      }
     }
   }, [session.loading, session.user, session.userInfo]);
 
   return (
-    <div className="p-4">
-      {/* 1) 복사단 선택 */}
-      <ServerGroupSelector />
+    <div className="max-w-lg mx-auto">
+      {/* 👋 상단 인사말 */}
+      <div className="mb-6 mt-2 px-1">
+        <h2 className="text-xl font-bold text-gray-800">
+          <span className="text-blue-500 font-extrabold">
+            {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
+          </span>
+          {serverGroupId && (
+            session.groupRoles[serverGroupId] === 'admin' ? '어드민' :
+            session.groupRoles[serverGroupId] === 'planner' ? '플래너' : '복사'
+          )}님 반갑습니다.
+        </h2>
+      </div>
 
       {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
       {showProfileUpdate && session.user && (

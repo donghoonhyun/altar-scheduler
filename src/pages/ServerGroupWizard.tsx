@@ -1,27 +1,15 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../lib/firebase";
+import { db } from "../lib/firebase";
+import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { useSession } from "../state/session";
 import { PARISHES } from "../config/parishes";
-
-// ✅ 타입 import
-import type {
-  CreateServerGroupRequest,
-  CreateServerGroupResponse,
-} from "../types/firestore";
 
 // code → name_kor 매핑 딕셔너리
 const PARISH_MAP = PARISHES.reduce<Record<string, string>>((acc, parish) => {
   acc[parish.code] = parish.name_kor;
   return acc;
 }, {});
-
-// ✅ Cloud Function 등록 (타입 적용)
-const createServerGroup = httpsCallable<
-  CreateServerGroupRequest,
-  CreateServerGroupResponse
->(functions, "createServerGroup");
 
 export default function ServerGroupWizard() {
   const { parishCode } = useParams();
@@ -47,17 +35,53 @@ export default function ServerGroupWizard() {
       setLoading(true);
       setError(null);
 
-      // ✅ Cloud Function 호출 - 스키마 맞춤
-      const result = await createServerGroup({
-        parishCode,
-        name,
-        timezone: "Asia/Seoul",
-        locale: "ko-KR",
-        active: true, // 🔹 필수 필드 추가
+      const counterRef = doc(db, 'counters', 'server_groups');
+      
+      const newSgId = await runTransaction(db, async (transaction) => {
+        // 1) 카운터 조회 및 증가
+        const counterDoc = await transaction.get(counterRef);
+        let nextSeq = 1;
+        if (counterDoc.exists()) {
+          nextSeq = (counterDoc.data().last_seq || 0) + 1;
+        }
+        transaction.set(counterRef, { last_seq: nextSeq }, { merge: true });
+
+        // 2) SG00000 포맷 ID 생성
+        const sgId = `SG${nextSeq.toString().padStart(5, '0')}`;
+        const sgRef = doc(db, 'server_groups', sgId);
+
+        // 3) 복사단 문서 생성
+        transaction.set(sgRef, {
+          parish_code: parishCode,
+          name: name,
+          active: true,
+          timezone: 'Asia/Seoul',
+          locale: 'ko-KR',
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        });
+
+        // 4) 생성자를 해당 복사단의 어드민/플래너로 등록
+        if (session.user) {
+          const membershipId = `${session.user.uid}_${sgId}`;
+          const membershipRef = doc(db, 'memberships', membershipId);
+          transaction.set(membershipRef, {
+            uid: session.user.uid,
+            server_group_id: sgId,
+            parish_code: parishCode,
+            role: ['admin', 'planner'],
+            created_at: serverTimestamp(),
+            updated_at: serverTimestamp(),
+          });
+        }
+
+        return sgId;
       });
 
-      const newGroupId = result.data.serverGroupId;
-      console.log("✅ 복사단 생성 완료:", newGroupId);
+      console.log("✅ 복사단 직접 생성 완료:", newSgId);
+
+      // ✅ 세션 갱신 (새로운 역할을 State에 반영)
+      await session.refreshSession?.();
 
       // ✅ 생성 후 리스트 페이지로 리다이렉트
       navigate(`/parish/${parishCode}/server-groups`);
@@ -77,7 +101,7 @@ export default function ServerGroupWizard() {
   return (
     <div className="p-6 max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">
-        {PARISH_MAP[parishCode] || parishCode} - 복사단 생성
+        {PARISH_MAP[parishCode || ""] || parishCode} - 복사단 생성
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">

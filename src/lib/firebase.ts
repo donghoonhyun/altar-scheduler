@@ -23,12 +23,10 @@ let db: Firestore;
 const auth = getAuth(app);
 const functions = getFunctions(app, 'asia-northeast3');
 
-// ✅ Emulator 연결 — db 초기화 전후 순서 중요
+// ✅ Emulator 연결
 if (isDev) {
   // Auth
-  if (!(auth.config as unknown as EmulatorMockTokenOptions)) {
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-  }
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
 
   // Firestore
   db = getFirestore(app);
@@ -37,11 +35,11 @@ if (isDev) {
   // Functions
   connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 
-  console.log('🔥 Auth/Firestore/Functions Emulator 연결됨! (firestore.ts)');
+  console.log('🔥 Auth/Firestore/Functions Emulator 연결됨! (firebase.ts)');
 } else {
   // Production
   db = getFirestore(app);
-  console.log('🌐 Production Firebase 연결됨! (firestore.ts)');
+  console.log('🌐 Production Firebase 연결됨!');
 }
 
 export { app, auth, db, functions };

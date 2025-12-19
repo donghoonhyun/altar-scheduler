@@ -1,20 +1,42 @@
 // src/pages/SignUp.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Button, Card, Heading, Input, Checkbox, Label } from '@/components/ui';
 
 export default function SignUp() {
   const navigate = useNavigate();
 
   // 일반 회원가입 입력 항목
-  const [userName, setUserName] = useState('');
-  const [baptismalName, setBaptismalName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [userName, setUserName] = useState('');
+  const [baptismalName, setBaptismalName] = useState('');
+  
+  // 약관 동의 상태
+  const [agreements, setAgreements] = useState({
+    age: false,
+    terms: false,
+    privacy: false,
+  });
+
+  const allAgreed = agreements.age && agreements.terms && agreements.privacy;
+
+  const handleAllAgree = (checked: boolean) => {
+    setAgreements({
+      age: checked,
+      terms: checked,
+      privacy: checked,
+    });
+  };
+
+  const handleAgreeChange = (key: keyof typeof agreements) => (checked: boolean) => {
+    setAgreements((prev) => ({ ...prev, [key]: checked }));
+  };
 
   // ============================================================
   // 1) Google 계정으로 가입/로그인
@@ -35,7 +57,7 @@ export default function SignUp() {
 
       // 이미 가입된 사용자
       if (snap.exists()) {
-        toast.success('이미 가입된 계정입니다.');
+        toast.success('이미 가입된 계정입니다. 로그인되었습니다.');
         navigate('/');
         return;
       }
@@ -64,8 +86,18 @@ export default function SignUp() {
   // ============================================================
   const handleSignUp = async () => {
     try {
-      if (!userName || !baptismalName || !email || !password) {
+      if (!email || !password || !passwordConfirm || !userName) {
         toast.error('필수 정보를 모두 입력해주세요.');
+        return;
+      }
+
+      if (password !== passwordConfirm) {
+        toast.error('비밀번호가 일치하지 않습니다.');
+        return;
+      }
+
+      if (!allAgreed) {
+        toast.error('모든 필수 항목에 동의해야 합니다.');
         return;
       }
 
@@ -75,9 +107,9 @@ export default function SignUp() {
       await setDoc(doc(db, 'users', uid), {
         uid,
         user_name: userName,
-        baptismal_name: baptismalName,
+        baptismal_name: baptismalName, // 선택사항
         email,
-        phone: phone || '',
+        phone: '',
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
@@ -99,74 +131,143 @@ export default function SignUp() {
     }
   };
 
-  // ============================================================
-  // UI 영역
-  // ============================================================
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-4 text-center">회원가입</h2>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
+      <Card className="w-full max-w-[500px] p-8 shadow-xl bg-white border-none">
+        <div className="text-center mb-8">
+          <Heading size="lg" className="mb-2 text-gray-800">환영합니다!</Heading>
+        </div>
 
-      {/* 이름 */}
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="이름"
-        value={userName}
-        onChange={(e) => setUserName(e.target.value)}
-      />
+        <div className="space-y-6">
+          {/* 이메일 */}
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">이메일</Label>
+            <Input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-11 bg-white"
+            />
+          </div>
 
-      {/* 세례명 */}
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="세례명"
-        value={baptismalName}
-        onChange={(e) => setBaptismalName(e.target.value)}
-      />
+          {/* 비밀번호 */}
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">비밀번호</Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 bg-white"
+            />
+            <p className="text-xs text-gray-400 mt-1">* 10자 이상이면서 영문, 숫자, 특수문자를 모두 포함하세요 (권장)</p>
+          </div>
 
-      {/* 이메일 */}
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="이메일"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+          {/* 비밀번호 재확인 */}
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">비밀번호 재확인</Label>
+            <Input
+              type="password"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              className="h-11 bg-white"
+            />
+            <p className="text-xs text-gray-400 mt-1">* 비밀번호를 다시 입력해주세요</p>
+          </div>
 
-      {/* 비밀번호 */}
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="비밀번호 (6자 이상)"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+          {/* 이름 / 세례명 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold text-gray-700">이름</Label>
+              <Input
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                className="h-11 bg-white"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold text-gray-700">세례명(선택)</Label>
+              <Input
+                value={baptismalName}
+                onChange={(e) => setBaptismalName(e.target.value)}
+                className="h-11 bg-white"
+              />
+            </div>
+          </div>
 
-      {/* 전화번호 */}
-      <input
-        className="border p-2 w-full mb-4"
-        placeholder="전화번호 (선택)"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-      />
+          {/* 약관 동의 */}
+          <div className="pt-2 space-y-3">
+            <div className="flex items-center space-x-2 pb-2 border-b border-gray-100 mb-2">
+              <Checkbox 
+                id="all-agree" 
+                checked={allAgreed} 
+                onCheckedChange={(c) => handleAllAgree(c === true)} 
+              />
+              <Label htmlFor="all-agree" className="text-sm font-bold text-gray-800 cursor-pointer">
+                모두 동의합니다
+              </Label>
+            </div>
 
-      {/* 이메일/비번 가입 버튼 */}
-      <button className="w-full py-2 bg-green-600 text-white rounded mb-2" onClick={handleSignUp}>
-        이메일로 가입하기
-      </button>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="agree-age" 
+                checked={agreements.age} 
+                onCheckedChange={(c) => handleAgreeChange('age')(c === true)} 
+              />
+              <Label htmlFor="agree-age" className="text-sm text-gray-600 cursor-pointer">
+                [필수] 만 14세 이상입니다
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="agree-terms" 
+                checked={agreements.terms} 
+                onCheckedChange={(c) => handleAgreeChange('terms')(c === true)} 
+              />
+              <Label htmlFor="agree-terms" className="text-sm text-gray-600 cursor-pointer">
+                [필수] 최종이용자 이용약관에 동의합니다
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="agree-privacy" 
+                checked={agreements.privacy} 
+                onCheckedChange={(c) => handleAgreeChange('privacy')(c === true)} 
+              />
+              <Label htmlFor="agree-privacy" className="text-sm text-gray-600 cursor-pointer">
+                [필수] 개인정보 수집 및 이용에 동의합니다
+              </Label>
+            </div>
+          </div>
 
-      {/* Google 버튼 */}
-      <button
-        className="w-full py-2 bg-red-500 text-white rounded mb-4"
-        onClick={handleGoogleSignUp}
-      >
-        Google 계정으로 가입 / 로그인
-      </button>
+          <Button
+            onClick={handleSignUp}
+            className="w-full h-12 text-base font-bold bg-[#3b82f6] hover:bg-blue-600 mt-4"
+          >
+            가입하기
+          </Button>
 
-      {/* 뒤로가기 */}
-      <button
-        className="w-full py-2 bg-gray-200 text-gray-700 rounded"
-        onClick={() => navigate('/login')}
-      >
-        돌아가기
-      </button>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-400">or</span>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={handleGoogleSignUp}
+            className="w-full h-11 border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-700 font-medium bg-white"
+          >
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              className="w-5 h-5"
+            />
+            구글 계정으로 가입하기
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }
