@@ -12,6 +12,7 @@ interface ServerStatsProps {
 
 const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) => {
   const [memberCount, setMemberCount] = useState<number>(0);
+  const [pendingCount, setPendingCount] = useState<number>(0);
   const [surveyCount, setSurveyCount] = useState<{ responses: number; total: number }>({
     responses: 0,
     total: 0,
@@ -23,7 +24,19 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
   useEffect(() => {
     const fetchMembers = async () => {
       const snap = await getDocs(collection(db, 'server_groups', serverGroupId, 'members'));
-      setMemberCount(snap.size);
+      
+      // request_confirmed가 true 이거나 undefined(기존 데이터)인 멤버 포함, false(승인 대기)는 제외
+      const count = snap.docs.filter(d => {
+        const rc = d.data().request_confirmed;
+        return rc === true || rc === undefined;
+      }).length;
+      setMemberCount(count);
+      
+      const pending = snap.docs.filter(d => {
+        const data = d.data();
+        return data.active === false && !data.request_confirmed;
+      }).length;
+      setPendingCount(pending);
     };
 
     const fetchSurvey = async () => {
@@ -47,17 +60,19 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">
-      <h2 className="text-lg font-semibold mb-2">복사단 현황</h2>
-      <p className="text-sm text-gray-500 mb-3">
-        본당: {PARISH_MAP[parishCode]?.name_kor || parishCode} <br />
-        복사단 코드: {serverGroupId}
-      </p>
+      <h2 className="text-lg font-semibold mb-2">
+        복사단 현황 <span className="text-sm font-normal text-gray-400 ml-1">(총 {memberCount}명)</span>
+      </h2>
 
       <div className="flex justify-between text-sm mb-4">
-        <div>
-          <span className="font-bold">{memberCount}</span> 명 등록됨
+        <div className="flex flex-col gap-1">
+          {pendingCount > 0 && (
+            <div className="text-red-600 font-bold text-xs animate-pulse">
+              신청 대기중: {pendingCount}명
+            </div>
+          )}
         </div>
-        <div>
+        <div className="text-right">
           설문 응답:{' '}
           <span className="font-bold">
             {surveyCount.responses}/{surveyCount.total}

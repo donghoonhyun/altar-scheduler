@@ -12,8 +12,9 @@ const MyInfoCard: React.FC<MyInfoCardProps> = ({ serverGroupId }) => {
   }
 
   const groupInfo = session.serverGroups[serverGroupId];
-  const role = session.groupRoles[serverGroupId] || "server";
-  const roleLabel = role === "planner" ? "플래너" : "복사";
+  const roles = session.groupRoles[serverGroupId] || [];
+  const isPlanner = roles.includes("planner");
+  const roleLabel = isPlanner ? "플래너" : "복사";
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">

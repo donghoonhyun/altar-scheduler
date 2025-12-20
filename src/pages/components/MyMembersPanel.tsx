@@ -15,9 +15,12 @@ interface Props {
 export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: Props) {
   const navigate = useNavigate();
 
-  // members 컬렉션의 active 필드 기준으로 승인/대기 분리
+  // members 컬렉션의 active 필드 및 request_confirmed 필드 기준 분리
   const approved = members.filter((m) => m.active === true);
-  const pending = members.filter((m) => m.active === false);
+  // Pending: Active=false AND request_confirmed!=true
+  const pending = members.filter((m) => m.active === false && !m.request_confirmed);
+  // Inactive: Active=false AND request_confirmed=true
+  const inactive = members.filter((m) => m.active === false && m.request_confirmed);
 
   return (
     <div className="p-3 border rounded-xl mb-4 bg-white shadow-sm">
@@ -33,7 +36,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
             <Plus size={18} />
           </button>
         </div>
-        {approved.length === 0 && pending.length === 0 ? (
+        {approved.length === 0 && pending.length === 0 && inactive.length === 0 ? (
           <div className="text-gray-500 text-sm">등록된 복사가 없습니다</div>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -47,8 +50,8 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
                   className={cn(
                     'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border',
                     checked
-                      ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      ? 'bg-blue-50 border-blue-500 border-[1.5px] font-bold text-blue-800 shadow-md'
+                      : 'bg-green-50 border-green-200 text-gray-700 hover:bg-green-100'
                   )}
                 >
                   {checked && <Check size={14} strokeWidth={3} />}
@@ -65,6 +68,17 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
                 title="관리자 승인 대기 중"
               >
                 ⏳ {m.name_kor} (승인대기)
+              </div>
+            ))}
+
+            {/* 비활성 복사 (Inactive) */}
+            {inactive.map((m) => (
+              <div
+                key={m.memberId}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                title="비활성 상태"
+              >
+                🚫 {m.name_kor} (비활성)
               </div>
             ))}
           </div>

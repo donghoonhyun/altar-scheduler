@@ -42,7 +42,7 @@ export default function ServerGroupWizard() {
         const counterDoc = await transaction.get(counterRef);
         let nextSeq = 1;
         if (counterDoc.exists()) {
-          nextSeq = (counterDoc.data().last_seq || 0) + 1;
+          nextSeq = (Number(counterDoc.data()?.last_seq) || 0) + 1;
         }
         transaction.set(counterRef, { last_seq: nextSeq }, { merge: true });
 

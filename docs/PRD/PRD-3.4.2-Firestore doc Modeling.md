@@ -26,7 +26,12 @@ server_groups/{serverGroupId} (Document)
  │    ├── baptismal_name: string
  │    ├── email: string
  │    ├── grade: string (E1~H3)
- │    ├── active: boolean     // 관리자 승인여부 
+ │    ├── active: boolean     // 활동 상태 (true: 활동중, false: 비활동 or 승인대기)
+ │    ├── request_confirmed: boolean // 승인 확정 여부 (true: 확정, false: 승인대기)
+ │    │    // [State Definition]
+ │    │    // 1. Pending (승인대기) : active=false && request_confirmed=false
+ │    │    // 2. Active (활동중)    : active=true  && request_confirmed=true
+ │    │    // 3. Inactive (비활동)  : active=false && request_confirmed=true
  │    └── created_at, updated_at
  │
  ├── mass_events/{eventId} (Document) // event_id는 auto-generated

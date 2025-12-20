@@ -338,7 +338,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-6 flex flex-col bg-white shadow-2xl overflow-y-auto fade-in">
+      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-6 flex flex-col bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto fade-in">
         {/* Header */}
         <div className="space-y-1">
           <DialogTitle>

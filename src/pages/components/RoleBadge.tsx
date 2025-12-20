@@ -31,8 +31,8 @@ const RoleBadge: React.FC<RoleBadgeProps> = ({ serverGroupId }) => {
   useEffect(() => {
     const fetchMemberInfo = async () => {
       if (!serverGroupId) return;
-      const role = session.groupRoles[serverGroupId];
-      if (role !== 'server' || !session.user) return;
+      const roles = session.groupRoles[serverGroupId];
+      if (!roles?.includes('server') || !session.user) return;
 
       const db = getFirestore();
       const ref = doc(db, 'server_groups', serverGroupId, 'members', session.user.uid);
@@ -46,8 +46,16 @@ const RoleBadge: React.FC<RoleBadgeProps> = ({ serverGroupId }) => {
 
   if (!serverGroupId) return null;
 
-  const role = session.groupRoles[serverGroupId];
-  if (!role) return null;
+  const roles = session.groupRoles[serverGroupId];
+  if (!roles || roles.length === 0) return null;
+
+  // Determine highest priority role
+  let role = 'server';
+  if (roles.includes('admin')) {
+    role = 'admin';
+  } else if (roles.includes('planner')) {
+    role = 'planner';
+  }
 
   const serverGroup = session.serverGroups[serverGroupId];
   const label = role === 'admin' ? 'Admin' : role === 'planner' ? 'Planner' : 'Server';

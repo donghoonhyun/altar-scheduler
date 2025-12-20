@@ -27,31 +27,17 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const controls = useAnimation();
 
   const handleClose = (v: boolean) => {
-    if (!v) {
-      // ❌ Shake 애니메이션 (취소 시)
-      controls.start({
-        x: [-6, 6, -6, 6, 0],
-        transition: { duration: 0.4, ease: 'easeInOut' },
-      });
-    }
-
-    // ✅ fade-out 후 onClose
-    setTimeout(
-      () => {
-        setVisible(false);
-        setTimeout(() => onClose?.(v), 300); // ← 살짝 더 느리게 닫힘
-      },
-      v ? 0 : 250
-    );
+    setVisible(false);
+    setTimeout(() => onClose?.(v), 300);
   };
 
-  if (!visible) return null;
+
 
   return createPortal(
     <AnimatePresence>
       {visible && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

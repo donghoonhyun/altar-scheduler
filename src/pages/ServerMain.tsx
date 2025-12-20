@@ -234,8 +234,12 @@ export default function ServerMain() {
             {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
           </span>
           {serverGroupId && (
-            session.groupRoles[serverGroupId] === 'admin' ? '어드민' :
-            session.groupRoles[serverGroupId] === 'planner' ? '플래너' : '복사'
+            (() => {
+              const roles = session.groupRoles[serverGroupId] || [];
+              if (roles.includes('admin')) return '어드민';
+              if (roles.includes('planner')) return '플래너';
+              return '복사';
+            })()
           )}님 반갑습니다.
         </h2>
       </div>

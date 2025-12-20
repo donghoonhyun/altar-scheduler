@@ -91,6 +91,7 @@ export default function AddMember() {
         baptismal_name: baptismalName,
         grade,
         active: false,
+        request_confirmed: false,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });

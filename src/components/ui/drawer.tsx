@@ -3,6 +3,7 @@
 import * as React from 'react';
 import * as DrawerPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 
 /**
  * 💡 Custom Drawer (shadcn 기반)
@@ -40,13 +41,19 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-xl border bg-background p-6 shadow-lg outline-none',
+        'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-xl border bg-white dark:bg-gray-900 p-6 shadow-lg outline-none',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         className
       )}
       {...props}
     >
-      <div className="w-full max-w-md mx-auto">{children}</div>
+      <div className="w-full max-w-md mx-auto relative">
+        {children}
+        <DrawerPrimitive.Close className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+          <X className="h-5 w-5 text-gray-400" />
+          <span className="sr-only">Close</span>
+        </DrawerPrimitive.Close>
+      </div>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ));

@@ -30,7 +30,7 @@ const SendSurveyDrawer: React.FC<SendSurveyDrawerProps> = ({ open, onClose, surv
           <div className="rounded-md border bg-gray-50 p-2 text-xs break-all">{surveyUrl}</div>
         </DrawerHeader>
         <DrawerFooter>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             닫기
           </Button>
           <Button onClick={handleCopyLink}>링크 복사</Button>

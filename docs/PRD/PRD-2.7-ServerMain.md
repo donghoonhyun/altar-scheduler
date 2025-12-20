@@ -65,11 +65,14 @@ ServerMain 페이지는 다음 UI 구조를 **항상 동일하게 유지**한다
 
 | 상태 | 표시 | 기능 |
 |------|------|------|
-| active=true | 활성화, 클릭 가능 | 필터링 / 강조 표시 |
-| active=false | `지안(승인대기중)` | 클릭 안됨 |
+| active=true | 활성화 (Green/Blue) | 클릭 가능 (선택 시 강조) |
+| Inactive (active=false, request_confirmed=true) | `🚫 이름 (비활동)` | 클릭 불가 (비활성화) |
+| Pending (active=false, request_confirmed=false) | `⏳ 이름 (승인대기)` | 클릭 불가 (비활성화) |
 
 #### 기능 필터링
 
+- **기본 상태 (Unselected):** 연한 녹색 배경 (`bg-green-50`)
+- **선택 상태 (Selected):** 하늘색 배경 (`bg-blue-50`) + **굵은 테두리(1.5px)** + **굵은 글씨**
 - 버튼이 `checked=true` 이면 해당 복사의 일정만 달력에서 강조 표시.
 - 여러 복사를 체크해서 동시에 표시 가능.
 

@@ -21,7 +21,7 @@ Dashboard
 
 | 구성요소          | 데이터 출처                         | 로딩 방식                  | 설명                      |
 | ------------- | ------------------------------ | ---------------------- | ----------------------- |
-| ServerStats   | Firestore `server_groups/{id}` | Firestore direct query | 복사단 기본정보 및 통계           |
+| ServerStats   | Firestore `server_groups/{id}` | Firestore direct query | 복사단 기본정보 및 통계 (총원: Active+Inactive / 대기: Pending Only) |
 | NextMonthPlan | Firestore `mass_events`        | Firestore direct query | 차원 미사일정 등록 현황           |
 | MassCalendar  | `useMassEvents(serverGroupId)` | Firestore + Helper     | 복사단의 미사일정 및 배정 복사 이름 표시 |
 
@@ -71,6 +71,11 @@ Dashboard
   3. `useMassEvents(serverGroupId)` 호출
   4. 상단 카드 (`ServerStats`, `NextMonthPlan`) 렌더링
   5. 하단 `MassCalendar` 표시
+  
+  > **ServerStats 카운트 로직:**
+  > - **총 복사단원 수:** `pending` 제외한 전체 (`active=true` || `request_confirmed=true` || `undefined`)
+  > - **신청 대기중:** `active=false` && `request_confirmed=false`
+  > - **설문 응답률:** (응답 수) / (총 복사단원 수)
 
 ---
 

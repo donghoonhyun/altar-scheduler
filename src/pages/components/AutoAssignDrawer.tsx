@@ -43,7 +43,7 @@ const AutoAssignDrawer: React.FC<AutoAssignDrawerProps> = ({ open, onClose, onCo
           </p>
         </DrawerHeader>
         <DrawerFooter>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             취소
           </Button>
           <Button onClick={handleConfirm} disabled={loading}>

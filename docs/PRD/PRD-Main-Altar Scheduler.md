@@ -528,6 +528,19 @@
   서버 환경의 Timezone은 process.env.TZ = 'Asia/Seoul' 로 고정한다.
 - UI, Functions, Firestore 모두 KST 기준으로 동작한다.  
 
+### 3.5 비용 및 성능 최적화 (Cost & Performance Optimization)
+
+- **Firebase 비용 점검 지침:**
+  - 개발 및 기능 변경 시, Firestore 읽기/쓰기 횟수가 과도하게 발생하지 않도록 쿼리 로직을 점검해야 한다.
+  - 대량의 데이터 조회나 반복적인 호출(N+1 문제)이 예상될 경우, 클라이언트 캐싱 또는 로직 최적화를 고려해야 한다.
+  - 사용량이 급증할 것으로 예상되는 기능 배포 전에는 예상 비용을 추산하고 사용자에게 알림을 제공해야 한다.
+- **최적화 원칙:**
+  - `onSnapshot` 리스너는 필요한 컴포넌트 마운트 시에만 연결하고, 언마운트 시 반드시 해제(unsubscribe)한다.
+  - 가능한 한 document ID 기반의 직접 조회(`doc()`)를 활용하고, 과도한 컬렉션 전체 조회(`collection()`)는 지양한다.
+  - 빈번한 업데이트가 발생하는 카운터나 집계 데이터는 Cloud Functions 트리거를 통해 비동기로 처리하거나, 분산 카운터 방식을 고려한다.
+- **모니터링:**
+  - Firebase Emulator를 적극 활용하여 로컬에서 읽기/쓰기 발생량을 주기적으로 모니터링한다.  
+
 ### 3.4.2 Firestore doc modeling (서브컬렉션로 단위 격리)
 
 - 세부 정책 : : 'PRD-3.4.2-Firestore doc Modeling.md' 파일 내용을 참고함.

@@ -41,6 +41,7 @@ export interface MemberDoc {
   phone_student?: string;
   notes?: string;
   active: boolean;
+  request_confirmed?: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
