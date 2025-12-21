@@ -43,16 +43,37 @@ const AdminMain: React.FC = () => {
       path: `/server-groups/${serverGroupId}/admin/settings`,
     },
     {
-      title: '신규 가입 승인',
+      title: '신규 권한 승인',
       description: '새로운 가입 요청을 확인하고 승인합니다.',
       icon: UserPlus,
       color: 'text-green-600',
       bg: 'bg-green-100',
-      path: '#',
+      path: `/server-groups/${serverGroupId}/admin/role-approval`,
     },
   ];
 
   const sgInfo = serverGroupId ? session.serverGroups[serverGroupId] : null;
+  
+  // Pending request count check
+  const [pendingCount, setPendingCount] = React.useState(0);
+  React.useEffect(() => {
+    if (!serverGroupId) return;
+    const fetchPending = async () => {
+      try {
+        const { getCountFromServer, collection, query, where } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        const q = query(
+          collection(db, 'server_groups', serverGroupId, 'role_requests'), 
+          where('status', '==', 'pending')
+        );
+        const snapshot = await getCountFromServer(q);
+        setPendingCount(snapshot.data().count);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchPending();
+  }, [serverGroupId]);
 
   return (
     <Container className="py-6 min-h-screen">
@@ -84,6 +105,11 @@ const AdminMain: React.FC = () => {
                   <action.icon size={12} />
                 </div>
                 <h3 className="text-[11px] font-bold text-gray-800 break-keep">{action.title}</h3>
+                {action.title === '신규 권한 승인' && pendingCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold">
+                    {pendingCount}
+                  </span>
+                )}
               </div>
               <p className="text-[9px] text-gray-400 leading-tight break-keep">{action.description}</p>
             </div>

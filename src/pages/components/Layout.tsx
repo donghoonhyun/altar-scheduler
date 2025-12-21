@@ -12,11 +12,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import MyInfoDrawer from "../../components/common/MyInfoDrawer";
+import { useState } from "react";
 
 export default function Layout() {
   const { user, userInfo, groupRoles } = useSession();
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
+  const [isMyInfoOpen, setIsMyInfoOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -71,7 +74,7 @@ export default function Layout() {
 
                 {/* 역할 표시 */}
                 {rolesInGroup.length > 0 && (
-                  <div className="text-xs font-semibold text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100 italic">
+                  <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
                     * 역할: {rolesInGroup.map(r => r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사').join(', ')}
                   </div>
                 )}
@@ -80,28 +83,28 @@ export default function Layout() {
                   {rolesInGroup.includes('admin') && (
                     <Button
                       variant="ghost"
-                      className="justify-start gap-3 h-12 text-base font-medium rounded-2xl text-purple-600 hover:bg-purple-50"
+                      className="justify-start gap-3 h-10 text-sm font-medium rounded-xl text-purple-600 hover:bg-purple-50"
                       onClick={() => navigate(`/server-groups/${serverGroupId}/admin`)}
                     >
-                      <ShieldCheck size={20} className="text-purple-400" />
+                      <ShieldCheck size={18} className="text-purple-400" />
                       어드민 설정
                     </Button>
                   )}
                   <Button 
                     variant="ghost" 
-                    className="justify-start gap-3 h-12 text-base font-medium rounded-2xl"
-                    onClick={() => navigate('/')}
+                    className="justify-start gap-3 h-10 text-sm font-medium rounded-xl"
+                    onClick={() => setIsMyInfoOpen(true)}
                   >
-                    <UserIcon size={20} className="text-gray-400" />
+                    <UserIcon size={18} className="text-gray-400" />
                     내정보 수정
                   </Button>
                   
                   <Button 
                     variant="ghost" 
-                    className="justify-start gap-3 h-12 text-base font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-2xl"
+                    className="justify-start gap-3 h-10 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
                     onClick={handleLogout}
                   >
-                    <LogOut size={20} className="text-red-400" />
+                    <LogOut size={18} className="text-red-400" />
                     로그아웃
                   </Button>
                 </nav>
@@ -115,6 +118,13 @@ export default function Layout() {
       <main className="flex-1 p-4 overflow-y-auto">
         <Outlet />
       </main>
+
+      {/* 🔹내 정보 수정 Drawer */}
+      <MyInfoDrawer 
+        open={isMyInfoOpen} 
+        onOpenChange={setIsMyInfoOpen}
+        serverGroupId={serverGroupId}
+      />
     </div>
   );
 }

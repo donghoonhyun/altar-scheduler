@@ -204,6 +204,16 @@ export default function AddMember() {
       <button className="w-full bg-blue-600 text-white py-2 rounded text-lg" onClick={handleSubmit}>
         등록하기
       </button>
+
+      <div className="mt-8 text-center pt-6 border-t border-gray-100">
+        <p className="text-sm text-gray-500 mb-2">플래너로 활동하실 예정인가요?</p>
+        <button 
+          onClick={() => navigate('/request-planner-role')}
+          className="text-sm text-blue-600 font-medium underline underline-offset-2 hover:text-blue-700"
+        >
+          플래너 권한 신청하기
+        </button>
+      </div>
     </div>
   );
 }

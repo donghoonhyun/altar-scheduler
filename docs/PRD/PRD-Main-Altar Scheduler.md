@@ -401,6 +401,29 @@
 
 ---
 
+### 2.9.2 플래너(Planner) 신규 권한 신청 및 승인 흐름
+
+- 흐름요약 : 사용자 권한 신청 → 승인 대기(Pending) → 관리자 승인(Approved) 또는 반려(Rejected)
+- ① 권한 신청 (/request-planner-role)
+  . 일반 사용자가 앱 내 '플래너 권한 신청' 메뉴를 통해 접근.
+  . 신청 시 본당 및 복사단을 선택하고 본인 정보(이름, 세례명, 연락처)를 입력.
+  . Firestore `server_groups/{sgId}/role_requests/{uid}` 경로에 `status: pending` 상태로 저장.
+  . 이미 신청한 경우 '승인 대기 중' 화면이 표시되며, 신청 취소 가능.
+- ② 관리자 승인 (Admin Panel)
+  . 복사단 관리자(Admin)는 Admin Panel > '신규 권한 승인' 메뉴에서 대기 중인 요청 확인.
+  . [승인] : 
+    - `role_requests` 상태를 `approved`로 변경.
+    - `memberships/{uid}_{sgId}` 문서를 생성/갱신하여 `role: planner` 권한 부여.
+    - `server_groups/{sgId}/members/{uid}` 문서가 없으면 생성하여 기본 멤버 정보 등록.
+  . [반려] :
+    - `role_requests` 상태를 `rejected`로 변경.
+- ③ 결과 확인
+  . 신청자는 실시간(`onSnapshot`)으로 상태 변경을 확인.
+  . 승인 시: '메인화면으로 이동' 버튼 활성화.
+  . 반려 시: '다시 신청하기' 기능 제공.
+
+---
+
 ### 📍2.11 공유/알림 (향후계획)
 
 - 기능: 복사/관리자에게 배정 관련 메시지 전달

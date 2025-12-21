@@ -21,9 +21,11 @@ import RoleGuard from '../pages/components/RoleGuard';
 import ServerSurvey from '@/pages/ServerSurvey';
 import AddMember from '@/pages/AddMember';
 import ServerAssignmentStatus from '@/pages/ServerAssignmentStatus';
+import RequestPlannerRole from '@/pages/RequestPlannerRole';
 import AdminMain from '../pages/AdminMain';
 import MemberRoleManagement from '../pages/MemberRoleManagement';
 import ServerGroupSettings from '../pages/ServerGroupSettings';
+import PlannerRoleApproval from '../pages/PlannerRoleApproval';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -125,6 +127,9 @@ export default function AppRoutes() {
       <Route element={<Layout />}>
         {/* 복사 추가 페이지 (Layout 적용, RoleGuard 없음) */}
         <Route path="/add-member" element={<AddMember />} />
+        
+        {/* 플래너 권한 신청 페이지 */}
+        <Route path="/request-planner-role" element={<RequestPlannerRole />} />
 
         {/* Admin 전용 라우트 */}
         <Route
@@ -148,6 +153,14 @@ export default function AppRoutes() {
           element={
             <RoleGuard require="admin">
               <ServerGroupSettings />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/server-groups/:serverGroupId/admin/role-approval"
+          element={
+            <RoleGuard require="admin">
+              <PlannerRoleApproval />
             </RoleGuard>
           }
         />
@@ -225,6 +238,7 @@ export default function AppRoutes() {
                 <Route path="admin" element={<RoleGuard require="admin"><AdminMain /></RoleGuard>} />
                 <Route path="admin/members" element={<RoleGuard require="admin"><MemberRoleManagement /></RoleGuard>} />
                 <Route path="admin/settings" element={<RoleGuard require="admin"><ServerGroupSettings /></RoleGuard>} />
+                <Route path="admin/role-approval" element={<RoleGuard require="admin"><PlannerRoleApproval /></RoleGuard>} />
                 <Route path="dashboard" element={<RoleGuard require="planner"><Dashboard /></RoleGuard>} />
                 <Route path="*" element={<ServerMainWrapper />} />
               </Routes>
