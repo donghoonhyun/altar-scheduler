@@ -35,6 +35,16 @@ const USERS = [
           role: ['admin', 'planner'],
         },
       },
+      {
+        collection: 'memberships',
+        docId: `pongso-hyun-uid_global`,
+        data: {
+          uid: 'pongso-hyun-uid',
+          server_group_id: 'global',
+          parish_code: 'system',
+          role: ['superadmin'],
+        },
+      },
     ],
   },
   {

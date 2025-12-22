@@ -14,8 +14,8 @@ import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { toast } from 'sonner';
 
-import type { Parish } from '@/config/parishes';
-import { PARISHES } from '@/config/parishes';
+import { Parish } from '@/types/parish';
+import { useParishes } from '@/hooks/useParishes';
 
 type ServerGroupItem = {
   id: string;
@@ -27,7 +27,8 @@ export default function AddMember() {
   const navigate = useNavigate();
   const session = useSession();
   const user = session.user;
-
+  const { data: parishes } = useParishes();
+  
   // 성당 선택
   const [selectedParish, setSelectedParish] = useState<string>('');
 
@@ -137,7 +138,7 @@ export default function AddMember() {
           }}
         >
           <option value="">성당 선택</option>
-          {PARISHES.map((p: Parish) => (
+          {parishes?.map((p: Parish) => (
             <option key={p.code} value={p.code}>
               {p.name_kor}
             </option>

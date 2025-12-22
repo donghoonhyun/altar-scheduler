@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { PARISH_MAP } from '../../config/parishes';
+
 import { Button } from '@/components/ui/button';
 
 interface ServerStatsProps {

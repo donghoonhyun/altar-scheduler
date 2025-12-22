@@ -3,18 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../lib/firebase";
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { useSession } from "../state/session";
-import { PARISHES } from "../config/parishes";
-
-// code → name_kor 매핑 딕셔너리
-const PARISH_MAP = PARISHES.reduce<Record<string, string>>((acc, parish) => {
-  acc[parish.code] = parish.name_kor;
-  return acc;
-}, {});
+import { useParishes } from "../hooks/useParishes";
 
 export default function ServerGroupWizard() {
   const { parishCode } = useParams();
   const session = useSession();
   const navigate = useNavigate();
+  const { data: parishes } = useParishes();
+  
+  const parishName = parishes?.find((p) => p.code === parishCode)?.name_kor || parishCode;
 
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -101,7 +98,7 @@ export default function ServerGroupWizard() {
   return (
     <div className="p-6 max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">
-        {PARISH_MAP[parishCode || ""] || parishCode} - 복사단 생성
+        {parishName} - 복사단 생성
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -8,6 +8,7 @@
     "env:local": "tsx scripts/switch-env.ts local",
     "env:dev": "tsx scripts/switch-env.ts dev",
     "env:prod": "tsx scripts/switch-env.ts prod",
+    "build:dev": "cross-env VITE_FIREBASE_PROJECT_ID=altar-scheduler-dev npm run build",
     "build": "tsc -b && vite build",
     "build:functions": "cd functions && npm run build",
     "lint": "eslint .",
@@ -63,7 +64,8 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.43.0",
-    "vite": "^7.1.2"
+    "vite": "^7.1.2",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "eslintConfig": {
     "ignorePatterns": [

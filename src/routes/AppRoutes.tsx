@@ -26,6 +26,7 @@ import AdminMain from '../pages/AdminMain';
 import MemberRoleManagement from '../pages/MemberRoleManagement';
 import ServerGroupSettings from '../pages/ServerGroupSettings';
 import PlannerRoleApproval from '../pages/PlannerRoleApproval';
+import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -130,6 +131,10 @@ export default function AppRoutes() {
         
         {/* 플래너 권한 신청 페이지 */}
         <Route path="/request-planner-role" element={<RequestPlannerRole />} />
+
+        {/* Super Admin 페이지 */}
+        <Route path="/superadmin" element={<SuperAdminMain />} />
+
 
         {/* Admin 전용 라우트 */}
         <Route
@@ -247,7 +252,7 @@ export default function AppRoutes() {
         />
       </Route>
 
-      {/* Catch-all: 잘못된 경로는 홈으로 리다이렉트하여 재처리 */}
+      {/* 없는 페이지 처리 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

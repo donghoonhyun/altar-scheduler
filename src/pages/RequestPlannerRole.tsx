@@ -16,7 +16,8 @@ import {
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { toast } from 'sonner';
-import { PARISHES, type Parish } from '@/config/parishes';
+import { Parish } from '@/types/parish';
+import { useParishes } from '@/hooks/useParishes';
 import { Button, Input } from '@/components/ui';
 
 type ServerGroupItem = {
@@ -41,6 +42,7 @@ export default function RequestPlannerRole() {
   const navigate = useNavigate();
   const session = useSession();
   const user = session.user;
+  const { data: parishes } = useParishes();
 
   // Existing request state
   const [existingRequest, setExistingRequest] = useState<PendingRequest | null>(null);
@@ -106,8 +108,10 @@ export default function RequestPlannerRole() {
                 if (sgSnap.exists()) {
                     const sgData = sgSnap.data();
                     groupName = sgData.name;
-                    const parish = PARISHES.find(p => p.code === sgData.parish_code);
-                    parishName = parish ? parish.name_kor : '';
+                    const parishDoc = await getDoc(doc(db, 'parishes', sgData.parish_code));
+                    if (parishDoc.exists()) {
+                         parishName = (parishDoc.data() as Parish).name_kor;
+                    }
                 }
             } catch (e) {
                 console.error("Error fetching group info", e);
@@ -400,7 +404,7 @@ export default function RequestPlannerRole() {
                     }}
                     >
                     <option value="">성당을 선택하세요</option>
-                    {PARISHES.map((p: Parish) => (
+                    {parishes?.map((p: Parish) => (
                         <option key={p.code} value={p.code}>
                         {p.name_kor}
                         </option>

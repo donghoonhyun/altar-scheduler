@@ -14,12 +14,16 @@ import {
 import { Button } from "@/components/ui/button";
 import MyInfoDrawer from "../../components/common/MyInfoDrawer";
 import { useState } from "react";
+import { getAppIconPath, getAppTitleWithEnv } from "@/lib/env";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { Download, CheckCircle2 } from "lucide-react";
 
 export default function Layout() {
   const { user, userInfo, groupRoles } = useSession();
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const [isMyInfoOpen, setIsMyInfoOpen] = useState(false);
+  const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -35,10 +39,17 @@ export default function Layout() {
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           {/* 좌측: Church Icon (Purple) */}
           <div 
-            className="flex items-center gap-2 cursor-pointer text-[#a855f7]"
+            className="flex items-center gap-3 cursor-pointer"
             onClick={() => navigate("/")}
           >
-            <Church size={32} strokeWidth={2.5} />
+            <img 
+              src={getAppIconPath()} 
+              alt="App Logo" 
+              className="w-10 h-10 rounded-lg shadow-sm border border-gray-100"
+            />
+            <span className="font-bold text-lg text-gray-900 hidden xs:block tracking-tight">
+              {getAppTitleWithEnv()}
+            </span>
           </div>
 
           {/* 가운데: 복사단 선택 드롭다운 */}
@@ -108,6 +119,34 @@ export default function Layout() {
                     로그아웃
                   </Button>
                 </nav>
+
+                {/* 앱 설치 버튼 (항상 표시하되 상태에 따라 UI 변경) */}
+                {!isInstalled && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        if (isInstallable) {
+                          promptInstall();
+                        } else {
+                          alert('현재 브라우저에서는 설치 기능을 지원하지 않거나, 이미 설치되어 있을 수 있습니다. \n브라우저 메뉴(⋮)에서 [앱 설치]를 확인해주세요.');
+                        }
+                      }}
+                      className="w-full text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-auto py-2 flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Download size={14} />
+                      앱으로 설치하고 간편하게 접속하세요
+                    </Button>
+                  </div>
+                )}
+                
+                {/* 이미 설치됨 표시 (선택사항) */}
+                {isInstalled && (
+                  <div className="mt-auto px-4 py-3 bg-gray-50 rounded-xl flex items-center justify-center gap-2 text-gray-500 text-xs font-medium">
+                    <CheckCircle2 size={16} className="text-green-500" />
+                    앱이 설치되어 있습니다
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>

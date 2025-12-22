@@ -12,7 +12,7 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore';
-import { PARISHES } from '../config/parishes';
+
 
 export interface Session {
   user: User | null;
@@ -23,6 +23,7 @@ export interface Session {
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
   managerParishes: string[];
   userInfo: { userName: string; baptismalName: string } | null;
+  isSuperAdmin: boolean;
   setCurrentServerGroupId?: (id: string | null) => void;
   refreshSession?: () => Promise<void>;
 }
@@ -36,6 +37,7 @@ const initialSession: Session = {
   serverGroups: {},
   managerParishes: [],
   userInfo: null,
+  isSuperAdmin: false,
 };
 
 let cachedSession: Session = { ...initialSession };
@@ -88,6 +90,14 @@ export function useSession() {
 
         const rolesInDoc = Array.isArray(data.role) ? data.role : [data.role];
         
+        // Super Admin 체크 ('global' 그룹은 일반 그룹 로직에서 제외)
+        if (sgId === 'global' || data.role.includes('superadmin')) {
+          if (rolesInDoc.includes('superadmin')) {
+            newSession.isSuperAdmin = true;
+          }
+          continue; // serverGroups 목록에는 포함하지 않음
+        }
+        
         if (!roles[sgId]) roles[sgId] = [];
         rolesInDoc.forEach(r => {
           if (r && !roles[sgId].includes(r)) {
@@ -118,24 +128,45 @@ export function useSession() {
         targetSgIds.add(sgId);
       }
 
-      /** 3) 수집된 ServerGroup 정보 병렬 조회 */
+      /** 3) 수집된 ServerGroup 정보 병렬 조회 (Parish 정보 포함) */
       const sgIdsArray = Array.from(targetSgIds);
-      const sgDocs = await Promise.all(
-        sgIdsArray.map((id) => getDoc(doc(db, 'server_groups', id)))
+      
+      const sgResults = await Promise.all(
+        sgIdsArray.map(async (id) => {
+          try {
+            const sgDoc = await getDoc(doc(db, 'server_groups', id));
+            if (!sgDoc.exists()) return null;
+            
+            const sg = sgDoc.data();
+            const parishCode = sg.parish_code || '';
+            let parishName = parishCode;
+
+            if (parishCode) {
+              const parishDoc = await getDoc(doc(db, 'parishes', parishCode));
+              if (parishDoc.exists()) {
+                const parishData = parishDoc.data();
+                parishName = parishData.name_kor || parishCode;
+              }
+            }
+
+            return {
+              id: sgDoc.id,
+              data: {
+                parishCode,
+                parishName,
+                groupName: sg.name ?? sgDoc.id,
+              }
+            };
+          } catch (e) {
+            console.error(`Error fetching SG info for ${id}`, e);
+            return null;
+          }
+        })
       );
 
-      sgDocs.forEach((sgDoc) => {
-        if (sgDoc.exists()) {
-          const sg = sgDoc.data();
-          const parishCode = sg.parish_code || '';
-          const parishName =
-            PARISHES.find((p) => p.code === parishCode)?.name_kor || parishCode;
-
-          serverGroups[sgDoc.id] = {
-            parishCode,
-            parishName,
-            groupName: sg.name ?? sgDoc.id,
-          };
+      sgResults.forEach((res) => {
+        if (res) {
+          serverGroups[res.id] = res.data;
         }
       });
 

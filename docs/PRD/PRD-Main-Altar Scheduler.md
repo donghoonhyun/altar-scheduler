@@ -93,6 +93,18 @@
 - 접근 조건:
   isPlanner(server_group_id)              // 특정 그룹 Planner
   ∨ isServer(server_group_id)               // 복사 본인
+  ∨ isSuperAdmin                          // 전체 시스템 관리자
+
+#### 2.2.4 슈퍼 어드민 (Super Admin)
+
+- 역할: 전체 시스템 운영 및 데이터 관리 (성당 추가/수정 등)
+- 권한 정의: `memberships/{uid}_global` 문서에 `role: ['superadmin']` 필드로 관리
+- 접근 범위: 
+  . `/superadmin` 경로의 시스템 관리 페이지 접근 가능
+  . `parishes` 컬렉션 전체 읽기/쓰기 권한
+- 세션 처리:
+  . 로그인 시 `memberships` 조회하여 `superadmin` 권한 확인 시 `session.isSuperAdmin = true` 설정
+  . `server_group_id='global'` 인 가상 그룹은 일반 대시보드 진입 로직에서 제외
 
 ### 📍2.3 플래너(Planner) 메인 관리
 
@@ -123,7 +135,22 @@
   ② [복사단 생성] 버튼 클릭 시 `/server-groups/new` 로 이동하여 마법사 실행  
 - 권한: Planner
 - 필드: parish_code(카탈로그 선택), name, timezone, locale, active(사용/미사용), created_at, updated_at
-- 본당 코드(parish_code)는 자동채번 금지, src/config/parishes.ts 카탈로그에서 선택
+- 본당 코드(parish_code)는 자동채번 금지.
+- 성당 목록 관리:
+  . 초기에는 파일(`config/parishes.ts`)로 관리했으나, 운영 유연성을 위해 **Firestore `parishes` 컬렉션**으로 이관함.
+  . 생성 시 `useParishes` 훅을 통해 DB에서 성당 목록을 조회하여 선택.
+- 데이터 구조 (`src/types/parish.ts`):
+  ```ts
+  interface Parish {
+    code: string;       // PK (ex: DAEGU-BEOMEO)
+    name_kor: string;   // ex: 대구 범어성당
+    name_eng?: string;  // ex: Daegu Beomeo
+    diocese: string;    // ex: 대구교구
+    active?: boolean;
+    created_at?: any;
+    updated_at?: any;
+  }
+  ```
 
 ##### 2.3.3 복사단(server group) 코드 채번
 
@@ -433,7 +460,18 @@
 
 ---
 
-### 📍2.12 시스템 Admin 관리기능 (삭제 -> 향후 고려)
+### 📍2.12 시스템 Admin 관리기능
+
+- 경로: `/superadmin` (Super Admin 권한 전용)
+- 기능:
+  ① 성당(Parish) 관리
+    . 성당 목록 조회, 추가, 수정, 삭제(논리적/물리적)
+    . 성당 추가/수정 팝업:
+      - 성당코드(ID): 교구코드 + '-' + 성당코드 (예: DAEGU-BEOMEO), 중복 체크
+      - 이름(한글): 교구명 + ' ' + 성당명 (예: 대구 범어성당), 중복 체크
+      - 이름(영문): (예: Beomeo Cathedral), 중복 체크
+      - 교구: 16개 교구 목록 콤보박스 선택 (서울, 인천, 수원, 의정부, 춘천, 대전, 대구, 부산, 광주, 전주, 제주 등)
+      - 활성 상태(Active) 토글
 
 ---
 

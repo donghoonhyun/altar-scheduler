@@ -11,10 +11,11 @@ import {
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useSession } from '@/state/session';
-import { getAppTitleWithEnv } from '@/lib/env';
+import { getAppTitleWithEnv, getAppIconPath } from '@/lib/env';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { Button, Card, Heading, Input, Checkbox, Label } from '@/components/ui';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Download } from 'lucide-react';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const session = useSession();
   const [processing, setProcessing] = useState(false);
+  const { isInstallable, promptInstall } = useInstallPrompt();
 
   // ✅ 이미 로그인된 상태라면 / 로 이동
   if (session.user) {
@@ -90,8 +92,13 @@ const Login: React.FC = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-[400px] p-8 shadow-xl bg-white border-none">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-blue-600 mb-2">{getAppTitleWithEnv()}</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img 
+            src={getAppIconPath()} 
+            alt="App Logo" 
+            className="w-20 h-20 mb-4 rounded-xl shadow-md border-2 border-white"
+          />
+          <h1 className="text-3xl font-extrabold text-[#4f46e5] mb-2 tracking-tight">{getAppTitleWithEnv()}</h1>
           <Heading size="md" className="mb-2 text-gray-800">반갑습니다!</Heading>
         </div>
 
@@ -174,6 +181,8 @@ const Login: React.FC = () => {
           구글 계정으로 시작하기
         </Button>
 
+
+
         <div className="mt-8 text-center text-sm text-gray-500">
           아직 계정이 없나요?{' '}
           <button
@@ -182,6 +191,25 @@ const Login: React.FC = () => {
           >
             회원가입
           </button>
+        </div>
+
+        {/* 앱 설치 버튼 (Login 화면용 - 항상 표시) */}
+        <div className="mt-6 pt-4 border-t border-gray-100/50">
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => {
+                if (isInstallable) {
+                    promptInstall();
+                } else {
+                    alert('이미 앱이 설치되어 있거나, 현재 브라우저 환경에서는 자동 설치를 지원하지 않습니다.\n브라우저 메뉴(⋮)에서 [앱 설치]를 확인해주세요.');
+                }
+            }}
+            className="w-full text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-auto py-2 flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <Download size={14} />
+            앱으로 설치하고 간편하게 접속하세요
+          </Button>
         </div>
       </Card>
     </div>

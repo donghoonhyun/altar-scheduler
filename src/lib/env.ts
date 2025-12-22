@@ -19,9 +19,14 @@ export const getAppEnvLabel = () => {
     return ' (로컬)';
   }
 
-  // Development (based on project ID convention or mode)
-  if (projectId.includes('-dev') || import.meta.env.MODE === 'development') {
-    return ' (개발)';
+  // Development (based on project ID convention, mode, or HOSTNAME)
+  if (
+    projectId.includes('-dev') || 
+    import.meta.env.MODE === 'development' ||
+    hostname.includes('dev') ||     // URL에 'dev'가 포함되면 개발환경으로 간주
+    hostname.includes('localhost')
+  ) {
+    return ' (DEV)';
   }
 
   // Production (default)
@@ -30,4 +35,17 @@ export const getAppEnvLabel = () => {
 
 export const getAppTitleWithEnv = () => {
   return `${APP_TITLE}${getAppEnvLabel()}`;
+};
+
+export const getAppIconPath = () => {
+  const hostname = window.location.hostname;
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || '';
+  
+  const isDev = 
+    projectId.includes('-dev') || 
+    import.meta.env.MODE === 'development' ||
+    hostname.includes('dev');
+
+  // PNG 아이콘 사용 (브라우저 호환성 및 PWA 일관성)
+  return isDev ? '/pwa-icon-dev.png' : '/pwa-icon.png';
 };
