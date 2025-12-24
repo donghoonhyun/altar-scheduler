@@ -7,6 +7,7 @@ import {
   EmulatorMockTokenOptions,
 } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getMessaging } from 'firebase/messaging';
 import { firebaseConfig } from '../config/firebaseConfig';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -22,6 +23,7 @@ const isDev =
 let db: Firestore;
 const auth = getAuth(app);
 const functions = getFunctions(app, 'asia-northeast3');
+const messaging = getMessaging(app);
 
 // ✅ Emulator 연결
 if (isDev) {
@@ -42,4 +44,4 @@ if (isDev) {
   console.log('🌐 Production Firebase 연결됨!');
 }
 
-export { app, auth, db, functions };
+export { app, auth, db, functions, messaging };

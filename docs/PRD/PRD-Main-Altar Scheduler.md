@@ -54,13 +54,19 @@
 
 #### 2.1.2 사용자 진입 routing
 
-- root URL 진입 시, 로그인 여부와 사용자 역할/소속에 따라 초기 화면을 분기한다.
+- root URL('/') 진입 시, 로그인 여부와 사용자 역할/소속(우선순위)에 따라 초기 화면을 분기한다.
 - 로그인 안 된 경우 → 로그인 페이지(/login)로 이동.
-- 로그인 된 경우:
-  ① Planner/Server:
-    플래너인 경우 플래너 대시보드(/dashboard)로 이동.
-    복사인 경우 복사단 홈(/server-main)로 이동.
-  ② 권한이 필요한 경우에 권한이 없음 → 접근 불가 안내 페이지(/forbidden).
+- 로그인 된 경우 (라우팅 우선순위):
+  1. **Admin** 권한 보유 그룹 존재 시:
+     → 해당 그룹의 Admin Panel(`/server-groups/{sgId}/admin`)로 이동.
+  2. **Planner** 권한 보유 그룹 존재 시:
+     → 해당 그룹의 Dashboard(`/server-groups/{sgId}/dashboard`)로 이동.
+  3. **Server** 권한 보유 그룹 존재 시:
+     → 해당 그룹의 Server Main(`/server-groups/{sgId}`)로 이동.
+  4. **Super Admin** 권한 보유 시 (위의 그룹 권한이 없는 경우):
+     → 시스템 관리 페이지(`/superadmin`)로 이동.
+  5. 그 외 (초기 가입자, 권한 없음):
+     → 복사 추가/등록 페이지(`/add-member`)로 이동.
 - 딥링크로 복사단 URL(/:serverGroupId/...) 접근 시:
   ① 해당 복사단에 대한 권한이 있으면 그대로 접근.
   ② 권한이 없으면 복사단 선택 또는 접근 불가 페이지로 안내.

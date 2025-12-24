@@ -15,27 +15,18 @@ const NextMonthPlan: React.FC<Props> = ({ serverGroupId }) => {
       <p className="text-gray-600 mb-3">다음달 미사 일정을 등록하고 복사단 설문을 준비하세요.</p>
       <div className="flex gap-2">
         <Button
-          variant="outline"
-          onClick={() => navigate(`/server-groups/${serverGroupId}/presets`)}
-          className="flex-1"
-        >
-          Preset 설정
-        </Button>
-        <Button
           variant="primary"
           onClick={() => navigate(`/server-groups/${serverGroupId}/mass-events`)}
           className="flex-1"
         >
           미사일정 계획
         </Button>
-      </div>
-      <div className="mt-2">
         <Button
-          variant="secondary"
-          onClick={() => navigate(`/server-groups/${serverGroupId}/assignment-status`)}
-          className="w-full"
+          variant="outline"
+          onClick={() => navigate(`/server-groups/${serverGroupId}/presets`)}
+          className="flex-1"
         >
-          복사배정현황
+          Preset 설정
         </Button>
       </div>
     </div>

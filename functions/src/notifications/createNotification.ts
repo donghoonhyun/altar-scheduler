@@ -1,8 +1,9 @@
 import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { COMMON_OPTIONS_V2 } from '../config';
 
 export const createNotification = onCall(
-  { region: 'asia-northeast3' },
+  COMMON_OPTIONS_V2,
   async (
     request: CallableRequest<{ message: string; type: string }>
   ): Promise<{ notificationId: string }> => {

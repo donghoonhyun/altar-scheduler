@@ -12,7 +12,7 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore';
-
+import dayjs, { Dayjs } from 'dayjs';
 
 export interface Session {
   user: User | null;
@@ -24,7 +24,9 @@ export interface Session {
   managerParishes: string[];
   userInfo: { userName: string; baptismalName: string } | null;
   isSuperAdmin: boolean;
+  currentViewDate: Dayjs | null; 
   setCurrentServerGroupId?: (id: string | null) => void;
+  setCurrentViewDate?: (date: Dayjs) => void; 
   refreshSession?: () => Promise<void>;
 }
 
@@ -38,20 +40,44 @@ const initialSession: Session = {
   managerParishes: [],
   userInfo: null,
   isSuperAdmin: false,
+  currentViewDate: null, 
 };
 
-let cachedSession: Session = { ...initialSession };
+// --- Storage Key ---
+const STORAGE_VIEW_DATE_KEY = 'altar_session_view_date';
+
+// 초기 로드 시 스토리지 확인 (모듈 레벨 단 1회 실행)
+let savedViewDate: Dayjs | null = null;
+try {
+  const stored = sessionStorage.getItem(STORAGE_VIEW_DATE_KEY);
+  if (stored) {
+    savedViewDate = dayjs(stored);
+  }
+} catch (e) {
+  console.error('SessionStorage read error', e);
+}
+
+// 초기 캐시 상태
+let cachedSession: Session = { 
+  ...initialSession,
+  currentViewDate: savedViewDate // 여기서 넣어줘야 초기 마운트 시에도 적용됨
+};
 
 export function useSession() {
   const [session, setSession] = useState<Session>(cachedSession);
 
-  // ⭐ 세션 데이터 로드 함수 (추출)
+  // 세션 데이터 로드 함수
   const fetchSessionData = useCallback(async (user: User) => {
+    // 세션 빌드 시점의 최신 상태 유지 (캐시 혹은 스토리지)
+    const currentViewDate = cachedSession.currentViewDate || savedViewDate;
+
+    // 기본 뼈대
     const newSession: Session = {
       ...initialSession,
       user,
       loading: false,
       groupRolesLoaded: false,
+      currentViewDate, // 덮어씌워지지 않도록 명시
     };
 
     try {
@@ -66,7 +92,7 @@ export function useSession() {
         if (userDoc.exists()) {
           const ud = userDoc.data();
           userInfoData = {
-            userName: ud.user_name || ud.displayName || '', // DB field: user_name
+            userName: ud.user_name || ud.displayName || '', 
             baptismalName: ud.baptismal_name || '',
           };
         }
@@ -80,7 +106,6 @@ export function useSession() {
         query(collection(db, 'memberships'), where('uid', '==', userUid))
       );
 
-      // server_group_id 수집용 Set
       const targetSgIds = new Set<string>();
 
       for (const d of membershipSnap.docs) {
@@ -90,12 +115,11 @@ export function useSession() {
 
         const rolesInDoc = Array.isArray(data.role) ? data.role : [data.role];
         
-        // Super Admin 체크 ('global' 그룹은 일반 그룹 로직에서 제외)
         if (sgId === 'global' || data.role.includes('superadmin')) {
           if (rolesInDoc.includes('superadmin')) {
             newSession.isSuperAdmin = true;
           }
-          continue; // serverGroups 목록에는 포함하지 않음
+          continue; 
         }
         
         if (!roles[sgId]) roles[sgId] = [];
@@ -174,7 +198,6 @@ export function useSession() {
       newSession.serverGroups = serverGroups;
       newSession.groupRolesLoaded = true;
 
-      // ✅ managerParishes 계산: planner 권한이 있는 serverGroup의 parishCode 수집 (중복 제거)
       const plannerParishes = new Set<string>();
       for (const [sgId, rolesInGroup] of Object.entries(roles)) {
         if (rolesInGroup.includes('planner')) {
@@ -186,7 +209,6 @@ export function useSession() {
       }
       newSession.managerParishes = Array.from(plannerParishes);
 
-      /** 3) 기본 currentServerGroupId 설정 */
       const sgKeys = Object.keys(serverGroups);
       if (sgKeys.length > 0) {
         newSession.currentServerGroupId = sgKeys[0];
@@ -198,29 +220,51 @@ export function useSession() {
       return newSession;
     } catch (err) {
       console.error('세션 데이터 패치 오류:', err);
+      // 에러 시에도 날짜는 유지
       return {
         ...initialSession,
         user,
         loading: false,
         groupRolesLoaded: true,
+        currentViewDate
       };
     }
   }, []);
 
-  // ⭐ 수동 세션 갱신 함수
   const refreshSession = useCallback(async () => {
     if (!auth.currentUser) return;
     const updatedSession = await fetchSessionData(auth.currentUser);
+    
+    // 🔥 업데이트 시점에 캐시 or 스토리지에서 날짜 복구 (fetch 내에서 이미 처리했지만 안전장치)
+    const restoreDate = cachedSession.currentViewDate || savedViewDate;
+    updatedSession.currentViewDate = restoreDate;
+
     cachedSession = updatedSession;
     setSession(updatedSession);
   }, [fetchSessionData]);
 
-  // ⭐ setter 함수 구현
   const setCurrentServerGroupId = (id: string | null) => {
     cachedSession = { ...cachedSession, currentServerGroupId: id };
     setSession((prev) => ({ ...prev, currentServerGroupId: id }));
   };
 
+  const setCurrentViewDate = (date: Dayjs) => {
+    // ✅ 1. 스토리지 저장
+    try {
+      sessionStorage.setItem(STORAGE_VIEW_DATE_KEY, date.toISOString());
+      savedViewDate = date; // 모듈 변수도 업데이트
+    } catch (e) {
+      console.error('SessionStorage set error', e);
+    }
+    
+    // ✅ 2. 메모리(캐시) 저장
+    cachedSession = { ...cachedSession, currentViewDate: date };
+    
+    // ✅ 3. 상태 업데이트
+    setSession((prev) => ({ ...prev, currentViewDate: date }));
+  };
+
+  // Auth Observer
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setSession((prev) => {
@@ -236,13 +280,18 @@ export function useSession() {
       clearTimeout(timeoutId);
 
       if (!user) {
+        // 로그아웃 시 스토리지도 클리어? -> 선택사항 (일단 유지)
         cachedSession = { ...initialSession, loading: false, groupRolesLoaded: true };
         setSession(cachedSession);
         return;
       }
 
-      // 로그인 상태 확인 직후 즉시 데이터 로딩
       const updatedSession = await fetchSessionData(user);
+      
+      // 날짜 복구
+      const restoreDate = cachedSession.currentViewDate || savedViewDate;
+      updatedSession.currentViewDate = restoreDate;
+      
       cachedSession = updatedSession;
       setSession(updatedSession);
     });
@@ -253,6 +302,7 @@ export function useSession() {
   return {
     ...session,
     setCurrentServerGroupId,
+    setCurrentViewDate, 
     refreshSession, 
   };
 }

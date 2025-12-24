@@ -6,8 +6,16 @@ import {
   signInWithPopup,
   signOut,
   setPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  sendPasswordResetEmail
 } from 'firebase/auth';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useSession } from '@/state/session';
@@ -24,6 +32,10 @@ const Login: React.FC = () => {
   const session = useSession();
   const [processing, setProcessing] = useState(false);
   const { isInstallable, promptInstall } = useInstallPrompt();
+  
+  // 비밀번호 재설정 관련 상태
+  const [resetEmail, setResetEmail] = useState('');
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   // ✅ 이미 로그인된 상태라면 / 로 이동
   if (session.user) {
@@ -89,6 +101,31 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+      alert('이메일 주소를 입력해주세요.');
+      return;
+    }
+    try {
+      setProcessing(true);
+      await sendPasswordResetEmail(auth, resetEmail);
+      alert('비밀번호 재설정 이메일이 발송되었습니다.\n메일함을 확인해주세요.');
+      setShowResetDialog(false);
+      setResetEmail('');
+    } catch (error: any) {
+      console.error('비밀번호 재설정 실패:', error);
+      if (error.code === 'auth/user-not-found') {
+        alert('가입되지 않은 이메일 주소입니다.');
+      } else if (error.code === 'auth/invalid-email') {
+        alert('유효하지 않은 이메일 주소입니다.');
+      } else {
+        alert('이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-[400px] p-8 shadow-xl bg-white border-none">
@@ -143,7 +180,14 @@ const Login: React.FC = () => {
                 로그인 상태 유지
               </Label>
             </div>
-            <button type="button" className="text-sm text-primary font-semibold hover:underline">
+            <button 
+              type="button" 
+              onClick={() => {
+                setResetEmail(email); // 입력한 이메일이 있으면 자동으로 채워줌
+                setShowResetDialog(true);
+              }}
+              className="text-sm text-primary font-semibold hover:underline"
+            >
               비밀번호찾기
             </button>
           </div>
@@ -212,6 +256,39 @@ const Login: React.FC = () => {
           </Button>
         </div>
       </Card>
+
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>비밀번호 재설정</DialogTitle>
+            <DialogDescription>
+              가입하신 이메일 주소를 입력해 주세요.<br />
+              비밀번호를 재설정할 수 있는 링크를 보내드립니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">이메일</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="example@email.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowResetDialog(false)}>
+              취소
+            </Button>
+            <Button onClick={handleResetPassword} disabled={processing} className="bg-[#8b5cf6] hover:bg-[#7c3aed]">
+              재설정 메일 보내기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 // ✅ src/pages/MassEventPlanner.tsx (최종 버전)
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
@@ -30,14 +30,35 @@ import { useMonthStatus } from '@/hooks/useMonthStatus';
 import type { MassEventCalendar } from '@/types/massEvent';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { MassEventToolbar } from '@/components/MassEventToolbar';
+import { useSession } from '@/state/session';
+import timezone from 'dayjs/plugin/timezone';
 
 dayjs.extend(weekOfYear);
+dayjs.extend(timezone);
 
 const MassEventPlanner: React.FC = () => {
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const db = getFirestore();
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
+  const session = useSession();
+
+  // ✅ Initialize from global session or default to current month
+  const initialMonth = session.currentViewDate || dayjs().tz('Asia/Seoul').startOf('month');
+  const [currentMonth, setCurrentMonth] = useState<Dayjs>(initialMonth);
+
+  // Sync with global session changes
+  useEffect(() => {
+    if (session.currentViewDate && !session.currentViewDate.isSame(currentMonth, 'month')) {
+      setCurrentMonth(session.currentViewDate);
+    }
+  }, [session.currentViewDate]);
+
+  // Wrapper for month change to update session
+  const handleMonthChange = (newMonth: Dayjs) => {
+      setCurrentMonth(newMonth);
+      session.setCurrentViewDate?.(newMonth);
+  };
+
   const monthKey = currentMonth.format('YYYYMM');
 
   const {
@@ -138,12 +159,14 @@ const MassEventPlanner: React.FC = () => {
       <MassCalendar
         events={events}
         timezone="Asia/Seoul"
+        viewDate={currentMonth} // ✅ 달력 뷰 동기화
         onDayClick={handleDayClick}
-        onMonthChange={(newMonth) => setCurrentMonth(newMonth)}
+        onMonthChange={handleMonthChange}
         monthStatus={monthStatus}
         onOpenMonthStatusDrawer={() => setMonthStatusDrawerOpen(true)}
         selectedEventId={selectedEventId}
       />
+
 
       {/* ✅ Drawer 연결 */}
       {drawerOpen && serverGroupId && (

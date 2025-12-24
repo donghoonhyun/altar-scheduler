@@ -1,5 +1,6 @@
 import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { COMMON_OPTIONS_V2 } from '../config';
 
 interface CreateServerGroupRequest {
   parishCode: string;
@@ -14,7 +15,7 @@ interface CreateServerGroupResponse {
 }
 
 export const createServerGroup = onCall(
-  { region: 'asia-northeast3' },
+  COMMON_OPTIONS_V2,
   async (
     request: CallableRequest<CreateServerGroupRequest>
   ): Promise<CreateServerGroupResponse> => {

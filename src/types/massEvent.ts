@@ -24,6 +24,7 @@ export interface MassEventCalendar {
   event_date: string; // Firestore 저장용 "YYYYMMDD"
   required_servers: number;
   member_ids?: string[];
+  main_member_id?: string; // ✅ 추가: 주복사 ID
   servers?: string[];
   status?: MassStatus;
   created_at?: Date;

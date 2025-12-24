@@ -37,6 +37,7 @@ interface MassEventDrawerProps {
   onClose: () => void;
   monthStatus?: string;
   events?: MassEventCalendar[];
+  readOnly?: boolean;
 }
 
 const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
@@ -46,6 +47,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   onClose,
   monthStatus,
   events = [],
+  readOnly = false,
 }) => {
   const db = getFirestore();
 
@@ -342,7 +344,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         {/* Header */}
         <div className="space-y-1">
           <DialogTitle>
-            📝 {eventId ? '미사 일정 수정' : '미사 일정 등록'}
+            📝 {readOnly ? '미사 일정 상세' : eventId ? '미사 일정 수정' : '미사 일정 등록'}
             {date && (
               <span className="ml-2 text-base font-normal text-gray-600">
                 ({dayjs(date).format('M월 D일 (ddd)')})
@@ -350,7 +352,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             )}
           </DialogTitle>
           <DialogDescription>
-            미사 일정을 새로 등록하거나 기존 일정을 수정합니다.
+            {readOnly ? '미사 일정의 상세 정보를 확인합니다.' : '미사 일정을 새로 등록하거나 기존 일정을 수정합니다.'}
           </DialogDescription>
         </div>
         
@@ -365,9 +367,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full border rounded px-2 py-1"
+              className="mt-1 w-full border rounded px-2 py-1 disabled:bg-gray-100 disabled:text-gray-500"
               placeholder="예: 주일 11시 미사"
-              disabled={loading}
+              disabled={loading || readOnly}
             />
           </label>
 
@@ -383,7 +385,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     value={n}
                     checked={requiredServers === n}
                     onChange={() => setRequiredServers(n)}
-                    disabled={loading}
+                    disabled={loading || readOnly}
                   />
                   {n}명
                 </label>
@@ -402,25 +404,36 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                   <p className="text-sm text-gray-500">로딩 중...</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {memberIds.map(id => {
-                      const member = members.find(m => m.id === id);
-                      const isMain = id === mainMemberId;
-                      return (
-                        <span key={id} className={`px-2 py-1 rounded text-sm ${
-                          isMain ? 'bg-blue-600 text-white font-bold' : member ? 'bg-white border' : 'bg-orange-100 border border-orange-300'
-                        }`}>
-                          {member ? `${member.name} ${isMain ? '(주복사)' : ''}` : `ID: ${id.substring(0, 8)}... (미확인)`}
-                        </span>
-                      );
-                    })}
+                    {[...memberIds]
+                      .sort((a, b) => (a === mainMemberId ? -1 : b === mainMemberId ? 1 : 0))
+                      .map((id) => {
+                        const member = members.find((m) => m.id === id);
+                        const isMain = id === mainMemberId;
+                        return (
+                          <span
+                            key={id}
+                            className={`px-2 py-1 rounded text-sm ${
+                              isMain
+                                ? 'bg-blue-600 text-white font-bold'
+                                : member
+                                ? 'bg-white border'
+                                : 'bg-orange-100 border border-orange-300'
+                            }`}
+                          >
+                            {member
+                              ? `${member.name} ${isMain ? '(주복사)' : ''}`
+                              : `ID: ${id.substring(0, 8)}... (미확인)`}
+                          </span>
+                        );
+                      })}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* 복사 배정 (학년별 그룹) - 미확정 상태에서는 숨김 */}
-          {monthStatus !== 'MASS-NOTCONFIRMED' && (
+          {/* 복사 배정 (학년별 그룹) - 미확정 상태에서는 숨김, 읽기 전용이면 숨김 */}
+          {!readOnly && monthStatus !== 'MASS-NOTCONFIRMED' && (
             <label className="block">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium">배정 복사 선택</span>
@@ -539,8 +552,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
 
           {/* 하단 버튼 */}
+          {/* 하단 버튼 */}
           <div className="flex justify-end gap-2 mt-6">
-            {eventId && (
+            {!readOnly && eventId && (
               <Button
                 variant="outline"
                 onClick={handleDelete}
@@ -552,12 +566,14 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             )}
             <DialogClose asChild>
               <Button variant="outline" disabled={loading}>
-                취소
+                {readOnly ? '닫기' : '취소'}
               </Button>
             </DialogClose>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading ? '저장 중...' : eventId ? '수정' : '저장'}
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleSave} disabled={loading}>
+                {loading ? '저장 중...' : eventId ? '수정' : '저장'}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

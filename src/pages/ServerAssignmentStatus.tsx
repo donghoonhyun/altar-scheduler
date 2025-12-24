@@ -15,6 +15,10 @@ import {
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { cn } from '@/lib/utils'; // optimized class names
+import { useSession } from '@/state/session';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(timezone);
 
 interface MemberDoc {
   id: string;
@@ -35,9 +39,19 @@ export default function ServerAssignmentStatus() {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const navigate = useNavigate();
   const db = getFirestore();
+  const session = useSession();
 
-  const [currentMonth, setCurrentMonth] = useState(dayjs().startOf('month'));
+  // ✅ Initialize from global session or default to current month
+  const initialMonth = session.currentViewDate || dayjs().tz('Asia/Seoul').startOf('month');
+  const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [loading, setLoading] = useState(true);
+
+  // Sync with global session changes
+  useEffect(() => {
+    if (session.currentViewDate && !session.currentViewDate.isSame(currentMonth, 'month')) {
+      setCurrentMonth(session.currentViewDate);
+    }
+  }, [session.currentViewDate]);
 
   const [members, setMembers] = useState<MemberDoc[]>([]);
   const [events, setEvents] = useState<MassEventDoc[]>([]);
@@ -108,8 +122,17 @@ export default function ServerAssignmentStatus() {
     fetchData();
   }, [serverGroupId, yyyymm, db, currentMonth]);
 
-  const handlePrevMonth = () => setCurrentMonth(prev => prev.subtract(1, 'month'));
-  const handleNextMonth = () => setCurrentMonth(prev => prev.add(1, 'month'));
+  const handlePrevMonth = () => {
+    const newMonth = currentMonth.subtract(1, 'month');
+    setCurrentMonth(newMonth);
+    session.setCurrentViewDate?.(newMonth);
+  };
+
+  const handleNextMonth = () => {
+    const newMonth = currentMonth.add(1, 'month');
+    setCurrentMonth(newMonth);
+    session.setCurrentViewDate?.(newMonth);
+  };
 
   if (loading) return <LoadingSpinner label="현황 조회 중..." />;
 

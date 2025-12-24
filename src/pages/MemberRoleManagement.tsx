@@ -11,7 +11,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Container, Card, Heading, Button } from '@/components/ui';
+import { Container, Card, Heading, Button, InfoBox } from '@/components/ui';
 import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -27,6 +27,7 @@ interface MembershipWithUser {
   user_name?: string;
   baptismal_name?: string;
   email?: string;
+  active?: boolean;
 }
 
 const MemberRoleManagement: React.FC = () => {
@@ -36,6 +37,7 @@ const MemberRoleManagement: React.FC = () => {
   const [memberships, setMemberships] = useState<MembershipWithUser[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [editActive, setEditActive] = useState<boolean>(false);
 
   const fetchMemberships = async () => {
     if (!serverGroupId) return;
@@ -57,6 +59,7 @@ const MemberRoleManagement: React.FC = () => {
             id: d.id,
             ...data,
             role: Array.isArray(data.role) ? data.role : [data.role],
+            active: data.active ?? false,
             user_name: userData.user_name || 'Unknown',
             baptismal_name: userData.baptismal_name || '',
             email: userData.email || '',
@@ -80,6 +83,7 @@ const MemberRoleManagement: React.FC = () => {
   const handleEdit = (m: MembershipWithUser) => {
     setEditingId(m.id);
     setEditRoles(m.role);
+    setEditActive(m.active ?? false);
   };
 
   const toggleRole = (role: string) => {
@@ -99,14 +103,15 @@ const MemberRoleManagement: React.FC = () => {
     try {
       await updateDoc(doc(db, 'memberships', id), {
         role: editRoles,
+        active: editActive,
         updated_at: Timestamp.now()
       });
-      toast.success('역할이 수정되었습니다.');
+      toast.success('멤버 정보가 수정되었습니다.');
       setEditingId(null);
       fetchMemberships();
     } catch (err) {
-      console.error('Update role failed:', err);
-      toast.error('역할 수정에 실패했습니다.');
+      console.error('Update member failed:', err);
+      toast.error('수정에 실패했습니다.');
     }
   };
 
@@ -135,6 +140,7 @@ const MemberRoleManagement: React.FC = () => {
               <tr className="bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-wider">
                 <th className="px-4 py-2">사용자</th>
                 <th className="px-4 py-2">역할</th>
+                <th className="px-4 py-2">상태</th>
                 <th className="px-4 py-2">정보</th>
                 <th className="px-4 py-2 text-right">관리</th>
               </tr>
@@ -142,13 +148,13 @@ const MemberRoleManagement: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                     로딩 중...
                   </td>
                 </tr>
               ) : memberships.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                     멤버 정보가 없습니다.
                   </td>
                 </tr>
@@ -203,6 +209,28 @@ const MemberRoleManagement: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-2">
+                      {editingId === m.id ? (
+                         <button
+                           onClick={() => setEditActive(!editActive)}
+                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
+                             editActive
+                               ? 'bg-green-100 text-green-700'
+                               : 'bg-gray-100 text-gray-500'
+                           }`}
+                         >
+                           {editActive ? '활성' : '비활성'}
+                         </button>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          m.active 
+                            ? 'bg-green-50 text-green-600' 
+                            : 'bg-red-50 text-red-500'
+                        }`}>
+                          {m.active ? 'Active' : 'Inactive'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
                       <div className="space-y-0.5 text-[10px] text-gray-500">
                         <div className="flex items-center gap-1.5 text-gray-400">
                           <Info size={10} />
@@ -210,7 +238,7 @@ const MemberRoleManagement: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Calendar size={10} />
-                          <span>생성/수정: {m.created_at ? format(m.created_at.toDate(), 'yy.MM.dd') : '-'}/{m.updated_at ? format(m.updated_at.toDate(), 'yy.MM.dd') : '-'}</span>
+                          <span>수정: {m.updated_at ? format(m.updated_at.toDate(), 'yy.MM.dd') : '-'}</span>
                         </div>
                       </div>
                     </td>
@@ -253,19 +281,11 @@ const MemberRoleManagement: React.FC = () => {
         </div>
       </Card>
       
-      <div className="mt-8 bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-4">
-        <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0">
-          <Shield size={24} />
-        </div>
-        <div>
-          <h4 className="font-bold text-gray-900 mb-1">역할 부여 안내</h4>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            한 멤버에게 여러 역할을 동시에 부여할 수 있습니다. 
-            변경 사항은 저장 즉시 반영되며 다음 로그인부터 해당 권한이 활성화됩니다.
-            어드민은 모든 설정을 변경할 수 있으며, 플래너는 일정 관리 권한을 가집니다.
-          </p>
-        </div>
-      </div>
+      <InfoBox title="역할 부여 안내" className="mt-8">
+        한 멤버에게 여러 역할을 동시에 부여할 수 있습니다. 
+        변경 사항은 저장 즉시 반영되며 다음 로그인부터 해당 권한이 활성화됩니다.
+        어드민은 모든 설정을 변경할 수 있으며, 플래너는 일정 관리 권한을 가집니다.
+      </InfoBox>
     </Container>
   );
 };

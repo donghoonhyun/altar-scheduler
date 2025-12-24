@@ -24,6 +24,7 @@ type ServerGroupItem = {
   id: string;
   name: string;
   parish_code: string;
+  active?: boolean;
 };
 
 // role_requests pending info
@@ -177,15 +178,19 @@ export default function RequestPlannerRole() {
         return;
       }
       try {
+        // Query by parish_code only to avoid index issues with multiple fields
         const q = query(
           collection(db, 'server_groups'), 
           where('parish_code', '==', selectedParish)
         );
         const snap = await getDocs(q);
-        const list: ServerGroupItem[] = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<ServerGroupItem, 'id'>),
-        }));
+        const list: ServerGroupItem[] = snap.docs
+          .map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<ServerGroupItem, 'id'>),
+          }))
+          .filter((sg) => sg.active !== false); // Client-side filtering (default true if undefined, but explicit false is hidden)
+        
         setServerGroups(list);
       } catch (e) {
         console.error('Failed to load server groups', e);

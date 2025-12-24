@@ -82,7 +82,13 @@ export default function AppRoutes() {
         return;
       }
 
-      // 4) 어떤 역할도 없으면 AddMember 로
+      // 4) 슈퍼어드민이면 (다른 역할이 없을 때)
+      if (session.isSuperAdmin) {
+        navigate('/superadmin', { replace: true });
+        return;
+      }
+
+      // 5) 어떤 역할도 없으면 AddMember 로
       navigate('/add-member', { replace: true });
     }, [session.loading, session.groupRolesLoaded, session.groupRoles, navigate]);
 

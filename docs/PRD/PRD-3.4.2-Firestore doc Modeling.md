@@ -9,10 +9,10 @@ users/{uid}     // 회원가입 authentication uid
  └── created_at, updated_at
 
 memberships/{uid}_{server_group_id}
+ ├── active: boolean, // 유효성 여부
  ├── uid: string,
  ├── server_group_id: string,
  ├── role: "planner" | "server",
- ├── active: boolean, // 유효성 여부
  └── created_at, updated_at
 
 server_groups/{serverGroupId} (Document)
@@ -21,12 +21,12 @@ server_groups/{serverGroupId} (Document)
  ├── created_at, updated_at
  │
  ├── members/{memberId} (Document)  // 복사명단, docid=autogen.
+ │    ├── active: boolean     // 활동 상태 (true: 활동중, false: 비활동 or 승인대기)
  │    ├── parent_id: string         // 등록신청한 User의 uid (주로 부모 또는 본인)
  │    ├── name_kor: string
  │    ├── baptismal_name: string
  │    ├── email: string
- │    ├── grade: string (E1~H3)
- │    ├── active: boolean     // 활동 상태 (true: 활동중, false: 비활동 or 승인대기)
+ │    ├── grade: string (E1~H3) 
  │    ├── request_confirmed: boolean // 승인 확정 여부 (true: 확정, false: 승인대기)
  │    │    // [State Definition]
  │    │    // 1. Pending (승인대기) : active=false && request_confirmed=false
@@ -76,9 +76,9 @@ server_groups/{serverGroupId} (Document)
 
 ```lua
 server_groups/{server_group_id} // auto-generated 아님.rule based
+  active: boolean              // true/false(사용/미사용)
   parish_code: string          // src/config/parishes.ts 카탈로그 참조
   name: string    
-  active: boolean              // true/false(사용/미사용)
   timezone: string             // 'Asia/Seoul'
   locale: string               // 'ko-KR'
   created_at: timestamp
@@ -92,6 +92,7 @@ server_groups/{server_group_id} // auto-generated 아님.rule based
 
 ```lua  
 server_groups/{sg}/members/{member_id}  
+  active : boolean           # 기본 false → 관리자 승인 필요
   member_id: string          # 복사(server)의 UID
   parent_uid: string         # 가입 회원정보(users/{uid})의 UID (FK)
   email : string
@@ -101,7 +102,6 @@ server_groups/{sg}/members/{member_id}
   phone_guardian?: string
   phone_student?: string
   notes?: string
-  active : boolean           # 기본 false → 관리자 승인 필요
   created_at: timestamp
   updated_at: timestamp
 ```

@@ -1,8 +1,10 @@
+// src/pages/AddMember.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   collection,
   getDocs,
+  getDoc,
   addDoc,
   setDoc,
   serverTimestamp,
@@ -25,6 +27,7 @@ type ServerGroupItem = {
 
 export default function AddMember() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const session = useSession();
   const user = session.user;
   const { data: parishes } = useParishes();
@@ -41,6 +44,48 @@ export default function AddMember() {
   const [baptismalName, setBaptismalName] = useState<string>('');
   const [grade, setGrade] = useState<string>('');
 
+  // ✅ [수정] URL 파라미터(sg) 또는 현재 세션 그룹(session.currentServerGroupId)로 초기값 세팅 - 1단계: 성당 선택
+  useEffect(() => {
+    // 1. URL 파라미터 우선
+    let targetSgId = searchParams.get('sg');
+    // 2. 없으면 헤더에 선택된(세션) 그룹 사용
+    if (!targetSgId && session.currentServerGroupId) {
+        targetSgId = session.currentServerGroupId;
+    }
+
+    if (targetSgId && !selectedParish) {
+        // 세션에 이미 정보가 있는 경우
+        if (session.serverGroups[targetSgId]) {
+             const sgInfo = session.serverGroups[targetSgId];
+             setSelectedParish(sgInfo.parishCode);
+             // Group은 목록 로드 후 (아래 useEffect에서) 세팅
+        } else {
+             // 세션에 없으면 Firestore 조회
+             getDoc(doc(db, 'server_groups', targetSgId)).then((snap) => {
+                 if (snap.exists()) {
+                     const data = snap.data();
+                     setSelectedParish(data.parish_code);
+                 }
+             }).catch(console.error);
+        }
+    }
+  }, [searchParams, session.serverGroups, session.currentServerGroupId]);
+
+  // ✅ [수정] URL 파라미터 혹은 현재 세션 그룹으로 초기값 세팅 - 2단계: 목록 로드 후 그룹 선택
+  useEffect(() => {
+      let targetSgId = searchParams.get('sg');
+      if (!targetSgId && session.currentServerGroupId) {
+          targetSgId = session.currentServerGroupId;
+      }
+
+      if (targetSgId && serverGroups.length > 0 && !selectedGroup) {
+          // 로드된 목록에 해당 그룹이 있는지 확인
+          if (serverGroups.find(g => g.id === targetSgId)) {
+              setSelectedGroup(targetSgId);
+          }
+      }
+  }, [serverGroups, searchParams, session.currentServerGroupId]);
+
   /**
    * 선택된 성당 → 해당 복사단(server_groups) 로딩
    */
@@ -50,7 +95,7 @@ export default function AddMember() {
         setServerGroups([]);
         return;
       }
-
+      
       const q = query(collection(db, 'server_groups'), where('parish_code', '==', selectedParish));
 
       const snap = await getDocs(q);
@@ -134,6 +179,7 @@ export default function AddMember() {
           value={selectedParish}
           onChange={(e) => {
             setSelectedParish(e.target.value);
+            // 사용자가 직접 성당을 바꿀 때만 그룹 초기화
             setSelectedGroup('');
           }}
         >

@@ -1,4 +1,4 @@
-// ServerMain.tsx
+// src/pages/ServerMain.tsx
 import { useEffect, useState } from 'react';
 import { useSession } from '@/state/session';
 import { collection, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 
 import { useNavigate, useParams } from 'react-router-dom';
 
-import ServerGroupSelector from './components/ServerGroupSelector';
 import MyMembersPanel from './components/MyMembersPanel';
 import UpdateUserProfileDialog from './components/UpdateUserProfileDialog';
 import MassEventMiniDrawer from '@/components/MassEventMiniDrawer';
@@ -32,7 +31,9 @@ export default function ServerMain() {
   const [events, setEvents] = useState<MassEventDoc[]>([]);
   const [monthStatus, setMonthStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
 
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
+  // ✅ [수정] 로컬 State 대신 전역 Session State 사용
+  // session.currentViewDate가 있으면 그것을, 없으면 오늘을 사용
+  const currentMonth = session.currentViewDate || dayjs();
 
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [drawerDate, setDrawerDate] = useState<Dayjs | null>(null);
@@ -83,6 +84,7 @@ export default function ServerMain() {
       setMonthStatus('MASS-NOTCONFIRMED');
       return;
     }
+    // ✅ [수정] 의존성을 문자열로 변경하여 무한 루프 방지
     const yyyymm = currentMonth.format('YYYYMM');
     const ref = doc(db, 'server_groups', serverGroupId, 'month_status', yyyymm);
 
@@ -92,7 +94,7 @@ export default function ServerMain() {
     });
 
     return () => unsub();
-  }, [serverGroupId, currentMonth]);
+  }, [serverGroupId, currentMonth.format('YYYYMM')]); // Stable Dependency
 
   // 3.5) 설문 진행 중인 달 조회 (Survey Status='OPEN') - Realtime
   const [surveyNoticeMonth, setSurveyNoticeMonth] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export default function ServerMain() {
       return;
     }
 
-    // 현재 보고 있는 달에 대한 설문 상태 감시
+    // ✅ [수정] 의존성을 문자열로 변경
     const yyyymm = currentMonth.format('YYYYMM');
     const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', yyyymm);
 
@@ -116,7 +118,7 @@ export default function ServerMain() {
     });
 
     return () => unsub();
-  }, [serverGroupId, currentMonth]);
+  }, [serverGroupId, currentMonth.format('YYYYMM')]); // Stable Dependency
 
   // members 변경 시 checkedMemberIds 동기화 (기본: 세션 스토리지 값 -> 없으면 첫 번째)
   useEffect(() => {
@@ -177,10 +179,16 @@ export default function ServerMain() {
     });
 
     return () => unsub();
-  }, [serverGroupId, currentMonth]);
+  }, [serverGroupId, currentMonth.format('YYYYMM')]); // Stable Dependency
 
   // 날짜 클릭 → Drawer
   const handleDayClick = (day: number) => {
+    // 유효한 복사가 선택되지 않았으면 클릭 무시
+    if (checkedMemberIds.length === 0) {
+      toast.warning('확인할 복사를 선택해주세요.');
+      return;
+    }
+
     // 미확정 상태면 클릭 무시
     if (monthStatus === 'MASS-NOTCONFIRMED') return;
 
@@ -280,18 +288,18 @@ export default function ServerMain() {
               const targetId = checkedMemberIds[0];
               navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}?memberId=${targetId}`);
           }}
-          className="mt-4 mb-2 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition shadow-sm fade-in"
+          className="mt-4 mb-2 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 transition shadow-sm fade-in"
         >
-          <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+          <div className="bg-yellow-100 p-2 rounded-full text-yellow-600">
              <ClipboardCheck size={24} />
           </div>
           <div className="flex-1">
-             <h3 className="text-sm font-bold text-blue-900">미사일정 설문이 시작되었습니다</h3>
-             <p className="text-xs text-blue-700 mt-1">
+             <h3 className="text-sm font-bold text-yellow-900">미사일정 설문이 시작되었습니다</h3>
+             <p className="text-xs text-yellow-700 mt-1">
                {dayjs(surveyNoticeMonth, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
              </p>
           </div>
-          <ChevronRight className="text-blue-400" size={20} />
+          <ChevronRight className="text-yellow-400" size={20} />
         </div>
       )}
 
@@ -322,14 +330,23 @@ export default function ServerMain() {
           {/* 달력 상단 */}
           <div className="flex justify-between items-center mb-3">
             <div className="flex gap-2 items-center">
-              <button onClick={() => setCurrentMonth((m) => m.subtract(1, 'month'))}>
-                <ChevronLeft />
+              {/* ✅ [수정] 세션 상태 업데이트 함수 사용 */}
+              <button 
+                onClick={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft size={20} />
               </button>
 
-              <span className="font-semibold">{currentMonth.format('YYYY년 M월')}</span>
+              <span className="font-bold text-lg text-gray-800 tracking-tight">
+                {currentMonth.format('M월')}
+              </span>
 
-              <button onClick={() => setCurrentMonth((m) => m.add(1, 'month'))}>
-                <ChevronRight />
+              <button 
+                onClick={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronRight size={20} />
               </button>
             </div>
 

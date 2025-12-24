@@ -17,6 +17,12 @@ if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
 const TEST_PARISH_CODE = 'DAEGU-BEOMEO';
 const TEST_SERVER_GROUP_ID = 'SG00001';
 
+// 0️⃣ PARISH DATA
+const PARISHES = [
+  { code: "DAEGU-BEOMEO", name_kor: "대구 범어성당", diocese: "대구교구", name_eng: "Beomeo Cathedral" },
+  { code: "SUWON-SINBONG", name_kor: "수지 신봉성당", diocese: "수원교구", name_eng: "Sinbong Cathedral" },
+];
+
 const USERS = [
   {
     uid: 'pongso-hyun-uid',
@@ -33,6 +39,7 @@ const USERS = [
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
           role: ['admin', 'planner'],
+          active: true,
         },
       },
       {
@@ -43,6 +50,7 @@ const USERS = [
           server_group_id: 'global',
           parish_code: 'system',
           role: ['superadmin'],
+          active: true,
         },
       },
     ],
@@ -61,6 +69,7 @@ const USERS = [
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
           role: ['planner'],
+          active: true,
         },
       },
     ],
@@ -79,6 +88,7 @@ const USERS = [
           server_group_id: TEST_SERVER_GROUP_ID,
           parish_code: TEST_PARISH_CODE,
           role: ['server'],
+          active: true,
         },
       },
     ],
@@ -87,6 +97,21 @@ const USERS = [
 
 async function seed() {
   console.log('✅ Firebase Admin 연결됨 (Emulator, altar-scheduler-dev)');
+
+  // 0️⃣ PARISHES
+  const parishBatch = db.batch();
+  for (const parish of PARISHES) {
+    const ref = db.collection('parishes').doc(parish.code);
+    parishBatch.set(ref, {
+      ...parish,
+      active: true,
+      created_at: new Date(),
+      updated_at: new Date()
+    }, { merge: true });
+    console.log(`> Queued parish: ${parish.name_kor} (${parish.code})`);
+  }
+  await parishBatch.commit();
+  console.log(`✅ ${PARISHES.length}개 성당 데이터 생성 완료`);
 
   // 1️⃣ USERS
   for (const u of USERS) {

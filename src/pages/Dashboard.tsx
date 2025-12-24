@@ -15,15 +15,54 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+import MassEventDrawer from './components/MassEventDrawer'; // ✅ Import Drawer
+
 const Dashboard: React.FC = () => {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const session = useSession();
 
-  // ✅ 현재 월 상태 관리 (MassCalendar와 연동)
-  const [currentMonth, setCurrentMonth] = useState(dayjs().tz('Asia/Seoul').startOf('month'));
+  // ✅ 현재 월 상태 관리 (전역 세션 연동)
+  const initialMonth = session.currentViewDate || dayjs().tz('Asia/Seoul').startOf('month');
+  const [currentMonth, setCurrentMonth] = useState(initialMonth);
+
+  // 세션의 날짜가 외부에서 바뀌었을 경우 동기화
+  useEffect(() => {
+    if (session.currentViewDate && !session.currentViewDate.isSame(currentMonth, 'month')) {
+      setCurrentMonth(session.currentViewDate);
+    }
+  }, [session.currentViewDate]);
+
+  // 달 변경 핸들러
+  const handleMonthChange = (newMonth: dayjs.Dayjs) => {
+    setCurrentMonth(newMonth);
+    session.setCurrentViewDate?.(newMonth);
+  };
+
+  // ✅ Drawer State
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   // ✅ useMassEvents 훅 호출
-  const { events, loading, error } = useMassEvents(serverGroupId, currentMonth);
+  const { events, loading, error, monthStatus } = useMassEvents(serverGroupId, currentMonth);
+
+  // ✅ 날짜 클릭 핸들러 (읽기 전용 모드로 열기)
+  const handleDayClick = (date: Date, eventId?: string) => {
+    setSelectedDate(date);
+    setSelectedEventId(eventId);
+    setIsReadOnly(true); 
+    setDrawerOpen(true);
+    
+    // 클릭한 날짜로 뷰 날짜 업데이트 (선택사항, 사용자 경험상 좋을 수 있음)
+    // session.setCurrentViewDate?.(dayjs(date)); 
+  };
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedEventId(undefined);
+    setSelectedDate(null);
+  };
 
   if (!serverGroupId) {
     return <div className="p-4">잘못된 경로입니다.</div>;
@@ -71,9 +110,26 @@ const Dashboard: React.FC = () => {
           events={events}
           timezone="Asia/Seoul"
           highlightServerName={session?.user?.displayName || ''}
-          onMonthChange={(newMonth) => setCurrentMonth(newMonth)} // 🔁 달 이동 시 자동 재로딩
+          viewDate={currentMonth} // ✅ 달력 뷰 동기화
+          onMonthChange={handleMonthChange} // 🔁 달 이동 시 자동 재로딩 및 세션 업데이트
+          onDayClick={handleDayClick}
+          selectedEventId={selectedEventId}
+          monthStatus={monthStatus}
         />
       </Card>
+
+      {/* ✅ 미사 상세 Drawer */}
+      {drawerOpen && (
+        <MassEventDrawer
+          serverGroupId={serverGroupId}
+          eventId={selectedEventId}
+          date={selectedDate}
+          onClose={handleCloseDrawer}
+          monthStatus={monthStatus}
+          events={events}
+          readOnly={isReadOnly}
+        />
+      )}
     </Container>
   );
 };

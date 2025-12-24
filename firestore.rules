@@ -1,15 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{path=**} {
-      allow read, write: if true; // 테스트용 전체 허용
+    
+    // 🔒 헬퍼 함수
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isSuperAdmin() {
+      let globalAdminPath = /databases/$(database)/documents/memberships/$(request.auth.uid + '_global');
+      return isSignedIn() && exists(globalAdminPath) && 'superadmin' in get(globalAdminPath).data.role;
     }
 
-    match /{document=**} {
-      // allow read, write: if true;
-      allow read, write: if request.auth != null;
+    // 1️⃣ Users: 프로필은 누구나 읽기 가능, 수정은 본인 또는 슈퍼어드민
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // 신규 가입 시 필요
+      allow update, delete: if isOwner(userId) || isSuperAdmin();
     }
 
-    // ✅ users, members 등 나머지
+    // 2️⃣ Parishes: 읽기 전용 (공개 정보)
+    match /parishes/{parishCode} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 3️⃣ Server Groups & Memberships
+    match /server_groups/{groupId}/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // 3.5️⃣ Collection Group 'members' 쿼리 허용 (필수)
+    match /{path=**}/members/{memberId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/role_requests/{requestId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /memberships/{membershipId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // 4️⃣ 나머지: 기본 차단 (명시되지 않은 경로는 접근 불가)
+    // 필요 시 추가
   }
 }

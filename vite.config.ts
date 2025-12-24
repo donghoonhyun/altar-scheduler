@@ -1,5 +1,6 @@
 // vite.config.ts
 import { defineConfig } from 'vite';
+// Force reload
 import react from '@vitejs/plugin-react';
 import path from 'path';
 

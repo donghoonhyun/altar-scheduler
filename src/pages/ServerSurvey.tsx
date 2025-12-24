@@ -251,6 +251,15 @@ export default function ServerSurvey() {
           return;
       }
 
+      // ✅ [보안 강화] 저장 시점에도 대상자인지 확인
+      const surveyData = latestSnap.data();
+      const targetMembers = surveyData.member_ids || [];
+      if (!targetMembers.includes(targetMemberId)) {
+          toast.error("설문 대상자가 아닙니다. (제출 거부됨)");
+          setAccessDenied(true);
+          return;
+      }
+
        // 변경: availability_surveys 문서 내에 responses 필드 업데이트
 
       await setDoc(surveyRef, {

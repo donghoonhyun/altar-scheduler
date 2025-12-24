@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, Timestamp, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Container, Card, Heading, Button, Input, Label } from '@/components/ui';
+import { Container, Card, Heading, Button, Input, Label, InfoBox } from '@/components/ui';
 import { ArrowLeft, Save, Info, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/state/session';
@@ -322,13 +322,10 @@ const ServerGroupSettings: React.FC = () => {
         </div>
       </Card>
 
-      <div className="mt-8 bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3 text-amber-700 text-sm">
-        <Info size={20} className="flex-shrink-0 mt-0.5" />
-        <p className="leading-relaxed">
-          <strong>주의:</strong> 복사단 이름을 변경하면 모든 단원의 화면에 즉시 반영됩니다. 
-          비활성화(`Active` 해제) 처리 시 일반 단원들은 더 이상 이 복사단 정보에 접근할 수 없게 됩니다.
-        </p>
-      </div>
+      <InfoBox title="주의" className="mt-8">
+        복사단 이름을 변경하면 모든 단원의 화면에 즉시 반영됩니다. 
+        비활성화(`Active` 해제) 처리 시 일반 단원들은 더 이상 이 복사단 정보에 접근할 수 없게 됩니다.
+      </InfoBox>
     </Container>
   );
 };

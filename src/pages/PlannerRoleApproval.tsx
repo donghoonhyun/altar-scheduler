@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   getDoc,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
@@ -66,57 +67,60 @@ export default function PlannerRoleApproval() {
     if (!confirm(`${req.user_name}님의 플래너 권한을 승인하시겠습니까?`)) return;
 
     try {
-      // 1. Update request status to approved
-      await updateDoc(doc(db, 'server_groups', serverGroupId, 'role_requests', req.uid), {
-        status: 'approved',
-        updated_at: serverTimestamp(),
-      });
-
-      // 2. Grant 'planner' role in memberships
-      const membershipRef = doc(db, 'memberships', `${req.uid}_${serverGroupId}`);
-      
-      // Check if membership exists (it should usually not exist for NEW planners who are not servers, 
-      // OR could exist if upgrading a server to planner? 
-      // PRD says planner signup flow creates a NEW user. 
-      // If user joined via /add-member first, they have 'server' role.
-      // If user joined via /request-planner-role directly, they might not have membership yet.
-      
-      const membershipSnap = await getDoc(membershipRef);
-      if (membershipSnap.exists()) {
-        // Upgrade existing membership or set role
-        await updateDoc(membershipRef, {
-          role: 'planner',
-          active: true, // Auto activate if they become planner?
+      await runTransaction(db, async (transaction) => {
+        // 1. PREPARE & READ: Check membership existence first (READ)
+        const membershipRef = doc(db, 'memberships', `${req.uid}_${serverGroupId}`);
+        const membershipSnap = await transaction.get(membershipRef);
+        
+        // 2. WRITE OPERATIONS
+        
+        // A) Update request status
+        const requestRef = doc(db, 'server_groups', serverGroupId, 'role_requests', req.uid);
+        transaction.update(requestRef, {
+          status: 'approved',
           updated_at: serverTimestamp(),
         });
-      } else {
-        // Create new membership
-        await setDoc(membershipRef, {
-          uid: req.uid,
-          server_group_id: serverGroupId,
-          role: 'planner',
-          active: true,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-        });
-      }
 
-      // 3. Add to members subcollection for roster management if needed?
-      // Planners might check 'members' collection too. Let's ensure basic member doc exists.
-      const memberDocRef = doc(db, 'server_groups', serverGroupId, 'members', req.uid);
-      const memberDocSnap = await getDoc(memberDocRef);
-      if (!memberDocSnap.exists()) {
-        await setDoc(memberDocRef, {
-            parent_uid: req.uid,
-            name_kor: req.user_name,
-            baptismal_name: req.baptismal_name,
-            grade: '', // Planners might not have grade
+        // B) Update memberships
+        if (membershipSnap.exists()) {
+          const currentData = membershipSnap.data();
+          let newRoles = [];
+          if (Array.isArray(currentData.role)) {
+            newRoles = [...currentData.role];
+            if (!newRoles.includes('planner')) {
+              newRoles.push('planner');
+            }
+          } else {
+            // fallback if string
+            newRoles = [currentData.role, 'planner'];
+          }
+
+          transaction.update(membershipRef, {
+            role: newRoles, 
             active: true,
-            request_confirmed: true,
+            updated_at: serverTimestamp(),
+          });
+        } else {
+          // Create new membership with JUST planner role
+          transaction.set(membershipRef, {
+            uid: req.uid,
+            server_group_id: serverGroupId,
+            role: ['planner'],
+            active: true,
             created_at: serverTimestamp(),
             updated_at: serverTimestamp(),
-        });
-      }
+          });
+        }
+
+        // C) Update User Profile
+        const userRef = doc(db, 'users', req.uid);
+        transaction.set(userRef, {
+          user_name: req.user_name,
+          baptismal_name: req.baptismal_name,
+          phone: req.phone,
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      });
 
       toast.success('승인 완료되었습니다.');
       fetchRequests(); // Refresh list

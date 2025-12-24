@@ -17,6 +17,7 @@ import { useState } from "react";
 import { getAppIconPath, getAppTitleWithEnv } from "@/lib/env";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { Download, CheckCircle2 } from "lucide-react";
+import { useFcmToken } from "@/hooks/useFcmToken"; // ✅ FCM Hook
 
 export default function Layout() {
   const { user, userInfo, groupRoles } = useSession();
@@ -24,6 +25,9 @@ export default function Layout() {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const [isMyInfoOpen, setIsMyInfoOpen] = useState(false);
   const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
+  
+  // ✅ PWA 진입 시 FCM 토큰 관리 (권한 요청 및 저장)
+  useFcmToken();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -35,7 +39,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-blue-100">
       {/* 🔹공통 상단 바 (Header) */}
-      <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b border-purple-200/50 bg-gradient-to-r from-purple-200/90 via-violet-100/90 to-indigo-200/90 backdrop-blur-md shadow-sm">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           {/* 좌측: Church Icon (Purple) */}
           <div 
@@ -154,7 +158,7 @@ export default function Layout() {
       </header>
 
       {/* 🔹본문 영역 */}
-      <main className="flex-1 p-4 overflow-y-auto">
+      <main className="flex-1 p-2 overflow-y-auto">
         <Outlet />
       </main>
 

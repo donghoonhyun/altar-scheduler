@@ -368,7 +368,43 @@ export const Heading: React.FC<HeadingProps> = ({
 
 ---
 
-### 🧩8.5 Status & Badge Design System (미사일정 상태 시각 규칙)
+### 🧩8.5 InfoBox
+
+```tsx
+import React from 'react';
+import { Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface InfoBoxProps {
+  title?: string;
+  children: React.ReactNode;
+  icon?: React.ElementType;
+  className?: string;
+}
+
+export const InfoBox: React.FC<InfoBoxProps> = ({ 
+  title, 
+  children, 
+  icon: Icon = Info, 
+  className 
+}) => {
+  return (
+    <div className={cn("bg-amber-50 p-4 rounded-xl border border-amber-200 flex gap-3", className)}>
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-amber-500 flex-shrink-0">
+        <Icon size={18} />
+      </div>
+      <div>
+        {title && <h4 className="font-bold text-gray-800 mb-0.5 text-xs">{title}</h4>}
+        <div className="text-[11px] text-gray-600 leading-relaxed">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+### 🧩8.6 Status & Badge Design System (미사일정 상태 시각 규칙)
 
 - 목적:
 본 시스템은 미사일정(mass_events) 및 관련 데이터의 상태(status)를
@@ -560,7 +596,7 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
 
 ---
 
-## 🧩8.6 Components 재사용 정책
+## 🧩8.7 Components 재사용 정책
 
 - 경로 기준
   . 전역(공용) UI 컴포넌트 : src/components/

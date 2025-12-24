@@ -6,7 +6,7 @@ export const Container: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   children,
   ...props
 }) => (
-  <div className={cn('max-w-5xl mx-auto px-4 sm:px-6 lg:px-8', className)} {...props}>
+  <div className={cn('max-w-5xl mx-auto px-2 sm:px-3 lg:px-4', className)} {...props}>
     {children}
   </div>
 );

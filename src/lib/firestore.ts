@@ -78,23 +78,21 @@ export async function getMemberNamesByIds(
 ): Promise<string[]> {
   if (!memberIds || memberIds.length === 0) return [];
 
-  const names: string[] = [];
-
-  await Promise.all(
+  const results = await Promise.all(
     memberIds.map(async (id) => {
       const ref = doc(db, `server_groups/${serverGroupId}/members/${id}`);
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data() as DocumentData;
-        const fullName = data.baptismal_name
+        return data.baptismal_name
           ? `${data.name_kor} ${data.baptismal_name}`
           : data.name_kor;
-        names.push(fullName);
       }
+      return null;
     })
   );
 
-  return names;
+  return results.filter((n): n is string => n !== null);
 }
 
 /**
