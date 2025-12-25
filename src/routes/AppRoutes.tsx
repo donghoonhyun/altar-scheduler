@@ -27,6 +27,7 @@ import MemberRoleManagement from '../pages/MemberRoleManagement';
 import ServerGroupSettings from '../pages/ServerGroupSettings';
 import PlannerRoleApproval from '../pages/PlannerRoleApproval';
 import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
+import SurveyManagement from '../pages/SurveyManagement';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -226,6 +227,15 @@ export default function AppRoutes() {
           element={
             <RoleGuard require="planner">
               <ServerAssignmentStatus />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/:serverGroupId/surveys"
+          element={
+            <RoleGuard require="planner">
+              <SurveyManagement />
             </RoleGuard>
           }
         />

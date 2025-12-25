@@ -81,6 +81,30 @@ https://altar-scheduler.web.app/survey/:serverGroupId/:yyyymm
 ```
 
 ---
+ 
+ ## 🧩 3.5 설문 관리 페이지 (SurveyManagement)
+ 
+ ### 경로
+ `/server-groups/{serverGroupId}/surveys`
+ 
+ ### 주요 기능
+ 
+ 1. **설문 목록 조회**:
+    - 생성된 모든 가용성 설문(`availability_surveys`)을 최신순(YYYYMM 내림차순)으로 표시.
+    - 각 카드에 설문 기간, 상태(OPEN/CLOSED), 응답률(%) 표시.
+ 
+ 2. **새로고침**:
+    - 우측 상단 [새로고침] 버튼 제공 (수동 데이터 갱신).
+ 
+ 3. **상세 응답 현황 (Drawer)**:
+    - 설문 카드 클릭 시 우측 Drawer 오픈.
+    - **통계**: 총 대상자 수 표시.
+    - **응답자 목록**: 
+      - 제출 완료(푸른색 배경) / 미제출(구분) 상태 표시.
+      - 이름, 세례명, 학년 정보 표시.
+      - 제출 완료자의 경우 '불참' 일정 개수 표시 등 요약 정보 제공.
+ 
+ ---
 
 ## 🧩 4. 복사용 설문 페이지 (`/survey/:serverGroupId/:yyyymm`)
 

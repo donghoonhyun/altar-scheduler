@@ -81,18 +81,18 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
       </div>
 
       {/* ✅ 복사단 명단 관리 버튼 */}
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         <Button
           variant="primary"
           onClick={() => navigate(`/server-groups/${serverGroupId}/servers`)}
-          className="flex-1"
+          className="w-full"
         >
           복사단원 관리
         </Button>
         <Button
           variant="secondary"
           onClick={() => navigate(`/server-groups/${serverGroupId}/assignment-status`)}
-          className="flex-1"
+          className="w-full"
         >
           복사배정 현황
         </Button>

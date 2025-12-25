@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -469,7 +469,7 @@ export default function ServerList() {
 
               // Check separator logic
               const prev = sortedActiveMembers[idx - 1];
-              const showSeparator = sortBy === 'grade' && prev && prev.grade !== m.grade;
+              const showSeparator = sortBy === 'grade' && (!prev || prev.grade !== m.grade);
 
               return (
                 <React.Fragment key={m.id}>
@@ -575,6 +575,65 @@ export default function ServerList() {
             })}
           </div>
         )}
+      </Card>
+
+      <hr className="my-8 border-dashed border-gray-300" />
+
+      {/* ✅ 일괄 변경 (Bulk Actions) */}
+      <Card className="p-4 bg-orange-50 border-orange-100">
+        <h2 className="text-lg font-semibold mb-3 text-gray-700">일괄 변경</h2>
+        <div className="flex gap-2">
+           <Button 
+             className="bg-orange-500 hover:bg-orange-600 text-white"
+             disabled={loading || (activeMembers.length === 0 && inactiveMembers.length === 0)}
+             onClick={async () => {
+               const activeCount = activeMembers.length;
+               const inactiveCount = inactiveMembers.length;
+               
+               const ok = await openConfirm({
+                 title: '일괄 학년 진급',
+                 message: `활동단원 ${activeCount}명과 비활동단원 ${inactiveCount}명 전체를 한 학년씩 올리겠습니까?\n(최고 학년인 경우 변경되지 않습니다.)`,
+                 confirmText: '실행',
+                 cancelText: '취소',
+               });
+
+               if (ok && serverGroupId) {
+                 try {
+                   setIsSaving(true);
+                   const batch = writeBatch(db);
+                   let updateCount = 0;
+
+                   const allTargets = [...activeMembers, ...inactiveMembers];
+                   
+                   allTargets.forEach(m => {
+                     const currentIdx = ALL_GRADES.indexOf(m.grade);
+                     // If found and not the last one, bump it up
+                     if (currentIdx !== -1 && currentIdx < ALL_GRADES.length - 1) {
+                        const nextGrade = ALL_GRADES[currentIdx + 1];
+                        const ref = doc(db, 'server_groups', serverGroupId, 'members', m.id);
+                        batch.update(ref, { grade: nextGrade, updated_at: new Date() });
+                        updateCount++;
+                     }
+                   });
+
+                   if (updateCount > 0) {
+                     await batch.commit();
+                     toast.success(`총 ${updateCount}명의 학년을 변경했습니다.`);
+                   } else {
+                     toast.info('변경할 대상이 없거나 모두 최고 학년입니다.');
+                   }
+                 } catch (e) {
+                   console.error(e);
+                   toast.error('일괄 변경 중 오류가 발생했습니다.');
+                 } finally {
+                   setIsSaving(false);
+                 }
+               }
+             }}
+           >
+             +1 학년 진급
+           </Button>
+        </div>
       </Card>
 
       {/* ✅ Member Detail Drawer */}

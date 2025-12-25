@@ -218,7 +218,7 @@ export function SendSurveyDrawer({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md space-y-4">
         <div className="space-y-1">
-          <DialogTitle>📩 복사 일정 설문</DialogTitle>
+          <DialogTitle>📩 복사 일정 설문 ({dayjs(currentMonth).format('YYYY년 MM월')})</DialogTitle>
           <DialogDescription>
             이번 달 확정된 미사 일정에 대해 복사들의 참석 불가 여부를 조사합니다.
           </DialogDescription>

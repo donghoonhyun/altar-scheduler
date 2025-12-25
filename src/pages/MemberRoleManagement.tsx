@@ -16,6 +16,7 @@ import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info } from 'lucide
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface MembershipWithUser {
   id: string;
@@ -37,6 +38,7 @@ const MemberRoleManagement: React.FC = () => {
   const [memberships, setMemberships] = useState<MembershipWithUser[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('all');
   const [editActive, setEditActive] = useState<boolean>(false);
 
   const fetchMemberships = async () => {
@@ -117,15 +119,20 @@ const MemberRoleManagement: React.FC = () => {
 
   const availableRoles = ['admin', 'planner', 'server'];
 
+  const filteredMemberships = memberships.filter(m => {
+    if (selectedRole === 'all') return true;
+    return m.role.includes(selectedRole);
+  });
+
   return (
     <Container className="py-8 min-h-screen">
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft size={24} />
         </Button>
         <div>
           <Heading size="lg" className="text-2xl font-extrabold text-gray-900">
-            멤버 역할 관리
+            멤버십 역할 관리
           </Heading>
           <p className="text-gray-500 text-sm">
             복사단의 멤버별 권한과 정보를 관리합니다.
@@ -134,6 +141,35 @@ const MemberRoleManagement: React.FC = () => {
       </div>
 
       <Card className="overflow-hidden border-none shadow-sm bg-white">
+        {/* Header with Count & Filter */}
+        <div className="p-3 flex items-center justify-between gap-2 border-b border-gray-100">
+          <h2 className="text-base font-bold text-gray-800">
+             멤버 <span className="text-xs font-normal text-gray-500">({filteredMemberships.length}명)</span>
+          </h2>
+          
+          <div className="flex items-center bg-gray-100 p-0.5 rounded-lg">
+            {[
+              { id: 'all', label: '전체' },
+              { id: 'admin', label: '어드민' },
+              { id: 'planner', label: '플래너' },
+              { id: 'server', label: '복사' },
+            ].map((role) => (
+              <button
+                key={role.id}
+                onClick={() => setSelectedRole(role.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-[11px] font-bold transition-all",
+                  selectedRole === role.id
+                    ? "bg-white shadow-sm text-gray-900"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                )}
+              >
+                {role.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -152,14 +188,14 @@ const MemberRoleManagement: React.FC = () => {
                     로딩 중...
                   </td>
                 </tr>
-              ) : memberships.length === 0 ? (
+              ) : filteredMemberships.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                     멤버 정보가 없습니다.
                   </td>
                 </tr>
               ) : (
-                memberships.map((m) => (
+                filteredMemberships.map((m) => (
                   <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">

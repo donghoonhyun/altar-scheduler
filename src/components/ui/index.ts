@@ -8,3 +8,4 @@ export * from "./checkbox";
 export * from "./label";
 export * from "./info-box";
 
+export * from "./badge";

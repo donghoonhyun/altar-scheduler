@@ -74,14 +74,19 @@ const Dashboard: React.FC = () => {
   if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
 
   return (
-    <Container className="min-h-screen py-6 transition-all duration-300">
-      {/* 👋 상단 인사말 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h2 
-            className="text-xl font-bold text-gray-800"
-          >
-            <span className="text-blue-500 font-extrabold">
+    <div className="min-h-screen bg-gray-50/50">
+      <Container className="py-6 transition-all duration-300">
+        {/* 👋 상단 인사말 */}
+        <div className="mb-6 mt-1 flex flex-col items-center">
+          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 text-center relative inline-block">
+            플래너 Dashboard
+            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-blue-500/30 rounded-full"></span>
+          </Heading>
+        </div>
+
+        <div className="mb-6 text-center">
+          <h2 className="text-lg font-bold text-gray-800">
+            <span className="text-blue-600 font-extrabold">
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
             {serverGroupId && (() => {
@@ -90,47 +95,47 @@ const Dashboard: React.FC = () => {
               if (roles.includes('planner')) return '플래너';
               return '복사';
             })()}님 반갑습니다.
-          </h2>          
+          </h2>
         </div>
-      </div>
 
-      {/* ✅ 주요 카드 */}
-      <div className="grid gap-6 md:grid-cols-2 mb-6">
-        <Card className="fade-in">
-          <ServerStats parishCode="SG00001" serverGroupId={serverGroupId} />
+        {/* ✅ 주요 카드 */}
+        <div className="grid gap-6 md:grid-cols-2 mb-6">
+          <Card className="fade-in">
+            <NextMonthPlan serverGroupId={serverGroupId} />
+          </Card>
+          <Card className="fade-in">
+            <ServerStats parishCode="SG00001" serverGroupId={serverGroupId} />
+          </Card>
+        </div>
+
+        {/* ✅ 미사 일정 달력 */}
+        <Card className="md:col-span-2 fade-in">
+          <MassCalendar
+            events={events}
+            timezone="Asia/Seoul"
+            highlightServerName={session?.user?.displayName || ''}
+            viewDate={currentMonth} // ✅ 달력 뷰 동기화
+            onMonthChange={handleMonthChange} // 🔁 달 이동 시 자동 재로딩 및 세션 업데이트
+            onDayClick={handleDayClick}
+            selectedEventId={selectedEventId}
+            monthStatus={monthStatus}
+          />
         </Card>
-        <Card className="fade-in">
-          <NextMonthPlan serverGroupId={serverGroupId} />
-        </Card>
-      </div>
 
-      {/* ✅ 미사 일정 달력 */}
-      <Card className="md:col-span-2 fade-in">
-        <MassCalendar
-          events={events}
-          timezone="Asia/Seoul"
-          highlightServerName={session?.user?.displayName || ''}
-          viewDate={currentMonth} // ✅ 달력 뷰 동기화
-          onMonthChange={handleMonthChange} // 🔁 달 이동 시 자동 재로딩 및 세션 업데이트
-          onDayClick={handleDayClick}
-          selectedEventId={selectedEventId}
-          monthStatus={monthStatus}
-        />
-      </Card>
-
-      {/* ✅ 미사 상세 Drawer */}
-      {drawerOpen && (
-        <MassEventDrawer
-          serverGroupId={serverGroupId}
-          eventId={selectedEventId}
-          date={selectedDate}
-          onClose={handleCloseDrawer}
-          monthStatus={monthStatus}
-          events={events}
-          readOnly={isReadOnly}
-        />
-      )}
-    </Container>
+        {/* ✅ 미사 상세 Drawer */}
+        {drawerOpen && (
+          <MassEventDrawer
+            serverGroupId={serverGroupId}
+            eventId={selectedEventId}
+            date={selectedDate}
+            onClose={handleCloseDrawer}
+            monthStatus={monthStatus}
+            events={events}
+            readOnly={isReadOnly}
+          />
+        )}
+      </Container>
+    </div>
   );
 };
 
