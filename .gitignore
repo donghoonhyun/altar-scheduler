@@ -23,7 +23,7 @@ backup/
 .env.production
 
 # Firebase config
-src/config/firebaseConfig.ts
+
 firebase-debug.log
 
 # Editor directories and files
