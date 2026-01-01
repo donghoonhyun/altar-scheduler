@@ -87,6 +87,8 @@ export default function MassCalendar({
     const date = currentMonth.date(d);
     const dateStr = date.format('YYYY-MM-DD');
     const dayEvents = eventsByDate[dateStr] || [];
+    // ✅ Sort events by title (text ascending)
+    dayEvents.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     const isSunday = date.day() === 0;
     const isSaturday = date.day() === 6;
     const isToday = dateStr === today;

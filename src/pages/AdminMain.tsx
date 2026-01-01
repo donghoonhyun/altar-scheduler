@@ -1,4 +1,9 @@
 import React from 'react';
+import { MIGRATION_MEMBERS } from '@/data/migrationData';
+import { db } from '@/lib/firebase';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { Upload } from 'lucide-react';
+
 import { useNavigate, useParams } from 'react-router-dom';
 import { Container, Card, Heading } from '@/components/ui';
 import { useSession } from '@/state/session';
@@ -60,6 +65,39 @@ const AdminMain: React.FC = () => {
     };
     fetchPending();
   }, [serverGroupId]);
+
+  const [isMigrating, setIsMigrating] = React.useState(false);
+
+  const handleMigration = async () => {
+    if (!serverGroupId) return;
+    if (!confirm(`총 ${MIGRATION_MEMBERS.length}명의 단원 데이터를 업로드하시겠습니까? \n(기존 ID MB00001~MB00062 데이터가 있으면 덮어씁니다)`)) return;
+
+    setIsMigrating(true);
+    try {
+      const batch = writeBatch(db);
+      
+      MIGRATION_MEMBERS.forEach((m, index) => {
+        const id = `MB${String(index + 1).padStart(5, '0')}`;
+        const ref = doc(db, 'server_groups', serverGroupId, 'members', id);
+        batch.set(ref, {
+          id: id,
+          ...m,
+          active: true,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      });
+
+      await batch.commit();
+      alert('✅ 업로드가 성공적으로 완료되었습니다! 이제 members 컬렉션을 확인해보세요.');
+    } catch (e) {
+      console.error(e);
+      alert('❌ 업로드 실패: ' + e);
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50">
@@ -142,6 +180,32 @@ const AdminMain: React.FC = () => {
             </div>
           </Card>
         </div>
+
+        {session.user?.email === 'pongso.hyun@gmail.com' && (
+          <div className="mt-8 mb-8">
+            <Card className="border-none shadow-sm p-4 bg-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">데이터 마이그레이션 (임시)</h3>
+                  <p className="text-xs text-gray-500">요청하신 62명의 멤버 데이터를 일괄 업로드합니다.</p>
+                </div>
+                <button
+                  onClick={handleMigration}
+                  disabled={isMigrating}
+                  className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  {isMigrating ? '업로드 중...' : (
+                    <>
+                      <Upload size={14} />
+                      명단 일괄 업로드
+                    </>
+                  )}
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
 
         <div className="mt-12 text-center text-gray-400 text-[10px]">
           이 페이지는 해당 복사단 멤버십에서 어드민(Admin) 역할이 있는 분들께만 보입니다.

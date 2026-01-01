@@ -84,6 +84,9 @@ export async function getMemberNamesByIds(
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data() as DocumentData;
+        // ✅ Active check: Only return name if member is active
+        if (data.active === false) return null;
+
         return data.baptismal_name
           ? `${data.name_kor} ${data.baptismal_name}`
           : data.name_kor;

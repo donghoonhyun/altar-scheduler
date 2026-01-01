@@ -64,7 +64,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
 
-  // ✅ 복사단 멤버 목록 불러오기
+  // ✅ 복사단 멤버 목록 불러오기 (v2: active 필터링 로직 수정)
   const fetchMembers = useCallback(async () => {
     try {
       const ref = collection(db, 'server_groups', serverGroupId, 'members');
@@ -74,62 +74,40 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         .map((d) => {
           const data = d.data() as MemberDoc;
           return {
-            docId: d.id,  // Firestore document ID
+            docId: d.id,
             data
           };
         })
-        .filter(({ data: m }) => m.name_kor && m.baptismal_name)
+        .filter(({ data: m }) => m.name_kor && m.baptismal_name) // 이름 없는 데이터 제외
         .map(({ docId, data: m }) => {
           const gradeStr = String(m.grade || '')
             .trim()
-            .toUpperCase(); // ✅ 문자열 강제 변환
+            .toUpperCase();
           const grade = [
-            'E1',
-            'E2',
-            'E3',
-            'E4',
-            'E5',
-            'E6',
-            'M1',
-            'M2',
-            'M3',
-            'H1',
-            'H2',
-            'H3',
-          ].includes(gradeStr)
-            ? gradeStr
-            : '기타';
+            'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
+            'M1', 'M2', 'M3',
+            'H1', 'H2', 'H3',
+          ].includes(gradeStr) ? gradeStr : '기타';
 
           const memberId = m.uid || docId;
           
           return {
-            id: memberId,  // Use uid if available, otherwise Firestore document ID
+            id: memberId,
             name: `${m.name_kor} ${m.baptismal_name}`,
             grade,
+            active: m.active !== false // active가 false인 경우만 비활성으로 간주 (undefined는 활성으로 취급)
           };
         })
         .sort((a, b) => {
-          const order = [
-            'E1',
-            'E2',
-            'E3',
-            'E4',
-            'E5',
-            'E6',
-            'M1',
-            'M2',
-            'M3',
-            'H1',
-            'H2',
-            'H3',
-            '기타',
-          ];
+          // 정렬 로직
+          const order = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3', '기타'];
           const idxA = order.indexOf(a.grade);
           const idxB = order.indexOf(b.grade);
           if (idxA !== idxB) return idxA - idxB;
           return a.name.localeCompare(b.name, 'ko');
         });
 
+      // @ts-ignore
       setMembers(list);
     } catch (err) {
       console.error('❌ members load error:', err);
@@ -245,19 +223,38 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
       return;
     }
 
+    // 🔥 비활성 멤버가 포함된 상태로 저장하려는지 체크 (저장 시 자동으로 제외되므로 경고 불필요할 수도 있지만, 사용자 인지용)
+    const activeMemberIds = memberIds.filter(id => {
+       const m = members.find(mem => mem.id === id);
+       // @ts-ignore
+       return m ? m.active : false; // 멤버 정보가 없으면(이미 삭제됨 등) 비활성 취급
+    });
+
     // ✅ 선택 인원 검증 (정확히 동일해야 함) - 단, 미확정(MASS-NOTCONFIRMED) 상태일 땐 검증 스킵
+    // 주의: 요구사항에 따라 '비활성 멤버를 교체할 수 있도록 count에서 제외' 하라고 했으므로,
+    // 검증 시 activeMemberIds.length 를 기준으로 해야 함.
     const isPlanPhase = monthStatus === 'MASS-NOTCONFIRMED';
-    if (!isPlanPhase && memberIds.length !== requiredServers) {
+    
+    if (!isPlanPhase && activeMemberIds.length !== requiredServers) {
       setErrorMsg(
-        `필요 인원(${requiredServers}명)에 맞게 정확히 ${requiredServers}명을 선택해야 합니다. (현재 ${memberIds.length}명 선택됨)`
+        `필요 인원(${requiredServers}명)에 맞게 정확히 ${requiredServers}명을 선택해야 합니다. (현재 활성 인원 ${activeMemberIds.length}명 선택됨, 비활성 인원은 자동 제외됩니다)`
       );
       return;
     }
     
     // Validate main member selection
-    if (!isPlanPhase && memberIds.length > 0 && !mainMemberId) {
-      setErrorMsg('주복사를 선택해주세요.');
-      return;
+    // 주복사가 비활성 멤버라면? -> 에러 처리
+    if (!isPlanPhase && activeMemberIds.length > 0) {
+        if (!mainMemberId) {
+            setErrorMsg('주복사를 선택해주세요.');
+            return;
+        }
+        const mainMember = members.find(m => m.id === mainMemberId);
+        // @ts-ignore
+        if (!mainMember || !mainMember.active) {
+            setErrorMsg('주복사가 비활성 상태입니다. 다른 복사를 주복사로 지정해주세요.');
+            return;
+        }
     }
 
     setLoading(true);
@@ -267,6 +264,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
       const groupSnap = await getDoc(doc(db, 'server_groups', serverGroupId));
       const tz = (groupSnap.data()?.timezone as string) || 'Asia/Seoul';
 
+      // 💥 저장 시 비활성 멤버는 payload에서 제외!
+      const finalMemberIds = activeMemberIds;
+
       if (eventId) {
         const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
         await setDoc(
@@ -274,7 +274,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           {
             title,
             required_servers: requiredServers,
-            member_ids: memberIds,
+            member_ids: finalMemberIds,
             main_member_id: mainMemberId,
             updated_at: serverTimestamp(),
           },
@@ -329,14 +329,31 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   // ✅ 학년별 그룹핑
   const groupedMembers = Object.entries(
     members
-      .filter(m => !hideUnavailable || !unavailableMembers.has(m.id)) // 🔹 필터링 추가
-      .reduce<Record<string, { id: string; name: string }[]>>((acc, m) => {
+      // 🔹 필터링: "Active 상태" 이거나 "현재 선택된 멤버(비활성 포함)" 인 경우만 표시
+      //    (비활성 멤버라도 이미 배정되어 있다면 리스트에 보여야 체크 해제가 가능함. 
+      //     단, 요구사항 '배정복사선택 영역에 표시되는 복사들은 active 복사만 표시' 라고 했으나, 
+      //     '해당 비활성 멤버를 교체할수있도록' 하려면 리스트에 보여야 해제 후 다른 사람 선택 가능.
+      //     그래서 '현재 선택되어 있는 경우'는 예외적으로 표시.)
+      .filter(m => {
+          if (hideUnavailable && unavailableMembers.has(m.id)) return false;
+          // @ts-ignore
+          return m.active === true || memberIds.includes(m.id);
+      })
+      .reduce<Record<string, { id: string; name: string; active: boolean }[]>>((acc, m) => {
       const grade = m.grade || '기타';
       if (!acc[grade]) acc[grade] = [];
-      acc[grade].push({ id: m.id, name: m.name });
+      // @ts-ignore
+      acc[grade].push({ id: m.id, name: m.name, active: m.active });
       return acc;
     }, {})
   );
+
+  // 🔴 비활성 멤버 포함 여부 확인
+  const hasInactiveAssigned = memberIds.some(id => {
+      const m = members.find(mem => mem.id === id);
+      // @ts-ignore
+      return m && m.active === false;
+  });
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -409,26 +426,39 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                       .map((id) => {
                         const member = members.find((m) => m.id === id);
                         const isMain = id === mainMemberId;
+                        // @ts-ignore
+                        const isActive = member ? member.active : false;
+
                         return (
                           <span
                             key={id}
-                            className={`px-2 py-1 rounded text-sm ${
+                            className={`px-2 py-1 rounded text-sm border flex items-center gap-1 ${
                               isMain
-                                ? 'bg-blue-600 text-white font-bold'
-                                : member
-                                ? 'bg-white border'
-                                : 'bg-orange-100 border border-orange-300'
+                                ? 'bg-blue-600 text-white font-bold border-blue-600'
+                                : isActive 
+                                    ? 'bg-white border-gray-300' 
+                                    : 'bg-red-100 border-red-300 text-red-700' // 🔴 비활성: 붉은 계통
                             }`}
                           >
                             {member
                               ? `${member.name} ${isMain ? '(주복사)' : ''}`
                               : `ID: ${id.substring(0, 8)}... (미확인)`}
+                            
+                            {/* 비활성 뱃지 */}
+                            {!isActive && <span className="text-[10px] font-bold bg-red-200 text-red-800 px-1 rounded">비활성</span>}
                           </span>
                         );
                       })}
                   </div>
                 )}
               </div>
+               {/* 🔴 비활성 경고 메시지 */}
+               {hasInactiveAssigned && !readOnly && (
+                   <div className="mt-1 text-xs text-red-600 font-bold flex items-center gap-1 animate-pulse">
+                       ⚠️ 비활성(활동 중단) 단원이 배정되어 있습니다. 다른 단원으로 교체해 주세요.
+                       (저장 시 비활성 단원은 자동으로 배정 취소됩니다)
+                   </div>
+               )}
             </div>
           )}
 
@@ -478,6 +508,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                         const isUnavailable = unavailableMembers.has(m.id);
                         const isSelected = memberIds.includes(m.id);
                         const isMain = m.id === mainMemberId;
+                        const isActive = m.active;
                         
                         return (
                           <div key={m.id} className="space-y-1">
@@ -489,28 +520,15 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                 onChange={() => toggleMember(m.id)}
                                 disabled={loading}
                               />
-                              <span className={isUnavailable ? 'text-orange-600 font-medium' : ''}>
+                              <span className={isUnavailable ? 'text-orange-600 font-medium' : !isActive ? 'text-red-600 font-bold line-through' : ''}>
+                                {/* 비활성이면 취소선 및 빨간색 */}
                                 {m.name}
                               </span>
-                              {/* 🔹 배정 횟수 배지 */}
-                              {(() => {
+                              {!isActive && <span className="text-[9px] text-red-500">(비활성)</span>}
+
+                              {/* 🔹 배정 횟수 배지 (비활성 단원은 횟수 표시 제외) */}
+                              {isActive && (() => {
                                 const count = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length + (isSelected ? 1 : 0);
-                                // Note: The user requested "assigned in this month". 
-                                // Ideally we should count from 'events' prop.
-                                // If 'isSelected' is true it means they are assigned to THIS event too (or about to be).
-                                // Let's just count from `events` prop which contains all loaded events for the month.
-                                // However, `events` from useMassEvents usually includes the current event too if it's already saved.
-                                // Use pure calculation from `events` prop.
-                                // But `events` prop is passed from parent. Does it contain the *current* updated state of *this* event?
-                                // Usually `useMassEvents` updates via snapshot. If we are editing, the `events` list might have the OLD state of this event.
-                                // So strictly speaking: count = (other events count) + (1 if currently selected).
-                                
-                                // Let's simplify: Just count based on `events` passed from parent. 
-                                // But wait, if I am checking a checkbox, I want to see the count update? 
-                                // The user said "previously assigned mass numbers" (implied/translated).
-                                // Actually "해당월에 배정된 미사수". 
-                                // Let's try to be smart.
-                                // Count in OTHER events + 1 if selected in THIS event.
                                 const otherEventsCount = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length;
                                 const totalCount = otherEventsCount + (isSelected ? 1 : 0);
                                 
@@ -533,7 +551,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                   onChange={() => setMainMemberId(m.id)}
                                   disabled={loading}
                                 />
-                                <span className="text-blue-600">주복사</span>
+                                <span className={!isActive ? 'text-gray-400 decoration-slate-300' : 'text-blue-600'}>주복사</span>
                               </label>
                             )}
                           </div>
