@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import dayjs from 'dayjs';
 import { cn } from '@/lib/utils';
+import AddServerDrawer from '@/pages/components/AddServerDrawer';
 
 interface Member {
   id: string;
@@ -61,6 +62,7 @@ export default function ServerList() {
   const [parentInfos, setParentInfos] = useState<Record<string, UserInfo>>({});
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
   const [assignmentStats, setAssignmentStats] = useState<AssignmentStats>({ lastMonth: 0, thisMonth: 0, nextMonth: 0 });
   // ✅ 배정 현황 기준 월 (중간달)
   const [statsBaseDate, setStatsBaseDate] = useState(dayjs());
@@ -428,10 +430,20 @@ export default function ServerList() {
       {/* ✅ 활동중인 복사단원 */}
       <Card className="p-4 bg-green-50 border-green-100">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-700">
-            활동중 복사단원{' '}
-            <span className="text-sm font-normal text-gray-500">({activeMembers.length}명)</span>
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-700">
+              활동중 복사단원{' '}
+              <span className="text-sm font-normal text-gray-500">({activeMembers.length}명)</span>
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs px-2 border-green-200 text-green-700 hover:bg-green-50"
+              onClick={() => setIsAddDrawerOpen(true)}
+            >
+              + 추가
+            </Button>
+          </div>
           {/* 정렬 탭 */}
           <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
              <button
@@ -782,6 +794,13 @@ export default function ServerList() {
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* ✅ Add Server Drawer */}
+      <AddServerDrawer 
+        open={isAddDrawerOpen} 
+        onOpenChange={setIsAddDrawerOpen} 
+        serverGroupId={serverGroupId || ''} 
+      />
     </div>
   );
 }

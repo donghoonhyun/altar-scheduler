@@ -4,6 +4,7 @@ import { auth, db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Card, Input, Label, Button, Heading } from '@/components/ui';
 
 export default function CompleteProfile() {
   const user = auth.currentUser;
@@ -32,33 +33,53 @@ export default function CompleteProfile() {
   };
 
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-4">추가 정보입력</h2>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
+      <Card className="w-full max-w-[400px] p-8 shadow-xl bg-white border-none">
+        <div className="text-center mb-6">
+          <Heading size="md" className="mb-2 text-gray-800">추가 정보 입력</Heading>
+          <p className="text-sm text-gray-500">원활한 서비스 이용을 위해 추가 정보를 입력해주세요.</p>
+        </div>
 
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="이름"
-        value={userName}
-        onChange={(e) => setUserName(e.target.value)}
-      />
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">이름</Label>
+            <Input
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="이름"
+              className="h-11 bg-white"
+            />
+          </div>
 
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="세례명"
-        value={baptismalName}
-        onChange={(e) => setBaptismalName(e.target.value)}
-      />
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">세례명</Label>
+            <Input
+              value={baptismalName}
+              onChange={(e) => setBaptismalName(e.target.value)}
+              placeholder="세례명"
+              className="h-11 bg-white"
+            />
+          </div>
 
-      <input
-        className="border p-2 w-full mb-4"
-        placeholder="전화번호(선택)"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-      />
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">전화번호</Label>
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/[^0-9-]/g, ''))}
+              placeholder="010-0000-0000"
+              className="h-11 bg-white"
+            />
+            <p className="text-xs text-gray-400 mt-1">* 연락처는 본인 확인 및 긴급 연락용으로 사용됩니다.</p>
+          </div>
 
-      <button className="w-full py-2 bg-green-600 text-white rounded" onClick={handleSave}>
-        저장하기
-      </button>
+          <Button
+            onClick={handleSave}
+            className="w-full h-12 text-base font-bold bg-[#3b82f6] hover:bg-blue-600 mt-4"
+          >
+            저장하기
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

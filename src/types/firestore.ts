@@ -34,6 +34,8 @@ export interface ServerGroupDoc {
 export interface MemberDoc {
   id: string;
   uid?: string;
+  parent_uid?: string;
+  guardian_name?: string;
   name_kor: string;
   baptismal_name: string;
   grade: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'M1' | 'M2' | 'M3' | 'H1' | 'H2' | 'H3';

@@ -461,7 +461,16 @@ export default function RequestPlannerRole() {
                     <Input
                         placeholder="010-0000-0000"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            let formatted = raw;
+                            if (raw.length > 3 && raw.length <= 7) {
+                                formatted = `${raw.slice(0, 3)}-${raw.slice(3)}`;
+                            } else if (raw.length > 7) {
+                                formatted = `${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7, 11)}`;
+                            }
+                            setPhone(formatted);
+                        }}
                     />
                 </div>
             </div>

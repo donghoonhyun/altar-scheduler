@@ -16,6 +16,7 @@ export default function SignUp() {
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [userName, setUserName] = useState('');
   const [baptismalName, setBaptismalName] = useState('');
+  const [phone, setPhone] = useState('');
   
   // 약관 동의 상태
   const [agreements, setAgreements] = useState({
@@ -68,7 +69,7 @@ export default function SignUp() {
         email: user.email,
         user_name: user.displayName || '',
         baptismal_name: '',
-        phone: '',
+        phone: '', 
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
@@ -86,7 +87,7 @@ export default function SignUp() {
   // ============================================================
   const handleSignUp = async () => {
     try {
-      if (!email || !password || !passwordConfirm || !userName) {
+      if (!email || !password || !passwordConfirm || !userName || !phone) {
         toast.error('필수 정보를 모두 입력해주세요.');
         return;
       }
@@ -109,7 +110,7 @@ export default function SignUp() {
         user_name: userName,
         baptismal_name: baptismalName, // 선택사항
         email,
-        phone: '',
+        phone,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
@@ -191,6 +192,16 @@ export default function SignUp() {
                 className="h-11 bg-white"
               />
             </div>
+          </div>
+          
+          <div className="space-y-1">
+             <Label className="text-sm font-semibold text-gray-700">연락처</Label>
+             <Input
+               value={phone}
+               onChange={(e) => setPhone(e.target.value.replace(/[^0-9-]/g, ''))}
+               placeholder="010-0000-0000"
+               className="h-11 bg-white"
+             />
           </div>
 
           {/* 약관 동의 */}
