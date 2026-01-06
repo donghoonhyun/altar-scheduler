@@ -235,7 +235,7 @@ const MemberRoleManagement: React.FC = () => {
                               className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
                                 r === 'admin' ? 'bg-purple-100 text-purple-600' :
                                 r === 'planner' ? 'bg-blue-100 text-blue-600' :
-                                'bg-gray-100 text-gray-600'
+                                'bg-emerald-100 text-emerald-600'
                               }`}
                             >
                               {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사'}

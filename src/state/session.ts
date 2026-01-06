@@ -22,7 +22,7 @@ export interface Session {
   currentServerGroupId: string | null;
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
   managerParishes: string[];
-  userInfo: { userName: string; baptismalName: string } | null;
+  userInfo: { userName: string; baptismalName: string; userCategory?: string } | null;
   isSuperAdmin: boolean;
   currentViewDate: Dayjs | null; 
   setCurrentServerGroupId?: (id: string | null) => void;
@@ -94,6 +94,7 @@ export function useSession() {
           userInfoData = {
             userName: ud.user_name || ud.displayName || '', 
             baptismalName: ud.baptismal_name || '',
+            userCategory: ud.user_category || 'Layman',
           };
         }
       } catch (e) {
@@ -169,7 +170,12 @@ export function useSession() {
               const parishDoc = await getDoc(doc(db, 'parishes', parishCode));
               if (parishDoc.exists()) {
                 const parishData = parishDoc.data();
+                // 성당이 비활성 상태면 해당 복사단은 제외
+                if (parishData.active === false) return null;
                 parishName = parishData.name_kor || parishCode;
+              } else {
+                // 성당 정보가 없으면 필터링
+                return null;
               }
             }
 

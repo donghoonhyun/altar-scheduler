@@ -16,7 +16,7 @@ interface RoleGuardProps {
  * - require=admin 인 경우: 해당 그룹의 admin 역할 요구
  */
 export default function RoleGuard({ children, require }: RoleGuardProps) {
-  const { serverGroupId } = useParams<{ serverGroupId: string }>();
+  const { serverGroupId: paramGroupId } = useParams<{ serverGroupId: string }>();
   const session = useSession();
   const [checked, setChecked] = useState(false);
   const [hasServerRole, setHasServerRole] = useState(false);
@@ -70,10 +70,16 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   // 2) 로그인 안 됨
   if (!session.user) return <Navigate to="/login" replace />;
 
-  // 3) require 없는 페이지는 모두 접근 허용
+  // 3) 슈퍼어드민 프리패스
+  if (session.isSuperAdmin) return <>{children}</>;
+
+  // 4) require 없는 페이지는 모두 접근 허용
   if (!require) return <>{children}</>;
 
-  // 4) 로직 체크용 유저 현재 그룹 역할
+  // 5) 타겟 그룹 ID 결정 (URL 파라미터 우선, 없으면 세션)
+  const serverGroupId = paramGroupId || session.currentServerGroupId;
+
+  // 6) 로직 체크용 유저 현재 그룹 역할
   const userRoles = (serverGroupId && session.groupRoles[serverGroupId]) || [];
 
   // 5) require = admin

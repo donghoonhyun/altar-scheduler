@@ -6,6 +6,9 @@
 users/{uid}     // 회원가입 authentication uid
  ├── uid: string,
  ├── email: string,
+ ├── user_name: string,
+ ├── baptismal_name: string,
+ ├── user_category: "Father" | "Sister" | "Layman", // 신자구분
  └── created_at, updated_at
 
 memberships/{uid}_{server_group_id}
@@ -208,6 +211,8 @@ users/{uid}
   email: string
   user_name: string
   baptismal_name: string
+  user_category: "Father" | "Sister" | "Layman"   # UI 표시: 신부님 / 수녀님 / 평신도
+  phone?: string
   managerParishes?: string[]   # 캐시용
   created_at: timestamp
   updated_at: timestamp

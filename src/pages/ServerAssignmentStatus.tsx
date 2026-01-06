@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Download } from 'lucide-react';
 import dayjs from 'dayjs';
+import { utils, writeFile } from 'xlsx';
 import {
   getFirestore,
   collection,
@@ -45,6 +46,7 @@ export default function ServerAssignmentStatus() {
   const initialMonth = session.currentViewDate || dayjs().tz('Asia/Seoul').startOf('month');
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'by-member' | 'by-date'>('by-member');
 
   // Sync with global session changes
   useEffect(() => {
@@ -134,6 +136,22 @@ export default function ServerAssignmentStatus() {
     session.setCurrentViewDate?.(newMonth);
   };
 
+  const memberMap = useMemo(() => {
+    return members.reduce((acc, m) => {
+      acc[m.id] = m;
+      return acc;
+    }, {} as Record<string, MemberDoc>);
+  }, [members]);
+
+  const eventsByDate = useMemo(() => {
+     const grouped: Record<string, MassEventDoc[]> = {};
+     events.forEach(ev => {
+        if (!grouped[ev.event_date]) grouped[ev.event_date] = [];
+        grouped[ev.event_date].push(ev);
+     });
+     return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [events]);
+
   if (loading) return <LoadingSpinner label="현황 조회 중..." />;
 
   // Render Helpers
@@ -173,6 +191,79 @@ export default function ServerAssignmentStatus() {
       return null;
   };
 
+  const handleDownloadExcel = () => {
+    const filename = `복사배정현황_${currentMonth.format('YYYYMM')}_${viewMode === 'by-member' ? '복사별' : '날짜별'}.xlsx`;
+    const wb = utils.book_new();
+
+    if (viewMode === 'by-member') {
+       // 1. By Member Data
+       const data = members.map(m => {
+          const row: any = {
+              '이름': m.name_kor,
+              '세례명': m.baptismal_name,
+              '학년': m.grade || '',
+          };
+
+          events.forEach(ev => {
+              const isAssigned = ev.member_ids?.includes(m.id);
+              const isMain = ev.main_member_id === m.id;
+              const isUnavailable = unavailableMap[m.id]?.includes(ev.id);
+              
+              const dateKey = `${dayjs(ev.event_date).format('MM/DD')} ${ev.title}`;
+              
+              if (isAssigned) {
+                  row[dateKey] = isMain ? '주' : '부';
+                  if (isUnavailable) row[dateKey] += '!'; // Conflict
+              } else if (isUnavailable) {
+                  row[dateKey] = '✕';
+              } else {
+                  row[dateKey] = '';
+              }
+          });
+          return row;
+       });
+
+       const ws = utils.json_to_sheet(data);
+       // Auto-width for first few columns
+       const wscols = [{wch: 10}, {wch: 10}, {wch: 6}];
+       ws['!cols'] = wscols;
+
+       utils.book_append_sheet(wb, ws, '복사별 현황');
+
+    } else {
+       // 2. By Date Data
+       const data: any[] = [];
+       
+       eventsByDate.forEach(([dateStr, dayEvents]) => {
+           dayEvents.forEach(ev => {
+               const dateObj = dayjs(ev.event_date);
+               const servers = (ev.member_ids || []).map(mid => {
+                   const m = memberMap[mid];
+                   if (!m) return '';
+                   const isMain = ev.main_member_id === mid;
+                   return `${m.name_kor}${isMain ? '(주)' : ''}`;
+               }).join(', ');
+
+               data.push({
+                   '날짜': dateObj.format('YYYY-MM-DD'),
+                   '요일': dateObj.format('ddd'),
+                   '미사': ev.title,
+                   '배정 복사': servers,
+                   '인원': ev.member_ids?.length || 0
+               });
+           });
+       });
+
+       const ws = utils.json_to_sheet(data);
+       const wscols = [{wch: 12}, {wch: 5}, {wch: 20}, {wch: 50}, {wch: 5}];
+       ws['!cols'] = wscols;
+
+       utils.book_append_sheet(wb, ws, '날짜별 현황');
+    }
+
+    writeFile(wb, filename);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* Header */}
@@ -195,13 +286,46 @@ export default function ServerAssignmentStatus() {
                  <ChevronRight size={20} />
              </Button>
          </div>
-         
-         <div className="w-8"></div>{/* Spacer */}
+          
+         <div className="flex items-center gap-2">
+            {/* Toggle View Mode */}
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button
+                onClick={() => setViewMode('by-member')}
+                className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'by-member' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                )}
+                >
+                <LayoutGrid size={16} />
+                <span className="hidden sm:inline">복사별</span>
+                </button>
+                <button
+                onClick={() => setViewMode('by-date')}
+                className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'by-date' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                )}
+                >
+                    <LayoutList size={16} />
+                <span className="hidden sm:inline">날짜별</span>
+                </button>
+            </div>
+            
+            <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex" title="엑셀로 저장">
+                <Download size={16} className="mr-2" />
+                엑셀
+            </Button>
+            <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden" title="엑셀로 저장">
+                <Download size={16} />
+            </Button>
+         </div>
       </div>
 
       {/* Main Content Grid */}
       <div className="flex-1 overflow-auto relative p-4">
-          <div className="inline-block min-w-full align-middle border rounded-lg bg-white shadow-sm overflow-hidden">
+          <div className="inline-block min-w-full align-middle border rounded-lg bg-white shadow-sm overflow-hidden min-h-[500px]">
+              {viewMode === 'by-member' ? (
               <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
@@ -277,6 +401,82 @@ export default function ServerAssignmentStatus() {
                       )}
                   </tbody>
               </table>
+              ) : (
+                // By Date View
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[150px] border-r">
+                                날짜
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                배정 복사
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {eventsByDate.map(([dateStr, dayEvents]) => {
+                            const dateObj = dayjs(dateStr);
+                            const dayNum = dateObj.day();
+                            const isSun = dayNum === 0;
+                            const isSat = dayNum === 6;
+                            
+                            return (
+                                <tr key={dateStr} className={cn(
+                                    "transition-colors hover:bg-gray-50",
+                                    isSun ? "bg-red-50/40" : isSat ? "bg-blue-50/40" : "bg-white"
+                                )}>
+                                    <td className={cn("px-6 py-4 whitespace-nowrap text-sm font-medium border-r align-top", isSun ? "text-red-600" : isSat ? "text-blue-600" : "text-gray-900")}>
+                                        {dateObj.format('M월 D일 (ddd)')}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-wrap gap-3">
+                                            {dayEvents.map(ev => (
+                                                <div key={ev.id} className="border rounded-md p-3 bg-white shadow-sm min-w-[200px] flex-1 max-w-[300px]">
+                                                    <div className="text-xs font-semibold text-gray-500 mb-2 pb-1 border-b flex justify-between items-center">
+                                                        <span>{ev.title}</span>
+                                                        <span className="text-[10px] bg-gray-100 px-1.5 rounded">{ev.member_ids?.length || 0}명</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1">
+                                                        {ev.member_ids && ev.member_ids.length > 0 ? (
+                                                            ev.member_ids.map(mid => {
+                                                                const member = memberMap[mid];
+                                                                const isMain = ev.main_member_id === mid;
+                                                                if (!member) return null; // Should not happen if data consistent
+
+                                                                return (
+                                                                    <div key={mid} className={cn(
+                                                                        "flex items-center gap-1.5 px-1.5 py-1 rounded text-xs transition-colors truncate",
+                                                                        isMain 
+                                                                           ? "bg-blue-50 text-blue-700 font-medium border border-blue-100" 
+                                                                           : "bg-gray-50 text-gray-700 border border-transparent"
+                                                                    )}>
+                                                                        {isMain && <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1 rounded shrink-0">주</span>}
+                                                                        <span className="truncate">{member.name_kor} {member.baptismal_name}</span>
+                                                                    </div>
+                                                                )
+                                                            })
+                                                        ) : (
+                                                            <span className="col-span-2 text-xs text-gray-400 italic py-1 text-center">배정된 복사 없음</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {eventsByDate.length === 0 && (
+                            <tr>
+                                <td colSpan={2} className="px-6 py-10 text-center text-gray-500">
+                                    일정이 없습니다.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+              )}
           </div>
       </div>
     </div>

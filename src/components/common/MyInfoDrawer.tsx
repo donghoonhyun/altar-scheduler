@@ -38,6 +38,7 @@ export default function MyInfoDrawer({ open, onOpenChange, serverGroupId }: MyIn
   const [userName, setUserName] = useState('');
   const [baptismalName, setBaptismalName] = useState('');
   const [phone, setPhone] = useState('');
+  const [userCategory, setUserCategory] = useState('Layman');
 
   // Group specific info (readonly mostly)
   const [memberInfo, setMemberInfo] = useState<MemberInfo | null>(null);
@@ -71,6 +72,7 @@ export default function MyInfoDrawer({ open, onOpenChange, serverGroupId }: MyIn
         setUserName(data.user_name || session.user.displayName || '');
         setBaptismalName(data.baptismal_name || '');
         setPhone(data.phone || '');
+        setUserCategory(data.user_category || 'Layman');
       }
     } catch (e) {
       console.error('User data fetch error', e);
@@ -108,6 +110,7 @@ export default function MyInfoDrawer({ open, onOpenChange, serverGroupId }: MyIn
         user_name: userName,
         baptismal_name: baptismalName,
         phone: phone,
+        user_category: userCategory,
       });
 
       // Also update member info in current group if it exists?
@@ -208,6 +211,37 @@ export default function MyInfoDrawer({ open, onOpenChange, serverGroupId }: MyIn
                 ) : (
                   <div className="p-2 text-sm text-gray-900 border border-transparent">
                     {phone ? formatPhoneNumber(phone) : '-'}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">신자구분</label>
+                {isEditing ? (
+                  <div className="flex gap-2 mt-1">
+                    {[
+                      { value: 'Father', label: '신부님' },
+                      { value: 'Sister', label: '수녀님' },
+                      { value: 'Layman', label: '평신도' }
+                    ].map((cat) => (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => setUserCategory(cat.value)}
+                        className={cn(
+                          "flex-1 py-2 text-sm font-medium rounded-md border transition-all",
+                          userCategory === cat.value
+                            ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        )}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-2 text-sm text-gray-900 border border-transparent">
+                    {userCategory === 'Father' ? '신부님' : 
+                     userCategory === 'Sister' ? '수녀님' : '평신도'}
                   </div>
                 )}
               </div>

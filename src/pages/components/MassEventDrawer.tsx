@@ -14,6 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import dayjs from 'dayjs';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -55,7 +56,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [requiredServers, setRequiredServers] = useState<number | null>(null);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [mainMemberId, setMainMemberId] = useState<string | null>(null);
-  const [members, setMembers] = useState<{ id: string; name: string; grade: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean }[]>([]);
   const [unavailableMembers, setUnavailableMembers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -63,6 +64,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
+
+  const GRADE_ORDER = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3', '기타'];
 
   // ✅ 복사단 멤버 목록 불러오기 (v2: active 필터링 로직 수정)
   const fetchMembers = useCallback(async () => {
@@ -326,27 +330,36 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
-  // ✅ 학년별 그룹핑
-  const groupedMembers = Object.entries(
-    members
-      // 🔹 필터링: "Active 상태" 이거나 "현재 선택된 멤버(비활성 포함)" 인 경우만 표시
-      //    (비활성 멤버라도 이미 배정되어 있다면 리스트에 보여야 체크 해제가 가능함. 
-      //     단, 요구사항 '배정복사선택 영역에 표시되는 복사들은 active 복사만 표시' 라고 했으나, 
-      //     '해당 비활성 멤버를 교체할수있도록' 하려면 리스트에 보여야 해제 후 다른 사람 선택 가능.
-      //     그래서 '현재 선택되어 있는 경우'는 예외적으로 표시.)
-      .filter(m => {
-          if (hideUnavailable && unavailableMembers.has(m.id)) return false;
-          // @ts-ignore
-          return m.active === true || memberIds.includes(m.id);
-      })
-      .reduce<Record<string, { id: string; name: string; active: boolean }[]>>((acc, m) => {
-      const grade = m.grade || '기타';
-      if (!acc[grade]) acc[grade] = [];
+  // ✅ 정렬 및 필터링된 멤버 리스트
+  const sortedMembers = React.useMemo(() => {
+    // 1. 필터링
+    const filtered = members.filter(m => {
+      // 설문 불가 제외 체크 시
+      if (hideUnavailable && unavailableMembers.has(m.id)) return false;
+      // Active 상태이거나, 이미 배정된 멤버(비활성 포함)인 경우 표시
       // @ts-ignore
-      acc[grade].push({ id: m.id, name: m.name, active: m.active });
-      return acc;
-    }, {})
-  );
+      return m.active === true || memberIds.includes(m.id);
+    });
+
+    // 2. 정렬
+    return filtered.sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name, 'ko');
+      } else {
+        // 학년순
+        const idxA = GRADE_ORDER.indexOf(a.grade);
+        const idxB = GRADE_ORDER.indexOf(b.grade);
+        
+        if (idxA !== idxB) {
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        }
+        // 학년 같으면 이름순
+        return a.name.localeCompare(b.name, 'ko');
+      }
+    });
+  }, [members, hideUnavailable, unavailableMembers, memberIds, sortBy]);
 
   // 🔴 비활성 멤버 포함 여부 확인
   const hasInactiveAssigned = memberIds.some(id => {
@@ -464,69 +477,116 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
           {/* 복사 배정 (학년별 그룹) - 미확정 상태에서는 숨김, 읽기 전용이면 숨김 */}
           {!readOnly && monthStatus !== 'MASS-NOTCONFIRMED' && (
-            <label className="block">
+            <div className="block">
+              {/* Row 1: Title & Refresh */}
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium">배정 복사 선택</span>
-                <div className="flex items-center gap-3">
+                <Button
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleRefresh} 
+                    disabled={isRefreshing}
+                    className="h-7 w-7 p-0 rounded-full hover:bg-gray-100 text-gray-500"
+                    title="데이터 새로고침"
+                >
+                    <RefreshCw size={15} className={isRefreshing ? "animate-spin" : ""} />
+                </Button>
+              </div>
+
+              {/* Row 2: Checkbox (Left) & Sort Buttons (Right) */}
+              <div className="flex items-center justify-between mb-2">
+                 <div className="flex items-center gap-2">
                     {/* 🔹 설문 불가 제외 체크박스 */}
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none hover:bg-gray-50 px-2 py-1 rounded transition-colors border border-transparent hover:border-gray-200">
+                    <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100 hover:border-gray-200 transition-colors">
                       <input 
+                        id="chk-unavailable"
                         type="checkbox" 
                         checked={hideUnavailable}
                         onChange={(e) => setHideUnavailable(e.target.checked)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
-                      <span className="text-xs text-gray-600 font-medium">설문 불가 제외</span>
-                    </label>
+                      <label htmlFor="chk-unavailable" className="text-xs text-gray-600 font-medium cursor-pointer select-none">
+                        설문 불가 제외
+                      </label>
+                    </div>
 
                     {showUnavailableWarning && (
-                    <span className="text-xs text-orange-600 font-medium animate-pulse">
-                        ⚠️ 불참으로 설문한 복사입니다
-                    </span>
+                      <span className="text-xs text-orange-600 font-medium animate-pulse">
+                          ⚠️ 불참
+                      </span>
                     )}
-                    <Button
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleRefresh} 
-                        disabled={isRefreshing}
-                        className="h-6 w-6 p-0 rounded-full hover:bg-gray-100"
-                        title="데이터 새로고침"
+                 </div>
+
+                  <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
+                    <button
+                      onClick={() => setSortBy('name')} 
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all",
+                        sortBy === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                      )}
                     >
-                        <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-                    </Button>
-                </div>
+                      이름
+                    </button>
+                    <button
+                      onClick={() => setSortBy('grade')} 
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all",
+                        sortBy === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                      )}
+                    >
+                      학년
+                    </button>
+                  </div>
               </div>
-              <div className="mt-2 border rounded p-3 max-h-[600px] overflow-y-auto space-y-3">
-                {groupedMembers.map(([grade, list]) => (
-                  <div key={grade} className="space-y-1">
-                    {/* 학년 헤더 */}
-                    <div className="text-sm font-semibold text-gray-700 border-b border-gray-300 pb-0.5 mb-1">
-                      {grade}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {list.map((m) => {
-                        const isUnavailable = unavailableMembers.has(m.id);
-                        const isSelected = memberIds.includes(m.id);
-                        const isMain = m.id === mainMemberId;
-                        const isActive = m.active;
-                        
-                        return (
-                          <div key={m.id} className="space-y-1">
-                            <label className="flex items-center gap-1">
-                              <input
+              <div className="mt-2 border rounded p-3 max-h-[600px] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  {sortedMembers.map((m, idx) => {
+                    const isUnavailable = unavailableMembers.has(m.id);
+                    const isSelected = memberIds.includes(m.id);
+                    const isMain = m.id === mainMemberId;
+                    const isActive = m.active;
+
+                    // Header Separator for Grade Sort
+                    const prev = sortedMembers[idx - 1];
+                    const showSeparator = sortBy === 'grade' && (!prev || prev.grade !== m.grade);
+
+                    return (
+                      <React.Fragment key={m.id}>
+                         {showSeparator && (
+                           <div className="col-span-2 border-t border-dashed border-gray-300 my-2 pt-1 relative h-6">
+                             <span className="absolute top-[-8px] left-2 bg-white px-2 text-xs text-gray-500 font-bold">
+                                {m.grade}
+                             </span>
+                           </div>
+                         )}
+
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
+                          <div className="flex items-center gap-1.5 overflow-hidden">
+                             <input
                                 type="checkbox"
                                 value={m.id}
                                 checked={isSelected}
                                 onChange={() => toggleMember(m.id)}
                                 disabled={loading}
+                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
-                              <span className={isUnavailable ? 'text-orange-600 font-medium' : !isActive ? 'text-red-600 font-bold line-through' : ''}>
-                                {/* 비활성이면 취소선 및 빨간색 */}
-                                {m.name}
-                              </span>
-                              {!isActive && <span className="text-[9px] text-red-500">(비활성)</span>}
+                             
+                             <div className="flex flex-col truncate">
+                                <div className="flex items-center gap-1">
+                                    <span className={`text-sm ${isUnavailable ? 'text-orange-600 font-medium' : !isActive ? 'text-red-600 font-bold line-through' : 'text-gray-700 font-medium'}`}>
+                                      {m.name}
+                                    </span>
+                                    {sortBy === 'name' && (
+                                       <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded-sm">{m.grade}</span>
+                                    )}
+                                </div>
+                                {!isActive && <span className="text-[9px] text-red-500">(비활성)</span>}
+                             </div>
+                          </div>
 
-                              {/* 🔹 배정 횟수 배지 (비활성 단원은 횟수 표시 제외) */}
+                          {/* Right Controls */}
+                          <div className="flex items-center gap-2 shrink-0">
+                              {/* Count Badge */}
                               {isActive && (() => {
                                 const count = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length + (isSelected ? 1 : 0);
                                 const otherEventsCount = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length;
@@ -534,37 +594,39 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                 
                                 return totalCount > 0 ? (
                                     <span 
-                                      className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium cursor-help"
+                                      className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-bold cursor-help border border-blue-100"
                                       title="이번 달 미사에 배정된 총 횟수"
                                     >
-                                        {totalCount}
+                                        {totalCount}회
                                     </span>
                                 ) : null;
                               })()}
-                            </label>
-                            {isSelected && (
-                              <label className="flex items-center gap-1 ml-5 text-xs">
-                                <input
-                                  type="radio"
-                                  name="mainMember"
-                                  checked={isMain}
-                                  onChange={() => setMainMemberId(m.id)}
-                                  disabled={loading}
-                                />
-                                <span className={!isActive ? 'text-gray-400 decoration-slate-300' : 'text-blue-600'}>주복사</span>
-                              </label>
-                            )}
+
+                              {/* Main Member Radio */}
+                              {isSelected && (
+                                <label className="flex items-center gap-1 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name="mainMember"
+                                    checked={isMain}
+                                    onChange={() => setMainMemberId(m.id)}
+                                    disabled={loading}
+                                    className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                  />
+                                  <span className={`text-[10px] whitespace-nowrap ${isMain ? 'text-blue-700 font-bold' : 'text-gray-400'}`}>주</span>
+                                </label>
+                              )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 정확히 {requiredServers ?? '-'}명 선택하고, 한 명을 주복사로 지정해주세요.
               </p>
-            </label>
+            </div>
           )}
 
           {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}

@@ -24,9 +24,9 @@ export const MASS_STATUS_LABELS: Record<MassStatus, string> = {
 export const MASS_STATUS_COLORS: Record<MassStatus, { bg: string; text: string; border: string }> =
   {
     'MASS-NOTCONFIRMED': {
-      bg: 'bg-gray-100',
-      text: 'text-gray-700',
-      border: 'border-gray-300',
+      bg: 'bg-gray-200',
+      text: 'text-gray-600',
+      border: 'border-gray-400',
     },
     'MASS-CONFIRMED': {
       bg: 'bg-blue-100',

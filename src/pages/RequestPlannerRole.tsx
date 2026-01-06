@@ -43,7 +43,7 @@ export default function RequestPlannerRole() {
   const navigate = useNavigate();
   const session = useSession();
   const user = session.user;
-  const { data: parishes } = useParishes();
+  const { data: parishes } = useParishes(true);
 
   // Existing request state
   const [existingRequest, setExistingRequest] = useState<PendingRequest | null>(null);
@@ -179,17 +179,19 @@ export default function RequestPlannerRole() {
       }
       try {
         // Query by parish_code only to avoid index issues with multiple fields
+        // Now adding active=true condition as well
         const q = query(
           collection(db, 'server_groups'), 
-          where('parish_code', '==', selectedParish)
+          where('parish_code', '==', selectedParish),
+          where('active', '==', true)
         );
         const snap = await getDocs(q);
         const list: ServerGroupItem[] = snap.docs
           .map((d) => ({
             id: d.id,
             ...(d.data() as Omit<ServerGroupItem, 'id'>),
-          }))
-          .filter((sg) => sg.active !== false); // Client-side filtering (default true if undefined, but explicit false is hidden)
+          }));
+          //.filter((sg) => sg.active !== false); // Moved to query
         
         setServerGroups(list);
       } catch (e) {

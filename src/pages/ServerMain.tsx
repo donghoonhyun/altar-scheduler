@@ -234,178 +234,193 @@ export default function ServerMain() {
   }, [session.loading, session.user, session.userInfo]);
 
   return (
-    <div className="max-w-lg mx-auto">
-      {/* 👋 상단 인사말 */}
-      <div className="mb-6 mt-2 px-1">
-        <h2 className="text-xl font-bold text-gray-800">
-          <span className="text-blue-500 font-extrabold">
-            {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
-          </span>
-          {serverGroupId && (
-            (() => {
-              const roles = session.groupRoles[serverGroupId] || [];
-              if (roles.includes('admin')) return '어드민';
-              if (roles.includes('planner')) return '플래너';
-              return '복사';
-            })()
-          )}님 반갑습니다.
-        </h2>
-      </div>
-
-      {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
-      {showProfileUpdate && session.user && (
-        <UpdateUserProfileDialog
-          uid={session.user.uid}
-          currentName={session.userInfo?.userName}
-          currentBaptismalName={session.userInfo?.baptismalName}
-          onClose={() => {
-            // "나중에 하기" 또는 닫기 시 이번 세션에서는 다시 안 띄움
-            sessionStorage.setItem('profile_skip', 'true');
-            setShowProfileUpdate(false);
-          }}
-        />
-      )}
-
-      {/* 2) 내 복사 목록 */}
-      {serverGroupId && session.user && (
-        <MyMembersPanel
-          members={members}
-          userUid={session.user.uid}
-          serverGroupId={serverGroupId}
-          checkedMemberIds={checkedMemberIds}
-          onToggle={handleToggleMember}
-        />
-      )}
-
-      {/* 2.5) 설문 알림 (Callout) */}
-      {surveyNoticeMonth && serverGroupId && (
-        <div 
-          onClick={() => {
-              if (checkedMemberIds.length !== 1) {
-                  toast.error("설문을 진행할 복사를 한 명만 선택해주세요.");
-                  return;
-              }
-              const targetId = checkedMemberIds[0];
-              navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}?memberId=${targetId}`);
-          }}
-          className="mt-4 mb-2 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 transition shadow-sm fade-in"
-        >
-          <div className="bg-yellow-100 p-2 rounded-full text-yellow-600">
-             <ClipboardCheck size={24} />
-          </div>
-          <div className="flex-1">
-             <h3 className="text-sm font-bold text-yellow-900">미사일정 설문이 시작되었습니다</h3>
-             <p className="text-xs text-yellow-700 mt-1">
-               {dayjs(surveyNoticeMonth, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
-             </p>
-          </div>
-          <ChevronRight className="text-yellow-400" size={20} />
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-emerald-200 pb-12">
+      <div className="max-w-lg mx-auto px-4">
+        {/* 👋 상단 인사말 */}
+        <div className="mb-4 mt-1 px-1">
+          <h2 className="text-xl font-bold text-gray-800">
+            <span className="text-emerald-600 font-extrabold">
+              {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
+            </span>
+            {serverGroupId && (
+              (() => {
+                const roles = session.groupRoles[serverGroupId] || [];
+                if (roles.includes('admin')) return '어드민';
+                if (roles.includes('planner')) return '플래너';
+                return '복사';
+              })()
+            )}님 반갑습니다.
+          </h2>
         </div>
-      )}
 
-      {/* 🔥 3) 복사 0명일 때 안내 카드 */}
-      {members.length === 0 && (
-        <div className="mt-4 p-4 bg-white rounded-xl shadow text-center">
-          <p className="text-gray-700 mb-3">
-            복사 정보가 없습니다.
-            <br />
-            복사 정보를 등록해주세요.
-          </p>
+        {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
+        {showProfileUpdate && session.user && (
+          <UpdateUserProfileDialog
+            uid={session.user.uid}
+            currentName={session.userInfo?.userName}
+            currentBaptismalName={session.userInfo?.baptismalName}
+            onClose={() => {
+              // "나중에 하기" 또는 닫기 시 이번 세션에서는 다시 안 띄움
+              sessionStorage.setItem('profile_skip', 'true');
+              setShowProfileUpdate(false);
+            }}
+          />
+        )}
 
-          <button
-            onClick={() => navigate(`/add-member?sg=${serverGroupId}`)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl shadow"
+        {/* 2) 내 복사 목록 */}
+        {serverGroupId && session.user && (
+          <MyMembersPanel
+            members={members}
+            userUid={session.user.uid}
+            serverGroupId={serverGroupId}
+            checkedMemberIds={checkedMemberIds}
+            onToggle={handleToggleMember}
+          />
+        )}
+
+        {/* 2.5) 설문 알림 (Callout) */}
+        {surveyNoticeMonth && serverGroupId && (
+          <div 
+            onClick={() => {
+                if (checkedMemberIds.length !== 1) {
+                    toast.error("설문을 진행할 복사를 한 명만 선택해주세요.");
+                    return;
+                }
+                const targetId = checkedMemberIds[0];
+                navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}?memberId=${targetId}`);
+            }}
+            className="mt-4 mb-2 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 transition shadow-sm fade-in"
           >
-            + 복사 추가하기
-          </button>
-        </div>
-      )}
+            <div className="bg-yellow-100 p-2 rounded-full text-yellow-600">
+               <ClipboardCheck size={24} />
+            </div>
+            <div className="flex-1">
+               <h3 className="text-sm font-bold text-yellow-900">미사일정 설문이 시작되었습니다</h3>
+               <p className="text-xs text-yellow-700 mt-1">
+                 {dayjs(surveyNoticeMonth, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
+               </p>
+            </div>
+            <ChevronRight className="text-yellow-400" size={20} />
+          </div>
+        )}
 
-      {/* 🔥 4) 복사 없으면 달력 렌더링 중지 */}
-      {members.length === 0 && null}
+        {/* 🔥 3) 복사 0명일 때 안내 카드 */}
+        {members.length === 0 && (
+          <div className="mt-4 p-4 bg-white rounded-xl shadow text-center">
+            <p className="text-gray-700 mb-3">
+              복사 정보가 없습니다.
+              <br />
+              복사 정보를 등록해주세요.
+            </p>
 
-      {/* 🔥 members.length ≥ 1 일 때만 달력 렌더링 */}
-      {serverGroupId && members.length > 0 && (
-        <>
-          {/* 달력 상단 */}
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex gap-2 items-center">
-              {/* ✅ [수정] 세션 상태 업데이트 함수 사용 */}
-              <button 
-                onClick={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
+            <button
+              onClick={() => navigate(`/add-member?sg=${serverGroupId}`)}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-xl shadow"
+            >
+              + 복사 추가하기
+            </button>
+          </div>
+        )}
 
-              <span className="font-bold text-lg text-gray-800 tracking-tight">
-                {currentMonth.format('M월')}
-              </span>
+        {/* 🔥 4) 복사 없으면 달력 렌더링 중지 */}
+        {members.length === 0 && null}
 
-              <button 
-                onClick={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <ChevronRight size={20} />
-              </button>
+        {/* 🔥 members.length ≥ 1 일 때만 달력 렌더링 */}
+        {serverGroupId && members.length > 0 && (
+          <>
+            {/* 달력 상단 */}
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex gap-2 items-center">
+                {/* ✅ [수정] 세션 상태 업데이트 함수 사용 */}
+                <button 
+                  onClick={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
+                  className="p-1 hover:bg-emerald-100 rounded-full transition-colors"
+                  title="이전 달"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+
+                <span className="font-bold text-lg text-gray-800 tracking-tight">
+                  {currentMonth.format('M월')}
+                </span>
+
+                <button 
+                  onClick={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
+                  className="p-1 hover:bg-emerald-100 rounded-full transition-colors"
+                  title="다음 달"
+                >
+                  <ChevronRight size={20} />
+                </button>
+
+                <button
+                  onClick={() => session.setCurrentViewDate?.(dayjs())}
+                  className="ml-1 text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-emerald-50 text-gray-600 rounded-lg shadow-sm transition-colors font-medium"
+                >
+                  오늘
+                </button>
+
+                <div className="ml-2 flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap">
+                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                   나의 배정
+                </div>
+              </div>
+
+              <StatusBadge status={monthStatus} />
             </div>
 
-            <StatusBadge status={monthStatus} />
-          </div>
+            {/* 달력 */}
+            <div className="grid grid-cols-7 gap-1 text-sm mb-4">
+              {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
+                <div key={d} className="text-center font-semibold text-gray-600 py-1">
+                  {d}
+                </div>
+              ))}
 
-          {/* 달력 */}
-          <div className="grid grid-cols-7 gap-1 text-sm mb-4">
-            {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
-              <div key={d} className="text-center font-semibold text-gray-600 py-1">
-                {d}
-              </div>
-            ))}
+              {daysArray.map((day, idx) => {
+                if (!day) return <div key={idx} className="h-14" />;
 
-            {daysArray.map((day, idx) => {
-              if (!day) return <div key={idx} className="h-14" />;
+                const dateObj = currentMonth.date(day);
+                const evts = events.filter((ev) =>
+                  dayjs(ev.event_date, 'YYYYMMDD').isSame(dateObj, 'day')
+                );
 
-              const dateObj = currentMonth.date(day);
-              const evts = events.filter((ev) =>
-                dayjs(ev.event_date, 'YYYYMMDD').isSame(dateObj, 'day')
-              );
+                const mine = evts.some(isMyEvent);
+                const any = evts.length > 0;
 
-              const mine = evts.some(isMyEvent);
-              const any = evts.length > 0;
+                const isToday = dayjs().isSame(dateObj, 'day');
+                // MASS-NOTCONFIRMED가 아니면 점으로 표시
+                const showDots = monthStatus !== 'MASS-NOTCONFIRMED';
+                const isSelected = drawerOpen && drawerDate?.isSame(dateObj, 'day');
 
-              const isToday = dayjs().isSame(dateObj, 'day');
-              // MASS-NOTCONFIRMED가 아니면 점으로 표시
-              const showDots = monthStatus !== 'MASS-NOTCONFIRMED';
-              const isSelected = drawerOpen && drawerDate?.isSame(dateObj, 'day');
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleDayClick(day)}
+                    className={cn(
+                      "h-14 flex flex-col items-center justify-start pt-1 rounded transition border relative",
+                      // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
+                      !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50",
+                      isToday ? "border-emerald-500 ring-1 ring-emerald-500 z-10" : "border-transparent",
+                      !showDots && mine && "bg-rose-600 text-white font-bold hover:bg-rose-700",
+                      !showDots && !mine && any && "bg-gray-200 text-gray-600 hover:bg-gray-300",
+                      !showDots && !any && "text-gray-300",
+                      
+                      // Confirmed: Assigned (mine)
+                      showDots && !isSelected && mine && "bg-rose-100 border-rose-300",
+                      // Confirmed: Not Assigned
+                      showDots && !isSelected && !mine && "bg-white",
 
-              return (
-                <div
-                  key={idx}
-                  onClick={() => handleDayClick(day)}
-                  className={cn(
-                    "h-14 flex flex-col items-center justify-start pt-1 rounded transition border relative",
-                    // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
-                    !showDots ? "cursor-default" : "cursor-pointer hover:bg-gray-50",
-                    isToday ? "border-blue-500 ring-1 ring-blue-500 z-10" : "border-transparent",
-                    !showDots && mine && "bg-blue-600 text-white font-bold hover:bg-blue-700",
-                    !showDots && !mine && any && "bg-rose-100 text-rose-700 hover:bg-rose-200",
-                    !showDots && !any && "text-gray-300",
-                    
-                    // Confirmed: Assigned (mine)
-                    showDots && !isSelected && mine && "bg-rose-100 border-rose-300",
-                    // Confirmed: Not Assigned
-                    showDots && !isSelected && !mine && "bg-white",
-
-                    // Selected (Override)
-                    // If mine is true, keep rose bg but add yellow ring
-                    isSelected && mine && "bg-rose-100 border-yellow-400 ring-2 ring-yellow-400 z-20",
-                    isSelected && !mine && "bg-white border-yellow-400 ring-1 ring-yellow-400 z-20"
-                  )}
-                >
-                  <span className={cn(
-                    "text-sm", 
-                    isToday && "font-bold text-blue-600",
-                    !showDots && mine && "text-white"
-                  )}>{day}</span>
+                      // Selected (Override)
+                      // If mine is true, keep rose bg but add yellow ring
+                      isSelected && mine && "bg-rose-100 border-yellow-400 ring-2 ring-yellow-400 z-20",
+                      isSelected && !mine && "bg-white border-yellow-400 ring-1 ring-yellow-400 z-20"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-sm", 
+                      isToday && "font-bold text-emerald-600",
+                      !showDots && mine && "text-white"
+                    )}>{day}</span>
                   
                   {showDots && (
                     <div className="flex gap-0.5 flex-wrap justify-center px-1 mt-1">
@@ -427,6 +442,8 @@ export default function ServerMain() {
             })}
           </div>
 
+
+
           {/* Drawer */}
           <MassEventMiniDrawer
             isOpen={drawerOpen}
@@ -438,6 +455,7 @@ export default function ServerMain() {
           />
         </>
       )}
+      </div>
     </div>
   );
 }

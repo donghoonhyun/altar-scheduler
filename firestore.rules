@@ -13,6 +13,10 @@ service cloud.firestore {
       let globalAdminPath = /databases/$(database)/documents/memberships/$(request.auth.uid + '_global');
       return isSignedIn() && exists(globalAdminPath) && 'superadmin' in get(globalAdminPath).data.role;
     }
+    function isGroupAdmin(groupId) {
+      let membershipPath = /databases/$(database)/documents/memberships/$(request.auth.uid + '_' + groupId);
+      return isSignedIn() && exists(membershipPath) && 'admin' in get(membershipPath).data.role;
+    }
 
     // 1️⃣ Users: 프로필은 누구나 읽기 가능, 수정은 본인 또는 슈퍼어드민
     match /users/{userId} {
@@ -21,15 +25,29 @@ service cloud.firestore {
       allow update, delete: if isOwner(userId) || isSuperAdmin();
     }
 
-    // 2️⃣ Parishes: 읽기 전용 (공개 정보)
+    // 2️⃣ Parishes: 읽기 전용 (공개 정보), 쓰기는 슈퍼어드민만
     match /parishes/{parishCode} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isSuperAdmin();
     }
 
-    // 3️⃣ Server Groups & Memberships
-    match /server_groups/{groupId}/{document=**} {
-      allow read, write: if isSignedIn();
+    // 3️⃣ Server Groups
+    // 그룹 메타데이터 (이름, 설정 등) 수정은 관리자만
+    match /server_groups/{groupId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // 그룹 생성은 로그인한 누구나 (생성자가 어드민이 됨)
+      allow update, delete: if isGroupAdmin(groupId) || isSuperAdmin();
+      
+      // 하위 컬렉션 기본 규칙
+      match /{document=**} {
+        allow read: if isSignedIn();
+        allow write: if isGroupAdmin(groupId) || isSuperAdmin();
+      }
+
+      // 복사단원(members) 등록은 로그인한 사용자면 누구나 가능 (승인 대기 상태로 생성)
+      match /members/{memberId} {
+        allow create: if isSignedIn() && request.resource.data.parent_uid == request.auth.uid;
+      }
     }
     
     // 3.5️⃣ Collection Group 'members' 쿼리 허용 (필수)
@@ -41,6 +59,11 @@ service cloud.firestore {
     }
 
     match /memberships/{membershipId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // 3.8️⃣ Counters (ID 생성용)
+    match /counters/{counterId} {
       allow read, write: if isSignedIn();
     }
     

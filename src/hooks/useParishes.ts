@@ -3,16 +3,20 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Parish } from '../types/parish';
 
-export function useParishes() {
+export function useParishes(onlyActive?: boolean) {
   return useQuery({
-    queryKey: ['parishes'],
+    queryKey: ['parishes', { onlyActive }],
     queryFn: async (): Promise<Parish[]> => {
       const parishRef = collection(db, 'parishes');
-      // active true 필터링은 선택사항이나, 운영상 필요할 수 있음. 일단은 전체 로드.
-      // const q = query(parishRef, where('active', '==', true));
-      // 정렬도 필요하면 추가.
+      let q;
       
-      const snapshot = await getDocs(parishRef);
+      if (onlyActive) {
+        q = query(parishRef, where('active', '==', true));
+      } else {
+        q = query(parishRef);
+      }
+      
+      const snapshot = await getDocs(q);
       const parishes = snapshot.docs.map((doc) => doc.data() as Parish);
       
       return parishes;

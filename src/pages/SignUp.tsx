@@ -132,6 +132,14 @@ export default function SignUp() {
     }
   };
 
+  // Helper
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, "");
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+  };
+   
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
       <Card className="w-full max-w-[500px] p-8 shadow-xl bg-white border-none">
@@ -198,8 +206,9 @@ export default function SignUp() {
              <Label className="text-sm font-semibold text-gray-700">연락처</Label>
              <Input
                value={phone}
-               onChange={(e) => setPhone(e.target.value.replace(/[^0-9-]/g, ''))}
+               onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                placeholder="010-0000-0000"
+               maxLength={13}
                className="h-11 bg-white"
              />
           </div>

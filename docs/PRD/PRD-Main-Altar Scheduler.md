@@ -425,6 +425,7 @@
       "email": "<user@email.com>",
       "name_kor": "홍길동",
       "baptismal_name": "요한",
+      "user_category": "Layman",
       "grade": "중2",
       "notes": "",
       "active": false,         // 기본값: 미승인

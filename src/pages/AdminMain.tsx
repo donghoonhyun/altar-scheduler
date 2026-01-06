@@ -1,7 +1,7 @@
 import React from 'react';
 import { MIGRATION_MEMBERS } from '@/data/migrationData';
 import { db } from '@/lib/firebase';
-import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { Upload } from 'lucide-react';
 
 import { useNavigate, useParams } from 'react-router-dom';
@@ -98,6 +98,72 @@ const AdminMain: React.FC = () => {
     }
   };
 
+  const [isScheduleMigrating, setIsScheduleMigrating] = React.useState(false);
+
+  const handleScheduleMigration = async () => {
+    if (!serverGroupId) return;
+    if (!confirm('2025년 12월 스케줄 데이터를 업로드하시겠습니까? \n(기존 동일 날짜/미사 데이터가 있으면 덮어씁니다)')) return;
+
+    setIsScheduleMigrating(true);
+    try {
+      const { DECEMBER_2025_SCHEDULE } = await import('@/data/schedule2025Dec');
+
+      // 1. Fetch Members to build matching map
+      const membersRef = collection(db, 'server_groups', serverGroupId, 'members');
+      const memberSnap = await getDocs(membersRef);
+      const memberMap = new Map<string, string>();
+      
+      memberSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.name_kor && data.baptismal_name) {
+             const key = `${data.name_kor}${data.baptismal_name}`.replace(/\s/g, '');
+             memberMap.set(key, d.id);
+        }
+      });
+      console.log(`[Migration] Loaded ${memberMap.size} members for matching.`);
+
+      const batch = writeBatch(db);
+      let matchCount = 0;
+
+      DECEMBER_2025_SCHEDULE.forEach((item) => {
+        const docId = `ME_${item.date}_${item.title}`;
+        const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', docId);
+        
+        const matchedServerIds = item.servers.map(name => {
+           const cleanName = name.replace(/\s/g, ''); 
+           const uid = memberMap.get(cleanName);
+           if (!uid) {
+             console.warn(`[Migration] Unmatched server in image: ${name}`);
+           }
+           return uid;
+        }).filter(Boolean) as string[];
+
+        matchCount += matchedServerIds.length;
+
+        batch.set(ref, {
+          id: docId,
+          title: item.title,
+          event_date: item.date, // "20251201"
+          required_servers: item.servers.length > 0 ? item.servers.length : 2, 
+          status: 'MASS-CONFIRMED', 
+          member_ids: matchedServerIds,
+          main_member_id: matchedServerIds.length > 0 ? matchedServerIds[0] : null,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      });
+
+      await batch.commit();
+      alert(`✅ 2025년 12월 스케줄 업로드 완료! (총 ${DECEMBER_2025_SCHEDULE.length}개 미사, ${matchCount}명 배정)`);
+
+    } catch (e) {
+      console.error(e);
+      alert('❌ 스케줄 업로드 실패: ' + e);
+    } finally {
+      setIsScheduleMigrating(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50">
@@ -184,23 +250,37 @@ const AdminMain: React.FC = () => {
         {session.user?.email === 'pongso.hyun@gmail.com' && (
           <div className="mt-8 mb-8">
             <Card className="border-none shadow-sm p-4 bg-white">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-800">데이터 마이그레이션 (임시)</h3>
-                  <p className="text-xs text-gray-500">요청하신 62명의 멤버 데이터를 일괄 업로드합니다.</p>
+                  <h3 className="text-sm font-bold text-gray-800">마이그레이션 (임시)</h3>
+                  <p className="text-xs text-gray-500">데이터 초기화를 위한 일괄 업로드 기능입니다.</p>
                 </div>
-                <button
-                  onClick={handleMigration}
-                  disabled={isMigrating}
-                  className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  {isMigrating ? '업로드 중...' : (
-                    <>
-                      <Upload size={14} />
-                      명단 일괄 업로드
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleMigration}
+                    disabled={isMigrating}
+                    className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  >
+                    {isMigrating ? '업로드 중...' : (
+                      <>
+                        <Upload size={14} />
+                        명단 일괄 업로드
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleScheduleMigration}
+                    disabled={isScheduleMigrating}
+                    className="flex items-center gap-2 px-3 py-2 bg-pink-600 text-white text-xs font-bold rounded-md hover:bg-pink-700 transition-colors disabled:opacity-50"
+                  >
+                    {isScheduleMigrating ? '처리 중...' : (
+                      <>
+                        <Upload size={14} />
+                        12월 스케줄
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </Card>
           </div>
@@ -211,16 +291,7 @@ const AdminMain: React.FC = () => {
           이 페이지는 해당 복사단 멤버십에서 어드민(Admin) 역할이 있는 분들께만 보입니다.
         </div>
 
-        {session.isSuperAdmin && (
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => navigate('/superadmin')}
-              className="text-xs text-gray-300 underline hover:text-gray-500 transition-colors"
-            >
-              Superadmin Access
-            </button>
-          </div>
-        )}
+
       </Container>
     </div>
   );

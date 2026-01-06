@@ -74,7 +74,7 @@ const Dashboard: React.FC = () => {
   if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-200">
       <Container className="py-6 transition-all duration-300">
         {/* 👋 상단 인사말 */}
         <div className="mb-6 mt-1 flex flex-col items-center">

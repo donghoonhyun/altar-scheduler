@@ -2,7 +2,7 @@ import { useSession } from "../../state/session";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Church, Menu, LogOut, User as UserIcon, ShieldCheck } from "lucide-react";
+import { Church, Menu, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus } from "lucide-react";
 import ServerGroupSelector from "./ServerGroupSelector";
 import {
   Sheet,
@@ -20,10 +20,11 @@ import { Download, CheckCircle2 } from "lucide-react";
 import { useFcmToken } from "@/hooks/useFcmToken"; // ✅ FCM Hook
 
 export default function Layout() {
-  const { user, userInfo, groupRoles } = useSession();
+  const { user, userInfo, groupRoles, isSuperAdmin } = useSession();
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const [isMyInfoOpen, setIsMyInfoOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
   
   // ✅ PWA 진입 시 FCM 토큰 관리 (권한 요청 및 저장)
@@ -62,7 +63,7 @@ export default function Layout() {
           </div>
 
           {/* 우측: 메뉴 버튼 (Hamburger) */}
-          <Sheet>
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="text-gray-800">
                 <Menu size={32} strokeWidth={2.5} />
@@ -88,23 +89,16 @@ export default function Layout() {
                 </div>
 
                 {/* 역할 표시 */}
-                {rolesInGroup.length > 0 && (
+                {(rolesInGroup.length > 0 || isSuperAdmin) && (
                   <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
-                    * 역할: {rolesInGroup.map(r => r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사').join(', ')}
+                    * 나의 역할: {[
+                      ...(isSuperAdmin ? ['슈퍼어드민'] : []),
+                      ...rolesInGroup.map(r => r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사')
+                    ].join(', ')}
                   </div>
                 )}
 
                 <nav className="flex flex-col gap-2">
-                  {rolesInGroup.includes('admin') && (
-                    <Button
-                      variant="ghost"
-                      className="justify-start gap-3 h-10 text-sm font-medium rounded-xl text-purple-600 hover:bg-purple-50"
-                      onClick={() => navigate(`/server-groups/${serverGroupId}/admin`)}
-                    >
-                      <ShieldCheck size={18} className="text-purple-400" />
-                      어드민 설정
-                    </Button>
-                  )}
                   <Button 
                     variant="ghost" 
                     className="justify-start gap-3 h-10 text-sm font-medium rounded-xl"
@@ -113,34 +107,101 @@ export default function Layout() {
                     <UserIcon size={18} className="text-gray-400" />
                     내정보 수정
                   </Button>
-                  
                   <Button 
                     variant="ghost" 
-                    className="justify-start gap-3 h-10 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
-                    onClick={handleLogout}
+                    className="justify-start gap-3 h-10 text-sm font-medium rounded-xl"
+                    onClick={() => {
+                        navigate('/add-member');
+                        setIsMenuOpen(false);
+                    }}
                   >
-                    <LogOut size={18} className="text-red-400" />
-                    로그아웃
+                    <UserPlus size={18} className="text-gray-400" />
+                    권한 신청
                   </Button>
                 </nav>
 
-                {/* 앱 설치 버튼 (항상 표시하되 상태에 따라 UI 변경) */}
-                {!isInstalled && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        if (isInstallable) {
-                          promptInstall();
-                        } else {
-                          alert('현재 브라우저에서는 설치 기능을 지원하지 않거나, 이미 설치되어 있을 수 있습니다. \n브라우저 메뉴(⋮)에서 [앱 설치]를 확인해주세요.');
-                        }
-                      }}
-                      className="w-full text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-auto py-2 flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Download size={14} />
-                      앱으로 설치하고 간편하게 접속하세요
-                    </Button>
+                {/* 역할별 바로가기 및 앱 설치 */}
+                {((serverGroupId && rolesInGroup.length > 0) || !isInstalled || isSuperAdmin) && (
+                  <div className="mt-2 pt-4 border-t border-gray-100 flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-gray-500 px-1 mb-1">바로가기</span>
+                    
+                    {isSuperAdmin && (
+                      <Button
+                        variant="ghost"
+                        className="justify-start gap-3 h-10 text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 rounded-xl"
+                        onClick={() => {
+                          navigate('/superadmin');
+                          setIsMenuOpen(false);
+                        }}
+                      >
+                        <ShieldCheck size={18} />
+                        Super Admin
+                      </Button>
+                    )}
+
+                    {serverGroupId && rolesInGroup.length > 0 && (
+                      <>
+                        {rolesInGroup.includes('admin') && (
+                          <Button
+                            variant="ghost" 
+                            className="justify-start gap-3 h-10 text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl"
+                            onClick={() => {
+                              navigate(`/server-groups/${serverGroupId}/admin`);
+                              setIsMenuOpen(false);
+                            }}
+                          >
+                            <ShieldCheck size={18} />
+                            어드민 페이지
+                          </Button>
+                        )}
+
+                        {rolesInGroup.includes('planner') && (
+                          <Button
+                            variant="ghost"
+                            className="justify-start gap-3 h-10 text-sm font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 rounded-xl"
+                            onClick={() => {
+                              navigate(`/server-groups/${serverGroupId}/dashboard`);
+                              setIsMenuOpen(false);
+                            }}
+                          >
+                            <LayoutDashboard size={18} />
+                            플래너 대시보드
+                          </Button>
+                        )}
+
+                        {rolesInGroup.includes('server') && (
+                          <Button
+                            variant="ghost"
+                            className="justify-start gap-3 h-10 text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl"
+                            onClick={() => {
+                              navigate(`/server-groups/${serverGroupId}/main`);
+                              setIsMenuOpen(false);
+                            }}
+                          >
+                            <Home size={18} />
+                            복사 메인
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    {/* 앱 설치 버튼 */}
+                    {!isInstalled && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          if (isInstallable) {
+                            promptInstall();
+                          } else {
+                            alert('현재 브라우저에서는 설치 기능을 지원하지 않거나, 이미 설치되어 있을 수 있습니다. \n브라우저 메뉴(⋮)에서 [앱 설치]를 확인해주세요.');
+                          }
+                        }}
+                        className="w-full text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-auto py-2 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Download size={14} />
+                        앱으로 설치하고 간편하게 접속하세요
+                      </Button>
+                    )}
                   </div>
                 )}
                 
@@ -151,6 +212,18 @@ export default function Layout() {
                     앱이 설치되어 있습니다
                   </div>
                 )}
+
+                {/* 로그아웃 버튼 (최하단 이동) */}
+                <div className="mt-auto pt-4 border-t border-gray-100">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-3 h-10 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={18} className="text-red-400" />
+                    로그아웃
+                  </Button>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

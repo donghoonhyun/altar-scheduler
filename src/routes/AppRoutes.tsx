@@ -27,6 +27,7 @@ import MemberRoleManagement from '../pages/MemberRoleManagement';
 import ServerGroupSettings from '../pages/ServerGroupSettings';
 import PlannerRoleApproval from '../pages/PlannerRoleApproval';
 import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
+import ParishAdminManagement from '../pages/superadmin/ParishAdminManagement';
 import SurveyManagement from '../pages/SurveyManagement';
 
 export default function AppRoutes() {
@@ -113,9 +114,11 @@ export default function AppRoutes() {
 
     const userRoles = session.groupRoles[serverGroupId] || [];
 
-    // Admin 은 AdminMain 으로, Planner 는 Dashboard 로 진입
-    if (userRoles.includes('admin')) return <AdminMain />;
+    // Admin 또는 SuperAdmin 은 AdminMain 으로
+    if (session.isSuperAdmin || userRoles.includes('admin')) return <AdminMain />;
+    // Planner 는 Dashboard 로 진입
     if (userRoles.includes('planner')) return <Dashboard />;
+    // Server 는 ServerMain 으로 진입
     if (userRoles.includes('server')) return <ServerMain />;
 
     return <Navigate to="/forbidden" replace />;
@@ -141,6 +144,7 @@ export default function AppRoutes() {
 
         {/* Super Admin 페이지 */}
         <Route path="/superadmin" element={<SuperAdminMain />} />
+        <Route path="/superadmin/parish/:parishCode/admins" element={<ParishAdminManagement />} />
 
 
         {/* Admin 전용 라우트 */}
@@ -261,6 +265,7 @@ export default function AppRoutes() {
                 <Route path="admin/settings" element={<RoleGuard require="admin"><ServerGroupSettings /></RoleGuard>} />
                 <Route path="admin/role-approval" element={<RoleGuard require="admin"><PlannerRoleApproval /></RoleGuard>} />
                 <Route path="dashboard" element={<RoleGuard require="planner"><Dashboard /></RoleGuard>} />
+                <Route path="main" element={<RoleGuard require="server"><ServerMain /></RoleGuard>} />
                 <Route path="*" element={<ServerMainWrapper />} />
               </Routes>
             </RoleGuard>

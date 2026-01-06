@@ -173,14 +173,23 @@ Drawer 상단에는 현재 로그인 사용자의 **역할(role)** 을 명시적
 
 | 역할 | 변수명 | 코드 | 의미 |
 |------|---------|------|------|
-| Primary | `--color-primary` | `#3B82F6` | 하늘빛 파랑 — 평화, 희망 |
-| Secondary | `--color-secondary` | `#FDE68A` | 밝은 노랑 — 빛, 긍긍함 |
-| Accent | `--color-accent` | `#F472B6` | 부드럽는 핑크 — 공동체 |
-| Success | `--color-success` | `#22C55E` | 완료 / 승인 |
+| Primary | `--color-primary` | `#3B82F6` | 하늘빛 파랑 — 평화, 희망 (플래너 테마) |
+| Secondary | `--color-secondary` | `#FDE68A` | 밝은 노랑 — 빛, 긍정함 |
+| Accent | `--color-accent` | `#F472B6` | 부드러운 핑크 — 공동체 |
+| Success | `--color-success` | `#10B981` | 에메랄드 녹색 — 생명, 활동 (복사 테마) |
+| Admin | `--color-admin` | `#8B5CF6` | 보라색 — 권위, 관리 (슈퍼어드민 테마) |
 | Warning | `--color-warning` | `#F97316` | 주의 / 확인 |
 | Error | `--color-error` | `#EF4444` | 오류 / 가입 거부 |
-| Background (light) | `--color-bg-light` | `#F9FAFB` | 일반 배경 |
-| Background (dark) | `--color-bg-dark` | `#111827` | 다크모드 배경 |
+| Background | `--color-bg-base` | `#F8FAFC` | 레이아웃 공통 배경 (blue-50) |
+
+### 🧩6.2 역할별 테마 및 배경 그라데이션
+각 주체별 페이지는 고유한 컬러 테마를 가지며, 상단 레이아웃과 자연스럽게 이어지는 수직 그라데이션을 적용한다.
+
+1. **공통 레이아웃**: `bg-blue-50` 배경을 기본으로 함.
+2. **슈퍼어드민 (Super Admin)**: 보라색 계열 (`from-purple-200 to-purple-50`)
+3. **플래너 대시보드 (Planner)**: 파란색 계열 (`from-blue-50 to-blue-200`) - 상단바 경계선 제거를 위해 `blue-50`에서 시작.
+4. **복사 메인 (Server)**: 에메랄드 계열 (`from-blue-50 to-emerald-200`) - 상단바 경계선 제거를 위해 `blue-50`에서 시작.
+
 
 ### 🧩6.2 폰트 시스템
 

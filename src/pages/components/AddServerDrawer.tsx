@@ -147,6 +147,13 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
       setPhoneGuardian('');
   };
 
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, "");
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+  };
+
   const handleAdd = async () => {
     if (!name.trim() || !baptismalName.trim() || !grade) {
       toast.error('필수 정보를 모두 입력해주세요.');
@@ -176,7 +183,7 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
         name_kor: name,
         baptismal_name: baptismalName,
         grade: grade,
-        phone_student: phoneStudent,
+        phone_student: phoneStudent || '', // Ensure no undefined
         active: true,
         request_confirmed: true,
         created_at: Timestamp.now(),
@@ -185,10 +192,11 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
 
       if (parentMode === 'search' && selectedParent) {
           payload.parent_uid = selectedParent.uid;
-          payload.phone_guardian = phoneGuardian || selectedParent.phone; // Allow override
+          // Fix: Ensure undefined fallback to empty string
+          payload.phone_guardian = (phoneGuardian || selectedParent.phone) || ''; 
       } else {
           payload.guardian_name = guardianName;
-          payload.phone_guardian = phoneGuardian;
+          payload.phone_guardian = phoneGuardian || '';
       }
 
       await addDoc(colRef, payload);
@@ -278,8 +286,9 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
               <Input 
                 id="phone_student" 
                 value={phoneStudent} 
-                onChange={(e) => setPhoneStudent(e.target.value)} 
+                onChange={(e) => setPhoneStudent(formatPhoneNumber(e.target.value))} 
                 placeholder="010-0000-0000"
+                maxLength={13}
                 className="h-9"
               />
             </div>

@@ -30,7 +30,7 @@ export default function AddMember() {
   const [searchParams] = useSearchParams();
   const session = useSession();
   const user = session.user;
-  const { data: parishes } = useParishes();
+  const { data: parishes } = useParishes(true);
   
   // 성당 선택
   const [selectedParish, setSelectedParish] = useState<string>('');
@@ -96,7 +96,11 @@ export default function AddMember() {
         return;
       }
       
-      const q = query(collection(db, 'server_groups'), where('parish_code', '==', selectedParish));
+      const q = query(
+        collection(db, 'server_groups'), 
+        where('parish_code', '==', selectedParish),
+        where('active', '==', true)
+      );
 
       const snap = await getDocs(q);
       const list: ServerGroupItem[] = snap.docs.map((d) => ({
