@@ -91,6 +91,8 @@ export function SendSurveyDrawer({
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null); // For showing details
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortOrder, setSortOrder] = useState<'name' | 'grade'>('name');
+  const [isEditingMembers, setIsEditingMembers] = useState(false);
+  const [isEditingDates, setIsEditingDates] = useState(false);
 
   // ---------- 🔹 Load Members & Events (Manual Refresh) ---------- 
   const fetchBasics = useCallback(async () => {
@@ -145,6 +147,12 @@ export function SendSurveyDrawer({
             if (data.status === 'OPEN') {
                setSurveyUrl(`${APP_BASE_URL}/survey/${serverGroupId}/${currentMonth}`);
             }
+            // Update selected members for editing
+            if (data.member_ids) {
+                setSelectedMembers(data.member_ids);
+            }
+            if (data.start_date) setStartDate(data.start_date.toDate());
+            if (data.end_date) setEndDate(data.end_date.toDate());
         } else {
             setExistingSurvey(null);
             setSurveyUrl(null);
@@ -213,6 +221,45 @@ export function SendSurveyDrawer({
     );
   };
 
+  // ---------- 🔹 Update Members ----------
+  const handleUpdateMembers = async () => {
+    if (!existingSurvey) return;
+    try {
+        setIsLoading(true);
+        const ref = doc(db, `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`);
+        await setDoc(ref, { member_ids: selectedMembers }, { merge: true });
+        toast.success('설문 대상자가 수정되었습니다.');
+        setIsEditingMembers(false);
+    } catch (e) {
+        console.error(e);
+        toast.error('설문 대상자 수정 실패');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  // ---------- 🔹 Update Dates ----------
+  const handleUpdateDates = async () => {
+    if (!existingSurvey) return;
+    try {
+        setIsLoading(true);
+        const ref = doc(db, `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`);
+        
+        await setDoc(ref, { 
+            start_date: fromLocalDateToFirestore(startDate, timezone),
+            end_date: fromLocalDateToFirestore(endDate, timezone) 
+        }, { merge: true });
+        
+        toast.success('설문 기간이 수정되었습니다.');
+        setIsEditingDates(false);
+    } catch (e) {
+        console.error(e);
+        toast.error('설문 기간 수정 실패');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   // ---------- 🔹 Render ----------
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -231,12 +278,62 @@ export function SendSurveyDrawer({
                 existingSurvey.status === 'OPEN' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'
               }`}>
                   {/* Date Range */}
-                  <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-800">설문 기간</span>
-                      <span className="text-sm font-bold text-gray-900">
-                        {dayjs(existingSurvey.start_date?.toDate()).format('M/D')} ~ {dayjs(existingSurvey.end_date?.toDate()).format('M/D')}
-                      </span>
-                  </div>
+                  {/* Date Range or Edit Form */}
+                  {isEditingDates ? (
+                      <div className="flex flex-col gap-2">
+                         <div className="flex gap-2">
+                             <Input
+                               type="date"
+                               value={dayjs(startDate).format('YYYY-MM-DD')}
+                               onChange={(e) => setStartDate(new Date(e.target.value))}
+                               className="h-8 text-xs"
+                             />
+                             <span className="self-center">~</span>
+                             <Input
+                               type="date"
+                               value={dayjs(endDate).format('YYYY-MM-DD')}
+                               onChange={(e) => setEndDate(new Date(e.target.value))}
+                               className="h-8 text-xs"
+                             />
+                         </div>
+                         <div className="flex justify-end gap-2">
+                             <Button 
+                               size="sm" 
+                               variant="outline" 
+                               onClick={() => { 
+                                   setIsEditingDates(false);
+                                   if (existingSurvey.start_date) setStartDate(existingSurvey.start_date.toDate());
+                                   if (existingSurvey.end_date) setEndDate(existingSurvey.end_date.toDate());
+                               }}
+                               className="h-6 text-xs"
+                             >
+                                 취소
+                             </Button>
+                             <Button 
+                               size="sm" 
+                               onClick={handleUpdateDates}
+                               disabled={isLoading}
+                               className="h-6 text-xs bg-blue-600 hover:bg-blue-700 text-white border-0"
+                             >
+                                 저장
+                             </Button>
+                         </div>
+                      </div>
+                  ) : (
+                      <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-800">설문 기간</span>
+                          <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-900">
+                                {dayjs(existingSurvey.start_date?.toDate()).format('M/D')} ~ {dayjs(existingSurvey.end_date?.toDate()).format('M/D')}
+                              </span>
+                              {existingSurvey.status === 'OPEN' && (
+                                  <button onClick={() => setIsEditingDates(true)} className="text-gray-400 hover:text-gray-600">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                  </button>
+                              )}
+                          </div>
+                      </div>
+                  )}
 
                   {/* Toggle */}
                   <div className="flex items-center justify-between">
@@ -264,129 +361,276 @@ export function SendSurveyDrawer({
                   </div>
               </div>
 
-              {/* Submission Statistics */}
-              {(() => {
-                  const targetMembers = members.filter(m => existingSurvey.member_ids?.includes(m.id));
-                  const submittedCount = targetMembers.filter(m => existingSurvey.responses?.[m.id]).length;
-                  const notSubmittedCount = targetMembers.length - submittedCount;
-                  
-                  return (
-                      <div className="flex items-center justify-between text-sm">
-                          <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="font-medium">제출:</span>
-                                <span className="text-green-600 font-bold">{submittedCount}명</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="font-medium">미제출:</span>
-                                <span className="text-gray-500 font-bold">{notSubmittedCount}명</span>
-                            </div>
+              {/* Edit Members Mode or View Mode */}
+              {isEditingMembers ? (
+                  <div className="space-y-4 border rounded-xl p-4 bg-white shadow-sm">
+                      <div className="flex justify-between items-center">
+                          <h3 className="font-bold text-gray-800">설문 대상자 수정</h3>
+                          <div className="flex gap-2">
+                             <Button size="sm" variant="outline" onClick={() => { setIsEditingMembers(false); if(existingSurvey.member_ids) setSelectedMembers(existingSurvey.member_ids); }}>
+                                 취소
+                             </Button>
+                             <Button size="sm" variant="primary" onClick={handleUpdateMembers} disabled={isLoading}>
+                                 저장
+                             </Button>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={fetchBasics} 
-                            disabled={isRefreshing}
-                            className="h-6 w-6 p-0 rounded-full hover:bg-gray-100"
-                            title="데이터 새로고침"
-                          >
-                            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-                          </Button>
                       </div>
-                  );
-              })()}
-
-              {/* Members Status List */}
-              <div className="border rounded-md max-h-[450px] overflow-y-auto">
-                 {members
-                   .filter(m => existingSurvey.member_ids?.includes(m.id))
-                   .sort((a, b) => {
-                       // Sort by name_kor first, then by grade
-                       const nameCompare = a.name_kor.localeCompare(b.name_kor, 'ko');
-                       if (nameCompare !== 0) return nameCompare;
-                       return (a.grade || '').localeCompare(b.grade || '', 'ko');
-                   })
-                   .map(m => {
-                     const response = existingSurvey.responses?.[m.id];
-                     const isSubmitted = !!response;
-                     const isExpanded = expandedMemberId === m.id;
-                     
-                     // Helper to get unavailable event IDs safely
-                     let unavailableIds: string[] = [];
-                     if (response?.unavailable) {
-                         if (Array.isArray(response.unavailable)) {
-                             unavailableIds = response.unavailable;
-                         } else {
-                             unavailableIds = Object.keys(response.unavailable);
-                         }
-                     }
-                     const unavailableCount = unavailableIds.length;
-
-                     // Calculate assigned count from massEvents (loaded via fetchBasics)
-                     const assignedCount = Object.values(massEvents).filter(ev => 
-                        ev.member_ids?.includes(m.id)
-                     ).length;
-
-                     return (
-                         <div key={m.id} className="border-b last:border-b-0">
-                             <div 
-                                className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
-                                onClick={() => isSubmitted && setExpandedMemberId(isExpanded ? null : m.id)}
+                      
+                      {/* Reuse Member List Logic */}
+                      <div className="flex items-center justify-between mb-2">
+                         <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
+                             <button
+                               onClick={() => setSortOrder('name')} 
+                               className={cn(
+                                 "px-2.5 py-1 rounded-md transition-all",
+                                 sortOrder === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                               )}
                              >
-                                  <div className="flex flex-col">
-                                      <div className="flex items-center gap-2">
-                                          <span className="font-medium text-sm">{m.name_kor}</span>
+                               이름
+                             </button>
+                             <button
+                               onClick={() => setSortOrder('grade')} 
+                               className={cn(
+                                 "px-2.5 py-1 rounded-md transition-all",
+                                 sortOrder === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                               )}
+                             >
+                               학년
+                             </button>
+                          </div>
+                      </div>
+
+                      <div className="border rounded-md max-h-[300px] overflow-y-auto p-2 text-sm">
+                        {(() => {
+                          const sortedMembers = [...members].sort((a, b) => {
+                              if (sortOrder === 'grade') {
+                                  const idxA = ALL_GRADES.indexOf(a.grade || '');
+                                  const idxB = ALL_GRADES.indexOf(b.grade || '');
+                                  if (idxA !== idxB) {
+                                    if (idxA === -1) return 1;
+                                    if (idxB === -1) return -1;
+                                    return idxA - idxB;
+                                  }
+                              }
+                              return a.name_kor.localeCompare(b.name_kor, 'ko');
+                          });
+
+                          return sortedMembers.map((m, idx) => {
+                            const prev = sortedMembers[idx - 1];
+                            const showSeparator = sortOrder === 'grade' && (!prev || prev.grade !== m.grade) && m.grade;
+
+                            return (
+                              <div key={m.id}>
+                                {showSeparator && (
+                                  <div className="border-t border-dashed border-gray-300 my-2 relative h-4">
+                                    <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white px-2 text-[10px] text-gray-400 font-medium">
+                                        {m.grade}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                                  <input
+                                    type="checkbox"
+                                    className="cursor-pointer"
+                                    id={`edit-check-${m.id}`}
+                                    checked={selectedMembers.includes(m.id)}
+                                    onChange={() => handleToggleMember(m.id)}
+                                  />
+                                  <label htmlFor={`edit-check-${m.id}`} className="flex-1 cursor-pointer flex items-center justify-between">
+                                      <div className="flex items-center gap-1">
+                                          <span>{m.name_kor}</span>
+                                          {m.baptismal_name && (
+                                            <span className="text-gray-500 text-xs">({m.baptismal_name})</span>
+                                          )}
+                                      </div>
+                                      {m.grade && <span className="text-gray-400 text-xs ml-2">{m.grade}</span>}
+                                  </label>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                  </div>
+              ) : (
+                <>
+                  {/* Submission Statistics */}
+                  {(() => {
+                      const targetMembers = members.filter(m => existingSurvey.member_ids?.includes(m.id));
+                      const submittedCount = targetMembers.filter(m => existingSurvey.responses?.[m.id]).length;
+                      const notSubmittedCount = targetMembers.length - submittedCount;
+                      
+                      return (
+                          <div className="flex items-center justify-between text-sm">
+                              <div className="flex gap-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium">제출:</span>
+                                    <span className="text-green-600 font-bold">{submittedCount}명</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium">미제출:</span>
+                                    <span className="text-gray-500 font-bold">{notSubmittedCount}명</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                {existingSurvey.status === 'OPEN' && (
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => setIsEditingMembers(true)}
+                                        className="h-7 text-xs"
+                                    >
+                                        대상자 수정
+                                    </Button>
+                                )}
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={fetchBasics} 
+                                    disabled={isRefreshing}
+                                    className="h-6 w-6 p-0 rounded-full hover:bg-gray-100"
+                                    title="데이터 새로고침"
+                                >
+                                    <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                                </Button>
+                              </div>
+                          </div>
+                      );
+                  })()}
+
+                  {/* 정렬 탭 (Segmented Control) - Added here for existing survey view */}
+                  <div className="flex justify-start mb-2">
+                     <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
+                         <button
+                           onClick={() => setSortOrder('name')} 
+                           className={cn(
+                             "px-2.5 py-1 rounded-md transition-all",
+                             sortOrder === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                           )}
+                         >
+                           이름
+                         </button>
+                         <button
+                           onClick={() => setSortOrder('grade')} 
+                           className={cn(
+                             "px-2.5 py-1 rounded-md transition-all",
+                             sortOrder === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                           )}
+                         >
+                           학년
+                         </button>
+                      </div>
+                  </div>
+
+                  {/* Members Status List */}
+                  <div className="border rounded-md max-h-[450px] overflow-y-auto">
+                     {(() => {
+                       const filteredMembers = members.filter(m => existingSurvey.member_ids?.includes(m.id));
+                       const sorted = filteredMembers.sort((a, b) => {
+                           if (sortOrder === 'grade') {
+                               const idxA = ALL_GRADES.indexOf(a.grade || '');
+                               const idxB = ALL_GRADES.indexOf(b.grade || '');
+                               
+                               if (idxA !== idxB) {
+                                 if (idxA === -1) return 1;
+                                 if (idxB === -1) return -1;
+                                 return idxA - idxB;
+                               }
+                           }
+                           return a.name_kor.localeCompare(b.name_kor, 'ko');
+                       });
+
+                       return sorted.map((m, idx) => {
+                         const prev = sorted[idx - 1];
+                         const showSeparator = sortOrder === 'grade' && (!prev || prev.grade !== m.grade) && m.grade;
+                         const response = existingSurvey.responses?.[m.id];
+                         const isSubmitted = !!response;
+                         const isExpanded = expandedMemberId === m.id;
+                         
+                         // Helper to get unavailable event IDs safely
+                         let unavailableIds: string[] = [];
+                         if (response?.unavailable) {
+                             if (Array.isArray(response.unavailable)) {
+                                 unavailableIds = response.unavailable;
+                             } else {
+                                 unavailableIds = Object.keys(response.unavailable);
+                             }
+                         }
+                         const unavailableCount = unavailableIds.length;
+    
+                         // Calculate assigned count from massEvents (loaded via fetchBasics)
+                         const assignedCount = Object.values(massEvents).filter(ev => 
+                            ev.member_ids?.includes(m.id)
+                         ).length;
+    
+                         return (
+                             <div key={m.id} className="border-b last:border-b-0">
+                                 {showSeparator && (
+                                  <div className="border-t border-dashed border-gray-300 my-2 relative h-4">
+                                    <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white px-2 text-[10px] text-gray-400 font-medium">
+                                        {m.grade}
+                                    </span>
+                                  </div>
+                                 )}
+                                 <div 
+                                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 h-10"
+                                    onClick={() => isSubmitted && setExpandedMemberId(isExpanded ? null : m.id)}
+                                 >
+                                      <div className="flex items-center gap-2 overflow-hidden">
+                                          <div className="flex items-center gap-1 shrink-0">
+                                              <span className="font-medium text-sm">{m.name_kor}</span>
+                                              {m.baptismal_name && <span className="text-gray-500 text-xs truncate">({m.baptismal_name})</span>}
+                                              {m.grade && <span className="text-gray-400 text-xs">{m.grade}</span>}
+                                          </div>
+                                          
                                           {assignedCount > 0 && (
-                                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
+                                              <span className="shrink-0 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
                                                   배정 {assignedCount}
                                               </span>
                                           )}
                                       </div>
-                                      <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                                          {m.baptismal_name && <span>{m.baptismal_name}</span>}
-                                          {m.baptismal_name && m.grade && <span>·</span>}
-                                          {m.grade && <span>{m.grade}</span>}
-                                      </div>
-                                  </div>
 
-                                 <div>
-                                     {isSubmitted ? (
-                                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                                             제출완료 {unavailableCount > 0 && `(불참 ${unavailableCount})`}
-                                         </span>
-                                     ) : (
-                                         <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
-                                             미제출
-                                         </span>
-                                     )}
+                                     <div className="shrink-0 ml-2">
+                                         {isSubmitted ? (
+                                             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                                 제출 {unavailableCount > 0 && `(불참 ${unavailableCount})`}
+                                             </span>
+                                         ) : (
+                                             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                                 미제출
+                                             </span>
+                                         )}
+                                     </div>
                                  </div>
+                                 
+                                 {/* Detail Expansion */}
+                                 {isExpanded && isSubmitted && (
+                                     <div className="bg-slate-50 p-3 text-sm border-t">
+                                         <p className="font-semibold mb-2 text-gray-700">참석 불가능한 일정:</p>
+                                         {unavailableIds.length === 0 ? (
+                                             <p className="text-gray-500">없음 (모두 참석 가능)</p>
+                                         ) : (
+                                             <ul className="space-y-1">
+                                                 {unavailableIds.map(eid => {
+                                                     const ev = massEvents[eid];
+                                                     return (
+                                                         <li key={eid} className="flex gap-2 text-gray-600">
+                                                             <span>• {ev ? `${dayjs(ev.event_date).format('M/D(ddd)')} ${ev.title}` : '알 수 없는 일정'}</span>
+                                                         </li>
+                                                     )
+                                                 })}
+                                             </ul>
+                                         )}
+                                     </div>
+                                 )}
                              </div>
-                             
-                             {/* Detail Expansion */}
-                             {isExpanded && isSubmitted && (
-                                 <div className="bg-slate-50 p-3 text-sm border-t">
-                                     <p className="font-semibold mb-2 text-gray-700">참석 불가능한 일정:</p>
-                                     {unavailableIds.length === 0 ? (
-                                         <p className="text-gray-500">없음 (모두 참석 가능)</p>
-                                     ) : (
-                                         <ul className="space-y-1">
-                                             {unavailableIds.map(eid => {
-                                                 const ev = massEvents[eid];
-                                                 return (
-                                                     <li key={eid} className="flex gap-2 text-gray-600">
-                                                         <span>• {ev ? `${dayjs(ev.event_date).format('M/D(ddd)')} ${ev.title}` : '알 수 없는 일정'}</span>
-                                                     </li>
-                                                 )
-                                             })}
-                                         </ul>
-                                     )}
-                                 </div>
-                             )}
-                         </div>
-                     );
-                 })}
+                         );
+                       });
+                   })()}
               </div>
-          </div>
+                </>
+              )}
+           </div>
         )}
 
         {/* ✅ 신규 설문만 입력 가능 */}
@@ -515,17 +759,26 @@ export function SendSurveyDrawer({
 
         {/* ✅ URL 표시 영역 (기존 or 신규) */}
         {surveyUrl && (
-          <div className="flex items-center justify-between mt-4 border rounded-md p-2 bg-gray-50">
+          <div className="flex items-center justify-between mt-2 border rounded-md px-3 py-1 bg-gray-50">
             <span className="text-sm truncate text-gray-600">{surveyUrl}</span>
             <Button
               size="sm"
               variant="outline"
-              className="ml-2 border-blue-400 text-blue-700 hover:bg-blue-50"
+              className="ml-2 border-blue-400 text-blue-700 hover:bg-blue-50 whitespace-nowrap shrink-0 px-4"
               onClick={handleCopy}
             >
               URL 복사
             </Button>
           </div>
+        )}
+
+        {/* 닫기 버튼 (기존 설문 화면일 때만 맨 하단에 표시) */}
+        {existingSurvey && (
+             <div className="pt-2">
+                  <Button variant="outline" className="w-full" onClick={onClose}>
+                      닫기
+                  </Button>
+            </div>
         )}
 
         {/* 기존 닫기 버튼 제거 (위로 이동됨) */}

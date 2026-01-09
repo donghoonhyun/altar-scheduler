@@ -11,13 +11,18 @@ import {
   setDoc,
   getDoc,
   runTransaction,
+  orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Container, Heading, Card } from '@/components/ui';
 import { useSession } from '@/state/session';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Baby } from 'lucide-react';
 
 interface RoleRequest {
   uid: string;
@@ -28,16 +33,51 @@ interface RoleRequest {
   role: 'planner';
   status: 'pending' | 'approved' | 'rejected';
   created_at: any;
+  updated_at?: any;
 }
 
 export default function PlannerRoleApproval() {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const navigate = useNavigate();
   const session = useSession();
+  
   const [requests, setRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRequests = async () => {
+  // History State
+  const [history, setHistory] = useState<RoleRequest[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const HISTORY_PAGE_SIZE = 10;
+
+  // Children Info State
+  const [childrenMap, setChildrenMap] = useState<Record<string, string[]>>({});
+
+  const fetchMembers = async () => {
+    if (!serverGroupId) return;
+    try {
+      const q = query(collection(db, 'server_groups', serverGroupId, 'members'));
+      const snap = await getDocs(q);
+      
+      const map: Record<string, string[]> = {};
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.parent_uid && data.name_kor) {
+          const childName = `${data.name_kor}(${data.baptismal_name || ''})`;
+          if (!map[data.parent_uid]) {
+            map[data.parent_uid] = [];
+          }
+          map[data.parent_uid].push(childName);
+        }
+      });
+      setChildrenMap(map);
+    } catch (e) {
+      console.error('Failed to fetch members for children info', e);
+    }
+  };
+
+  const fetchPendingRequests = async () => {
     if (!serverGroupId) return;
     setLoading(true);
     try {
@@ -47,19 +87,66 @@ export default function PlannerRoleApproval() {
       );
       const snap = await getDocs(q);
       const list: RoleRequest[] = snap.docs.map((d) => d.data() as RoleRequest);
-      // Sort manually as we might not have compound index for sorting yet
       list.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0));
       setRequests(list);
     } catch (e) {
       console.error(e);
-      toast.error('요청 목록을 불러오지 못했습니다.');
+      toast.error('대기 중인 요청을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchHistory = async (isInitial = false) => {
+    if (!serverGroupId) return;
+    setHistoryLoading(true);
+    try {
+      let q = query(
+        collection(db, 'server_groups', serverGroupId, 'role_requests'),
+        where('status', 'in', ['approved', 'rejected']),
+        orderBy('updated_at', 'desc'),
+        limit(HISTORY_PAGE_SIZE)
+      );
+
+      if (!isInitial && lastDoc) {
+        q = query(
+          collection(db, 'server_groups', serverGroupId, 'role_requests'),
+          where('status', 'in', ['approved', 'rejected']),
+          orderBy('updated_at', 'desc'),
+          startAfter(lastDoc),
+          limit(HISTORY_PAGE_SIZE)
+        );
+      }
+
+      const snap = await getDocs(q);
+      const list: RoleRequest[] = snap.docs.map((d) => d.data() as RoleRequest);
+      
+      setLastDoc(snap.docs[snap.docs.length - 1] || null);
+      setHasMore(snap.docs.length === HISTORY_PAGE_SIZE);
+
+      if (isInitial) {
+        setHistory(list);
+      } else {
+        setHistory((prev) => [...prev, ...list]);
+      }
+    } catch (e: any) {
+      console.error(e);
+      // Ignore index errors silently or show friendly message if critical
+      if (e.code === 'failed-precondition') {
+          console.warn('Index might be missing for history query. Please check console link.');
+      }
+      toast.error('이력을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchRequests();
+    if (serverGroupId) {
+      fetchPendingRequests();
+      fetchHistory(true);
+      fetchMembers();
+    }
   }, [serverGroupId]);
 
   const handleApprove = async (req: RoleRequest) => {
@@ -68,20 +155,18 @@ export default function PlannerRoleApproval() {
 
     try {
       await runTransaction(db, async (transaction) => {
-        // 1. PREPARE & READ: Check membership existence first (READ)
+        // 1. Check membership
         const membershipRef = doc(db, 'memberships', `${req.uid}_${serverGroupId}`);
         const membershipSnap = await transaction.get(membershipRef);
         
-        // 2. WRITE OPERATIONS
-        
-        // A) Update request status
+        // 2. Update request
         const requestRef = doc(db, 'server_groups', serverGroupId, 'role_requests', req.uid);
         transaction.update(requestRef, {
           status: 'approved',
           updated_at: serverTimestamp(),
         });
 
-        // B) Update memberships
+        // 3. Update memberships
         if (membershipSnap.exists()) {
           const currentData = membershipSnap.data();
           let newRoles = [];
@@ -91,7 +176,6 @@ export default function PlannerRoleApproval() {
               newRoles.push('planner');
             }
           } else {
-            // fallback if string
             newRoles = [currentData.role, 'planner'];
           }
 
@@ -101,7 +185,6 @@ export default function PlannerRoleApproval() {
             updated_at: serverTimestamp(),
           });
         } else {
-          // Create new membership with JUST planner role
           transaction.set(membershipRef, {
             uid: req.uid,
             server_group_id: serverGroupId,
@@ -112,7 +195,7 @@ export default function PlannerRoleApproval() {
           });
         }
 
-        // C) Update User Profile
+        // 4. Update User Profile
         const userRef = doc(db, 'users', req.uid);
         transaction.set(userRef, {
           user_name: req.user_name,
@@ -123,7 +206,8 @@ export default function PlannerRoleApproval() {
       });
 
       toast.success('승인 완료되었습니다.');
-      fetchRequests(); // Refresh list
+      fetchPendingRequests();
+      fetchHistory(true); // Refund history to show newest update
     } catch (e) {
       console.error(e);
       toast.error('승인 처리 중 오류가 발생했습니다.');
@@ -140,7 +224,8 @@ export default function PlannerRoleApproval() {
         updated_at: serverTimestamp(),
       });
       toast.success('반려되었습니다.');
-      fetchRequests();
+      fetchPendingRequests();
+      fetchHistory(true);
     } catch (e) {
       console.error(e);
       toast.error('반려 처리 중 오류가 발생했습니다.');
@@ -165,48 +250,135 @@ export default function PlannerRoleApproval() {
 
       {loading ? (
         <div className="text-center py-10 text-gray-400">로딩 중...</div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-          <p className="text-gray-500">대기 중인 권한 요청이 없습니다.</p>
-        </div>
       ) : (
-        <div className="space-y-4">
-          {requests.map((req) => (
-            <Card key={req.uid} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-lg text-gray-900">{req.user_name}</span>
-                  <span className="text-sm text-gray-600">({req.baptismal_name})</span>
-                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium border border-purple-200">
-                    플래너 신청
-                  </span>
-                </div>
-                <div className="text-sm text-gray-500 space-y-0.5">
-                  <p>{req.email}</p>
-                  <p>{req.phone}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    신청일시: {req.created_at?.toDate().toLocaleString()}
-                  </p>
-                </div>
+        <>
+          {requests.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <p className="text-gray-500">대기 중인 권한 요청이 없습니다.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {requests.map((req) => (
+                <Card key={req.uid} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-gray-500 mb-1">
+                       {session.serverGroups[serverGroupId || '']?.groupName}
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-lg text-gray-900">{req.user_name}</span>
+                      <span className="text-sm text-gray-600">({req.baptismal_name})</span>
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium border border-purple-200">
+                        플래너 신청
+                      </span>
+                    </div>
+                    {childrenMap[req.uid] && childrenMap[req.uid].length > 0 && (
+                      <div className="flex items-center gap-1.5 mb-2 bg-blue-50 w-fit px-2 py-1 rounded-md">
+                         <Baby size={12} className="text-blue-500" />
+                         <span className="text-xs text-blue-700 font-medium">
+                            자녀: {childrenMap[req.uid].join(', ')}
+                         </span>
+                      </div>
+                    )}
+                    <div className="text-sm text-gray-500 space-y-0.5">
+                      <p>{req.email}</p>
+                      <p>{req.phone}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        신청일시: {req.created_at?.toDate().toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button 
+                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => handleApprove(req)}
+                    >
+                      승인
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        className="flex-1 sm:flex-none text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+                        onClick={() => handleReject(req)}
+                    >
+                      반려
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* History Section */}
+          <div className="mt-12">
+            <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+              이전 신청 이력
+            </h3>
+            
+            {history.length === 0 ? (
+              <p className="text-sm text-gray-400">이전 이력이 없습니다.</p>
+            ) : (
+              <div className="space-y-2">
+                {history.map((req) => (
+                  <div key={req.uid} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:border-gray-200 transition-colors">
+                     <div className="flex items-center gap-3 overflow-hidden">
+                        <div className={`w-1 h-8 rounded-full flex-shrink-0 ${req.status === 'approved' ? 'bg-blue-500' : 'bg-red-500'}`} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-bold text-gray-800 text-sm truncate">{req.user_name}</span>
+                            <span className="text-xs text-gray-500 truncate">({req.baptismal_name})</span>
+                          </div>
+                          {childrenMap[req.uid] && childrenMap[req.uid].length > 0 && (
+                             <div className="flex items-center gap-1 text-[10px] text-gray-500 mt-0.5 mb-1">
+                               <Baby size={10} className="text-gray-400" />
+                               <span>자녀: {childrenMap[req.uid].join(', ')}</span>
+                             </div>
+                          )}
+                          <div className="text-[10px] text-gray-500 mb-0.5">
+                            {req.phone} <span className="text-gray-300 mx-1">|</span> {req.email}
+                          </div>
+                          <div className="text-[10px] text-gray-400 flex items-center gap-2 truncate">
+                             <span>{req.created_at?.toDate().toLocaleDateString()} 신청</span>
+                             {req.updated_at && (
+                               <span>• {req.updated_at?.toDate().toLocaleDateString()} {req.status === 'approved' ? '승인' : '반려'}</span>
+                             )}
+                          </div>
+                        </div>
+                     </div>
+                     
+                     <div className="flex-shrink-0 ml-2">
+                          {req.status === 'approved' ? (
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-medium">
+                              승인됨
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-medium">
+                              반려됨
+                            </span>
+                          )}
+                     </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
+            )}
+            
+            {hasMore && (
+              <div className="mt-4 text-center">
                 <Button 
-                    className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={() => handleApprove(req)}
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => fetchHistory(false)}
+                  disabled={historyLoading}
+                  className="text-gray-500"
                 >
-                  승인
-                </Button>
-                <Button 
-                    variant="outline" 
-                    className="flex-1 sm:flex-none text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
-                    onClick={() => handleReject(req)}
-                >
-                  반려
+                  {historyLoading ? '로딩 중...' : (
+                    <>
+                      더보기 <ChevronDown size={14} className="ml-1" />
+                    </>
+                  )}
                 </Button>
               </div>
-            </Card>
-          ))}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </Container>
   );

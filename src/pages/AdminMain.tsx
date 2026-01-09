@@ -1,5 +1,7 @@
 import React from 'react';
 import { MIGRATION_MEMBERS } from '@/data/migrationData';
+import { SG00002_MEMBERS } from '@/data/sg00002Members';
+import { DECEMBER_2025_SCHEDULE_SG00002 } from '@/data/schedule2025DecSG00002';
 import { db } from '@/lib/firebase';
 import { doc, writeBatch, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { Upload } from 'lucide-react';
@@ -164,6 +166,100 @@ const AdminMain: React.FC = () => {
     }
   };
 
+  const [isSG00002Migrating, setIsSG00002Migrating] = React.useState(false);
+
+  const handleSG00002Migration = async () => {
+    if (!confirm(`총 ${SG00002_MEMBERS.length}명의 중등부(SG00002) 단원 데이터를 추가하시겠습니까?`)) return;
+
+    setIsSG00002Migrating(true);
+    try {
+      const targetGroupId = 'SG00002'; // Explicitly targeting SG00002
+      const batch = writeBatch(db); 
+      
+      SG00002_MEMBERS.forEach((m) => {
+        const newDocRef = doc(collection(db, 'server_groups', targetGroupId, 'members'));
+        batch.set(newDocRef, {
+          ...m,
+          active: true,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        });
+      });
+
+      await batch.commit();
+      alert(`✅ SG00002(중등부) 멤버 ${SG00002_MEMBERS.length}명 추가 완료!`);
+    } catch (e) {
+      console.error(e);
+      alert('❌ 추가 실패: ' + e);
+    } finally {
+      setIsSG00002Migrating(false);
+    }
+  };
+
+  const [isSG00002ScheduleMigrating, setIsSG00002ScheduleMigrating] = React.useState(false);
+
+  const handleSG00002ScheduleMigration = async () => {
+    if (!confirm('SG00002(중등부) 2025년 12월 스케줄 데이터를 업로드하시겠습니까?')) return;
+
+    setIsSG00002ScheduleMigrating(true);
+    try {
+      const targetGroupId = 'SG00002';
+      
+      const membersRef = collection(db, 'server_groups', targetGroupId, 'members');
+      const memberSnap = await getDocs(membersRef);
+      const memberMap = new Map<string, string>();
+      
+      memberSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.name_kor && data.baptismal_name) {
+             const key = `${data.name_kor}${data.baptismal_name}`.replace(/\s/g, '');
+             memberMap.set(key, d.id);
+        }
+      });
+      console.log(`[SG00002 Migration] Loaded ${memberMap.size} members for matching.`);
+
+      const batch = writeBatch(db);
+      let matchCount = 0;
+
+      DECEMBER_2025_SCHEDULE_SG00002.forEach((item) => {
+        const docId = `ME_${item.date}_${item.title}`;
+        const ref = doc(db, 'server_groups', targetGroupId, 'mass_events', docId);
+        
+        const matchedServerIds = item.servers.map(name => {
+           const cleanName = name.replace(/\s/g, ''); 
+           const uid = memberMap.get(cleanName);
+           if (!uid) {
+             console.warn(`[SG00002 Migration] Unmatched server: ${name}`);
+           }
+           return uid;
+        }).filter(Boolean) as string[];
+
+        matchCount += matchedServerIds.length;
+
+        batch.set(ref, {
+          id: docId,
+          title: item.title,
+          event_date: item.date,
+          required_servers: item.servers.length > 0 ? item.servers.length : 2, 
+          status: 'MASS-CONFIRMED', 
+          member_ids: matchedServerIds,
+          main_member_id: matchedServerIds.length > 0 ? matchedServerIds[0] : null,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      });
+
+      await batch.commit();
+      alert(`✅ SG00002 스케줄 업로드 완료! (총 ${DECEMBER_2025_SCHEDULE_SG00002.length}개 미사, ${matchCount}명 배정)`);
+
+    } catch (e) {
+      console.error(e);
+      alert('❌ 업로드 실패: ' + e);
+    } finally {
+      setIsSG00002ScheduleMigrating(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50">
@@ -255,7 +351,7 @@ const AdminMain: React.FC = () => {
                   <h3 className="text-sm font-bold text-gray-800">마이그레이션 (임시)</h3>
                   <p className="text-xs text-gray-500">데이터 초기화를 위한 일괄 업로드 기능입니다.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleMigration}
                     disabled={isMigrating}
@@ -264,7 +360,7 @@ const AdminMain: React.FC = () => {
                     {isMigrating ? '업로드 중...' : (
                       <>
                         <Upload size={14} />
-                        명단 일괄 업로드
+                        SG00001 멤버추가
                       </>
                     )}
                   </button>
@@ -276,7 +372,31 @@ const AdminMain: React.FC = () => {
                     {isScheduleMigrating ? '처리 중...' : (
                       <>
                         <Upload size={14} />
-                        12월 스케줄
+                        SG00001 12월배정
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSG00002Migration}
+                    disabled={isSG00002Migrating}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-xs font-bold rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSG00002Migrating ? '추가 중...' : (
+                      <>
+                        <UserPlus size={14} />
+                        SG00002 멤버추가
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSG00002ScheduleMigration}
+                    disabled={isSG00002ScheduleMigrating}
+                    className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white text-xs font-bold rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSG00002ScheduleMigrating ? '배정 중...' : (
+                      <>
+                        <Upload size={14} />
+                        SG00002 12월 배정
                       </>
                     )}
                   </button>

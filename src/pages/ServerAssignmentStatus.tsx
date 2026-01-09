@@ -182,7 +182,7 @@ export default function ServerAssignmentStatus() {
       
       if (isUnavailable) {
           return (
-            <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600 font-extrabold text-lg" title="참석불가">
+            <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600 font-bold text-sm" title="참석불가">
                  ✕ 
             </div>
           );
@@ -267,7 +267,7 @@ export default function ServerAssignmentStatus() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
+      <div className="bg-white border-b px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between shadow-sm shrink-0 gap-3">
          <div className="flex items-center gap-3">
              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
                 <ArrowLeft size={20} />
@@ -275,50 +275,52 @@ export default function ServerAssignmentStatus() {
              <h1 className="text-lg font-bold text-gray-800">복사별 배정 현황</h1>
          </div>
          
-         <div className="flex items-center gap-4">
-             <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="px-2">
-                 <ChevronLeft size={20} />
-             </Button>
-             <span className="text-lg font-bold min-w-[100px] text-center">
-                 {currentMonth.format('YYYY년 M월')}
-             </span>
-             <Button variant="ghost" size="sm" onClick={handleNextMonth} className="px-2">
-                 <ChevronRight size={20} />
-             </Button>
-         </div>
-          
-         <div className="flex items-center gap-2">
-            {/* Toggle View Mode */}
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                onClick={() => setViewMode('by-member')}
-                className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                    viewMode === 'by-member' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                )}
-                >
-                <LayoutGrid size={16} />
-                <span className="hidden sm:inline">복사별</span>
-                </button>
-                <button
-                onClick={() => setViewMode('by-date')}
-                className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                    viewMode === 'by-date' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                )}
-                >
-                    <LayoutList size={16} />
-                <span className="hidden sm:inline">날짜별</span>
-                </button>
-            </div>
-            
-            <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex" title="엑셀로 저장">
-                <Download size={16} className="mr-2" />
-                엑셀
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden" title="엑셀로 저장">
-                <Download size={16} />
-            </Button>
+         <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto">
+             <div className="flex items-center gap-2 lg:gap-4">
+                 <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="px-1 lg:px-2">
+                     <ChevronLeft size={20} />
+                 </Button>
+                 <span className="text-lg font-bold min-w-[90px] text-center">
+                     {currentMonth.format('YYYY년 M월')}
+                 </span>
+                 <Button variant="ghost" size="sm" onClick={handleNextMonth} className="px-1 lg:px-2">
+                     <ChevronRight size={20} />
+                 </Button>
+             </div>
+              
+             <div className="flex items-center gap-2">
+                {/* Toggle View Mode */}
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button
+                    onClick={() => setViewMode('by-member')}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                        viewMode === 'by-member' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                    )}
+                    >
+                    <LayoutGrid size={16} />
+                    <span className="hidden sm:inline">복사별</span>
+                    </button>
+                    <button
+                    onClick={() => setViewMode('by-date')}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                        viewMode === 'by-date' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                    )}
+                    >
+                        <LayoutList size={16} />
+                    <span className="hidden sm:inline">날짜별</span>
+                    </button>
+                </div>
+                
+                <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex" title="엑셀로 저장">
+                    <Download size={16} className="mr-2" />
+                    엑셀
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden" title="엑셀로 저장">
+                    <Download size={16} />
+                </Button>
+             </div>
          </div>
       </div>
 
@@ -350,7 +352,7 @@ export default function ServerAssignmentStatus() {
                             const headerBgClass = dayNum === 0 ? "bg-red-50" : (dayNum === 6 ? "bg-blue-50" : "bg-gray-50");
 
                             return (
-                              <th key={ev.id} scope="col" className={`px-2 py-2 text-center min-w-[80px] ${borderClass} ${headerBgClass} last:border-r-0`}>
+                              <th key={ev.id} scope="col" className={`px-1 py-1 text-center min-w-[60px] ${borderClass} ${headerBgClass} last:border-r-0`}>
                                   <div className="flex flex-col items-center gap-1">
                                       <span className={`text-[10px] font-semibold ${dayNum === 0 ? "text-red-500" : (dayNum === 6 ? "text-blue-500" : "text-gray-400")}`}>
                                           {dateStr} {dayOfWeek}
@@ -367,10 +369,10 @@ export default function ServerAssignmentStatus() {
                   <tbody className="bg-white divide-y divide-gray-200">
                       {members.map(member => (
                           <tr key={member.id} className="hover:bg-gray-50">
-                              <td className="sticky left-0 z-10 bg-white px-3 py-2 whitespace-nowrap text-sm border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
-                                  <div className="flex flex-col">
-                                      <div className="font-medium text-gray-900">{member.name_kor}</div>
-                                      <div className="text-xs text-gray-500">{member.baptismal_name}</div>
+                              <td className="sticky left-0 z-10 bg-white px-2 py-1.5 whitespace-nowrap text-sm border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
+                                  <div className="flex items-center">
+                                      <span className="font-medium text-gray-900">{member.name_kor}</span>
+                                      <span className="text-[11px] text-gray-500 ml-1.5">{member.baptismal_name}</span>
                                   </div>
                               </td>
                               {events.map((ev, idx) => {
@@ -385,7 +387,7 @@ export default function ServerAssignmentStatus() {
                                   if (dayNum === 6) bgClass = "bg-blue-50/50"; // Saturday (lighter)
                                   
                                   return (
-                                    <td key={`${member.id}-${ev.id}`} className={`px-2 py-2 whitespace-nowrap text-center h-[50px] ${borderClass} ${bgClass} last:border-r-0`}>
+                                    <td key={`${member.id}-${ev.id}`} className={`px-1 py-1 whitespace-nowrap text-center h-[34px] ${borderClass} ${bgClass} last:border-r-0`}>
                                         {renderCell(member, ev)}
                                     </td>
                                   );

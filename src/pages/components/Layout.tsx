@@ -2,8 +2,9 @@ import { useSession } from "../../state/session";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Church, Menu, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus } from "lucide-react";
+import { Church, Menu, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus, Settings, Mail, X } from "lucide-react";
 import ServerGroupSelector from "./ServerGroupSelector";
+import AppSettingsDrawer from "../../components/common/AppSettingsDrawer";
 import {
   Sheet,
   SheetContent,
@@ -24,7 +25,9 @@ export default function Layout() {
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const [isMyInfoOpen, setIsMyInfoOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isContactOpen, setIsContactOpen] = useState(false);
   const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
   
   // ✅ PWA 진입 시 FCM 토큰 관리 (권한 요청 및 저장)
@@ -76,16 +79,31 @@ export default function Layout() {
               
               <div className="flex flex-col gap-4 pt-4">
                 {/* 사용자 정보 */}
-                <div className="mb-2 px-1">
-                  <p className="text-xl font-extrabold text-gray-900">
-                    {userInfo?.userName}
-                    {userInfo?.baptismalName && (
-                      <span className="ml-1 text-sm font-bold text-purple-600">
-                        {userInfo.baptismalName}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
+                {/* 사용자 정보 & 설정 버튼 */}
+                <div className="mb-2 px-1 flex justify-between items-start">
+                  <div>
+                    <p className="text-xl font-extrabold text-gray-900">
+                      {userInfo?.userName}
+                      {userInfo?.baptismalName && (
+                        <span className="ml-1 text-sm font-bold text-purple-600">
+                          {userInfo.baptismalName}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-9 w-9 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0"
+                    onClick={() => {
+                        setIsSettingsOpen(true);
+                        // Optional: Keep menu open or close it? usually settings is on top, so maybe keep menu underneath or close menu?
+                        // Let's keep menu open for now, drawer will overlay.
+                    }}
+                  >
+                      <Settings size={22} />
+                  </Button>
                 </div>
 
                 {/* 역할 표시 */}
@@ -123,7 +141,47 @@ export default function Layout() {
                 {/* 역할별 바로가기 및 앱 설치 */}
                 {((serverGroupId && rolesInGroup.length > 0) || !isInstalled || isSuperAdmin) && (
                   <div className="mt-2 pt-4 border-t border-gray-100 flex flex-col gap-2">
-                    <span className="text-xs font-semibold text-gray-500 px-1 mb-1">바로가기</span>
+                    <div className="flex items-center justify-between px-1 mb-1">
+                        <span className="text-xs font-semibold text-gray-500">바로가기</span>
+                        <div className="relative">
+                            <button 
+                                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-500"
+                                onClick={() => setIsContactOpen(!isContactOpen)}
+                            >
+                                <Mail size={12} />
+                                <span>문의</span>
+                            </button>
+                            
+                            {isContactOpen && (
+                                <div className="absolute right-0 top-6 z-50 bg-white p-3 rounded-xl shadow-xl border w-64 text-left animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-xs font-bold text-gray-900">문의사항이 있으신가요?</h4>
+                                        <button onClick={() => setIsContactOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mb-2 leading-snug">
+                                        아래 이메일로 편하게 연락주세요.
+                                    </p>
+                                    <div className="bg-gray-50 p-2 rounded-lg text-[10px] space-y-1 text-gray-600 border border-gray-100">
+                                        <div>
+                                            <span className="font-bold text-gray-800 mr-1">수신:</span> 
+                                            jagalchi@naver.com
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-gray-800 mr-1">제목:</span> 
+                                            [Altar 앱문의] 문구포함
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-gray-800 mr-1">내용:</span> 
+                                            이용중이신 본당명, 복사단명 포함하여 문의사항을 작성해 주시면 감사하겠습니다.
+                                        </div>
+                                    </div>
+                                    <div className="absolute -top-1 right-2 w-2 h-2 bg-white border-t border-l transform rotate-45" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     
                     {isSuperAdmin && (
                       <Button
@@ -240,6 +298,12 @@ export default function Layout() {
         open={isMyInfoOpen} 
         onOpenChange={setIsMyInfoOpen}
         serverGroupId={serverGroupId}
+      />
+
+      {/* 🔹앱 설정 Drawer */}
+      <AppSettingsDrawer
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
       />
     </div>
   );

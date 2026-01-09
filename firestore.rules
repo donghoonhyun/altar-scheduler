@@ -38,6 +38,12 @@ service cloud.firestore {
       allow create: if isSignedIn(); // 그룹 생성은 로그인한 누구나 (생성자가 어드민이 됨)
       allow update, delete: if isGroupAdmin(groupId) || isSuperAdmin();
       
+      // 3.1️⃣ Availability Surveys (설문 제출)
+      match /availability_surveys/{surveyId} {
+        allow read: if isSignedIn();
+        allow update: if isSignedIn();
+      }
+
       // 하위 컬렉션 기본 규칙
       match /{document=**} {
         allow read: if isSignedIn();

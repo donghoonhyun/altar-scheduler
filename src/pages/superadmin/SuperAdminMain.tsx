@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/state/session';
 import { useParishes } from '@/hooks/useParishes';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { Parish } from '@/types/parish';
 import { toast } from 'sonner';
 
-import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+import { Plus, User, ChevronRight, MoreHorizontal } from 'lucide-react';
 
 export default function SuperAdminMain() {
   const session = useSession();
@@ -16,6 +18,25 @@ export default function SuperAdminMain() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingParish, setEditingParish] = useState<Partial<Parish>>({});
+  
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRecentUsers = async () => {
+        try {
+            const q = query(
+                collection(db, 'users'), 
+                orderBy('updated_at', 'desc'), 
+                limit(5)
+            );
+            const snap = await getDocs(q);
+            setRecentUsers(snap.docs.map(d => ({uid: d.id, ...d.data()})));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    fetchRecentUsers();
+  }, []);
 
   if (!session.loading && !session.isSuperAdmin) {
     return (
@@ -125,7 +146,7 @@ export default function SuperAdminMain() {
             </h2>
              <button
                 onClick={handleCreate}
-                className="h-7 px-2 text-xs font-medium border border-blue-200 text-blue-700 bg-white hover:bg-blue-50 rounded-md flex items-center gap-1 transition-colors"
+                className="h-8 px-3 text-xs font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-md flex items-center gap-1 transition-colors"
               >
                 <Plus size={14} />
                 성당 추가
@@ -168,12 +189,13 @@ export default function SuperAdminMain() {
                       >
                         어드민관리
                       </button>
-                      <button
+                      <Button
+                        variant="edit"
+                        size="sm"
                         onClick={() => handleEdit(p)}
-                        className="text-indigo-600 hover:text-indigo-900 font-semibold"
                       >
                         수정
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -201,12 +223,13 @@ export default function SuperAdminMain() {
                       >
                         어드민관리
                       </button>
-                      <button
+                      <Button
+                        size="sm"
+                        variant="edit"
                         onClick={() => handleEdit(p)}
-                        className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded text-xs font-medium transition-colors shadow-sm"
                       >
                         수정
-                      </button>
+                      </Button>
                    </div>
                 </div>
                 
@@ -219,6 +242,109 @@ export default function SuperAdminMain() {
             ))}
           </div>
         </section>
+
+
+        {/* 유저 관리 섹션 */}
+        <section className="mt-8 bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50/80">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+               유저 관리
+            </h2>
+             <button
+                onClick={() => navigate('/superadmin/users')}
+                className="h-8 px-3 text-xs font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-md flex items-center gap-1 transition-colors"
+              >
+                더보기
+                <ChevronRight size={14} />
+              </button>
+          </div>
+
+          {/* Desktop Table: Hidden on Mobile */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-white">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">이름 / 세례명</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">이메일</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">전화번호</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">최근 수정</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {recentUsers.length === 0 ? (
+                    <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-slate-400 text-sm">
+                            최근 활동한 유저가 없습니다.
+                        </td>
+                    </tr>
+                ) : (
+                    recentUsers.map((u) => (
+                    <tr key={u.uid} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                                    <User size={16} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-bold text-slate-900">{u.user_name}</div>
+                                    <div className="text-xs text-slate-500">{u.baptismal_name}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{u.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{u.phone}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-xs text-slate-400">
+                            {u.updated_at?.toDate().toLocaleString()}
+                        </td>
+                    </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile List View */}
+          <div className="md:hidden">
+            {recentUsers.length === 0 ? (
+                <div className="px-6 py-8 text-center text-slate-400 text-sm">
+                    최근 활동한 유저가 없습니다.
+                </div>
+            ) : (
+                <div className="divide-y divide-gray-100">
+                    {recentUsers.map((u) => (
+                    <div key={u.uid} className="flex flex-col p-4 hover:bg-slate-50 transition-colors gap-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                 <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+                                     <User size={18} />
+                                </div>
+                                <div>
+                                     <div className="text-sm font-bold text-slate-900">
+                                        {u.user_name}
+                                        {u.baptismal_name && <span className="text-xs font-normal text-slate-500 ml-1">({u.baptismal_name})</span>}
+                                     </div>
+                                     <div className="text-[10px] text-slate-400">
+                                        {u.updated_at?.toDate().toLocaleString()}
+                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-0.5 pl-12">
+                            <div className="text-xs text-slate-600 flex items-center gap-2">
+                               <span className="w-10 text-slate-400">이메일</span> {u.email}
+                            </div>
+                             <div className="text-xs text-slate-600 flex items-center gap-2">
+                               <span className="w-10 text-slate-400">연락처</span> {u.phone || '-'}
+                            </div>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+            )}
+          </div>
+        </section>
+
       </div>
 
 
@@ -298,34 +424,34 @@ export default function SuperAdminMain() {
               {/* 좌측: 삭제 버튼 (수정 모드일 때만 표시) */}
               <div>
                 {editingParish.updated_at && (
-                  <button
+                  <Button
+                    variant="destructive"
                     onClick={() => {
                         if (editingParish.code) {
                             handleDelete(editingParish.code);
-                            setIsEditing(false); // 삭제 후 모달 닫기
+                            setIsEditing(false); // 수정을 완료하고 모달 닫기
                         }
                     }}
-                    className="px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
                   >
                     삭제
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {/* 우측: 취소/저장 버튼 */}
               <div className="flex space-x-3">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50 bg-white"
                 >
                   취소
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
                   onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm"
                 >
                   저장
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -8,11 +8,12 @@ import {
   doc, 
   updateDoc,
   Timestamp,
-  getDoc
+  getDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Container, Card, Heading, Button, InfoBox } from '@/components/ui';
-import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info } from 'lucide-react';
+import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -39,6 +40,7 @@ const MemberRoleManagement: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [hideInactive, setHideInactive] = useState<boolean>(false);
   const [editActive, setEditActive] = useState<boolean>(false);
 
   const fetchMemberships = async () => {
@@ -117,16 +119,34 @@ const MemberRoleManagement: React.FC = () => {
     }
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`정말로 '${name}' 님을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    
+    try {
+      await deleteDoc(doc(db, 'memberships', id));
+      toast.success('멤버가 삭제되었습니다.');
+      fetchMemberships();
+    } catch (err) {
+      console.error('Delete member failed:', err);
+      toast.error('삭제에 실패했습니다.');
+    }
+  };
+
   const availableRoles = ['admin', 'planner', 'server'];
 
   const filteredMemberships = memberships.filter(m => {
-    if (selectedRole === 'all') return true;
-    return m.role.includes(selectedRole);
+    const roleMatch = selectedRole === 'all' || m.role.includes(selectedRole);
+    // If hideInactive is true, only show active members
+    const statusMatch = hideInactive ? m.active : true;
+    return roleMatch && statusMatch;
   });
+
+
 
   return (
     <Container className="py-8 min-h-screen">
-      <div className="flex items-center gap-4 mb-6">
+      {/* ... header ... */}
+       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft size={24} />
         </Button>
@@ -140,182 +160,205 @@ const MemberRoleManagement: React.FC = () => {
         </div>
       </div>
 
-      <Card className="overflow-hidden border-none shadow-sm bg-white">
-        {/* Header with Count & Filter */}
-        <div className="p-3 flex items-center justify-between gap-2 border-b border-gray-100">
+      {/* Header with Count & Filter */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-base font-bold text-gray-800">
              멤버 <span className="text-xs font-normal text-gray-500">({filteredMemberships.length}명)</span>
           </h2>
           
-          <div className="flex items-center bg-gray-100 p-0.5 rounded-lg">
-            {[
-              { id: 'all', label: '전체' },
-              { id: 'admin', label: '어드민' },
-              { id: 'planner', label: '플래너' },
-              { id: 'server', label: '복사' },
-            ].map((role) => (
-              <button
-                key={role.id}
-                onClick={() => setSelectedRole(role.id)}
-                className={cn(
-                  "px-2.5 py-1 rounded-md text-[11px] font-bold transition-all",
-                  selectedRole === role.id
-                    ? "bg-white shadow-sm text-gray-900"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
-                )}
-              >
-                {role.label}
-              </button>
-            ))}
-          </div>
-        </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar bg-gray-50 p-1 rounded-lg">
+              {[
+                { id: 'all', label: '전체' },
+                { id: 'admin', label: '어드민' },
+                { id: 'planner', label: '플래너' },
+                { id: 'server', label: '복사' },
+              ].map((role) => (
+                <button
+                  key={role.id}
+                  onClick={() => setSelectedRole(role.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                    selectedRole === role.id
+                      ? "bg-white shadow-sm text-gray-900 border border-gray-200"
+                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                  )}
+                >
+                  {role.label}
+                </button>
+              ))}
+            </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                <th className="px-4 py-2">사용자</th>
-                <th className="px-4 py-2">역할</th>
-                <th className="px-4 py-2">상태</th>
-                <th className="px-4 py-2">정보</th>
-                <th className="px-4 py-2 text-right">관리</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                    로딩 중...
-                  </td>
-                </tr>
-              ) : filteredMemberships.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                    멤버 정보가 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                filteredMemberships.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-                          <User size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 text-sm truncate">
-                            {m.user_name} {m.baptismal_name && <span className="text-gray-500 text-xs font-normal">({m.baptismal_name})</span>}
-                          </p>
-                          <p className="text-[10px] text-gray-400 truncate">{m.email}</p>
-                        </div>
+            <label className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-md transition-colors whitespace-nowrap">
+              <input 
+                type="checkbox"
+                checked={hideInactive}
+                onChange={(e) => setHideInactive(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              />
+              <span className="text-[10px] font-bold text-gray-500">비활성 제외</span>
+            </label>
+          </div>
+      </div>
+
+      {/* Grid View */}
+      {loading ? (
+          <div className="text-center py-20 text-gray-400">로딩 중...</div>
+      ) : filteredMemberships.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-200 text-gray-400">
+            멤버 정보가 없습니다.
+          </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredMemberships.map((m) => (
+            <div 
+              key={m.id} 
+              className={cn(
+                "relative bg-white rounded-xl border shadow-sm p-5 transition-all",
+                editingId === m.id ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-gray-100 hover:border-gray-200 hover:shadow-md"
+              )}
+            >
+              <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 min-w-0 pr-8">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0 border border-blue-100">
+                      <User size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center flex-wrap gap-1.5 mb-0.5">
+                        <span className="font-bold text-gray-900 text-sm truncate">
+                          {m.user_name}
+                        </span>
+                        {m.baptismal_name && (
+                           <span className="text-gray-500 text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+                             {m.baptismal_name}
+                           </span>
+                        )}
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                            m.active 
+                              ? 'bg-green-50 text-green-700 border-green-200' 
+                              : 'bg-gray-900 text-white border-gray-900'
+                          }`}>
+                            {m.active ? '활성' : '비활성'}
+                        </span>
                       </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      {editingId === m.id ? (
-                        <div className="flex flex-wrap gap-1">
-                          {availableRoles.map(r => (
-                            <button
-                              key={r}
-                              onClick={() => toggleRole(r)}
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
-                                editRoles.includes(r)
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                              }`}
+                      <p className="text-xs text-gray-400 truncate">{m.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Edit Button (Absolute Top-Right in View Mode) */}
+                  {editingId !== m.id && (
+                     <button 
+                        className="absolute top-4 right-4 text-gray-300 hover:text-blue-600 transition-colors p-1"
+                        onClick={() => handleEdit(m)}
+                     >
+                       <Edit2 size={16} />
+                     </button>
+                  )}
+              </div>
+
+              {/* Content Section */}
+              <div className="space-y-4">
+                  {/* Meta Info */}
+                  <div className="flex items-center justify-between text-[11px] text-gray-400 bg-gray-50 px-3 py-2 rounded-lg">
+                      <div className="flex items-center gap-1.5">
+                         <Info size={12} />
+                         {m.parish_code}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                         <Calendar size={12} />
+                         {m.updated_at ? format(m.updated_at.toDate(), 'yy.MM.dd') : '-'}
+                      </div>
+                  </div>
+
+                  {/* Roles / Edit Area */}
+                  <div>
+                    {editingId === m.id ? (
+                      <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                         {/* Edit Roles */}
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500">역할 설정</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {availableRoles.map(r => (
+                                <button
+                                  key={r}
+                                  onClick={() => toggleRole(r)}
+                                  className={`px-2 py-1.5 rounded-md text-xs font-bold transition-all border w-full sm:w-auto text-center ${
+                                    editRoles.includes(r)
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사'}
+                                </button>
+                              ))}
+                           </div>
+                         </div>
+                         
+                         {/* Edit Status */}
+                         <div className="space-y-2">
+                             <label className="text-xs font-bold text-gray-500">계정 상태</label>
+                             <button
+                               onClick={() => setEditActive(!editActive)}
+                               className={`w-full px-3 py-2 rounded-lg text-xs font-bold transition-all border flex items-center justify-between ${
+                                 editActive
+                                   ? 'bg-green-50 text-green-700 border-green-200'
+                                   : 'bg-gray-50 text-gray-500 border-gray-200'
+                               }`}
+                             >
+                               <span>{editActive ? '활성 계정' : '비활성 계정'}</span>
+                               <span className={`w-2 h-2 rounded-full ${editActive ? 'bg-green-500' : 'bg-gray-400'}`} />
+                             </button>
+                         </div>
+
+                         {/* Action Buttons */}
+                         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                            <Button 
+                              size="sm" 
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white h-9 text-xs"
+                              onClick={() => handleUpdate(m.id)}
                             >
-                              {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사'}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
+                              <Check size={14} className="mr-1" /> 저장
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1 h-9 text-xs border-gray-200"
+                              onClick={() => setEditingId(null)}
+                            >
+                              <X size={14} className="mr-1" /> 취소
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-9 w-9 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100"
+                              onClick={() => handleDelete(m.id, m.user_name || '사용자')}
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                         </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
                           {m.role.map(r => (
                             <span 
                               key={r} 
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                r === 'admin' ? 'bg-purple-100 text-purple-600' :
-                                r === 'planner' ? 'bg-blue-100 text-blue-600' :
-                                'bg-emerald-100 text-emerald-600'
+                              className={`px-2 py-1 rounded text-xs font-bold uppercase border ${
+                                r === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                r === 'planner' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                'bg-emerald-50 text-emerald-700 border-emerald-100'
                               }`}
                             >
                               {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사'}
                             </span>
                           ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {editingId === m.id ? (
-                         <button
-                           onClick={() => setEditActive(!editActive)}
-                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
-                             editActive
-                               ? 'bg-green-100 text-green-700'
-                               : 'bg-gray-100 text-gray-500'
-                           }`}
-                         >
-                           {editActive ? '활성' : '비활성'}
-                         </button>
-                      ) : (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          m.active 
-                            ? 'bg-green-50 text-green-600' 
-                            : 'bg-red-50 text-red-500'
-                        }`}>
-                          {m.active ? 'Active' : 'Inactive'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="space-y-0.5 text-[10px] text-gray-500">
-                        <div className="flex items-center gap-1.5 text-gray-400">
-                          <Info size={10} />
-                          <span>성당: {m.parish_code}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={10} />
-                          <span>수정: {m.updated_at ? format(m.updated_at.toDate(), 'yy.MM.dd') : '-'}</span>
-                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {editingId === m.id ? (
-                        <div className="flex justify-end gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-7 w-7 p-0 text-green-600 hover:bg-green-50"
-                            onClick={() => handleUpdate(m.id)}
-                          >
-                            <Check size={14} />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
-                            onClick={() => setEditingId(null)}
-                          >
-                            <X size={14} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-                          onClick={() => handleEdit(m)}
-                        >
-                          <Edit2 size={14} />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    )}
+                  </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </Card>
+      )}
       
       <InfoBox title="역할 부여 안내" className="mt-8">
         한 멤버에게 여러 역할을 동시에 부여할 수 있습니다. 

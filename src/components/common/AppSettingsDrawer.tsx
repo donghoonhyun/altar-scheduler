@@ -1,0 +1,219 @@
+import { useState, useEffect } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
+import { useFcmToken } from '@/hooks/useFcmToken';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { Bell, CheckCircle2, XCircle, AlertCircle, Download, Share } from 'lucide-react';
+
+interface AppSettingsDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDrawerProps) {
+  const { permission, toggleNotification } = useFcmToken();
+  const { isInstallable, promptInstall } = useInstallPrompt();
+  const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
+
+  useEffect(() => {
+    const pref = localStorage.getItem('altar_notification_enabled');
+    // Enabled if permission granted AND not explicitly disabled
+    setIsNotificationsEnabled(permission === 'granted' && pref !== 'false');
+  }, [permission, open]); // Re-check on open
+
+  const handleToggle = async (checked: boolean) => {
+    if (checked) {
+        if (permission === 'denied') {
+             toast.error('알림 권한이 차단되어 있습니다. 브라우저 설정(주소창 자물쇠)에서 권한을 허용해주세요.');
+             // Force UI refresh to off
+             setIsNotificationsEnabled(false);
+             return;
+        }
+        
+        await toggleNotification(true);
+        
+        // Check if permission was actually granted (in case user dismissed prompt)
+        if (Notification.permission === 'granted') {
+            setIsNotificationsEnabled(true);
+            toast.success('알림 수신이 활성화되었습니다.');
+        } else {
+            setIsNotificationsEnabled(false);
+            if (Notification.permission === 'denied') {
+                toast.error('알림 권한이 거부되었습니다.');
+            }
+        }
+    } else {
+        // Soft Opt-out: Remove token from server, set local pref to false
+        await toggleNotification(false);
+        setIsNotificationsEnabled(false);
+        toast.success('알림 수신이 비활성화되었습니다.', { description: '더 이상 푸시 알림을 받지 않습니다.' });
+    }
+  };
+
+  const handleTestNotification = () => {
+    if (permission !== 'granted') {
+      toast.error('브라우저 알림 권한이 필요합니다.');
+      return;
+    }
+    
+    if (!isNotificationsEnabled) {
+        toast.error('알림 수신 설정이 활성화되어야 테스트할 수 있습니다.');
+        return;
+    }
+
+    // Local Test Notification
+    try {
+      new Notification('🔔 알림 테스트', {
+        body: '알림이 정상적으로 수신됩니다! (로컬 테스트)',
+        icon: '/icons/icon-192x192.png', // Adjust path if needed
+      });
+      toast.success('테스트 알림을 발송했습니다.');
+    } catch (e) {
+      console.error(e);
+      toast.error('알림 발송에 실패했습니다.');
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[300px] sm:w-[350px]">
+        <SheetHeader>
+          <SheetTitle>앱 설정</SheetTitle>
+        </SheetHeader>
+        
+        <div className="py-6 space-y-6">
+          {/* Notification Settings */}
+          {/* Notification Settings */}
+          <section className="space-y-3">
+            <div className="px-1">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <Bell size={16} className="text-purple-500" />
+                    알림 설정
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                    주요 일정 및 공지사항 알림을 설정합니다.
+                </p>
+            </div>
+            
+            <div className="bg-white border rounded-xl p-4 space-y-4 shadow-sm">
+                {/* Status & Toggle */}
+                <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900">알림 수신</span>
+                    <span className="text-xs text-gray-500 mt-0.5">
+                    {isNotificationsEnabled 
+                        ? '알림을 받고 있습니다.' 
+                        : permission === 'denied' 
+                        ? '알림 권한이 차단되었습니다.' 
+                        : permission === 'granted'
+                        ? '알림 수신이 중지되었습니다.'
+                        : '알림 권한이 필요합니다.'}
+                    </span>
+                </div>
+                <Switch 
+                    checked={isNotificationsEnabled}
+                    onCheckedChange={handleToggle}
+                    disabled={false}
+                />
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-gray-100" />
+
+                {/* Manual Status Indicator */}
+                <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
+                    {permission === 'granted' ? (
+                        <CheckCircle2 className="text-green-500 shrink-0" size={20} />
+                    ) : permission === 'denied' ? (
+                        <XCircle className="text-red-500 shrink-0" size={20} />
+                    ) : (
+                        <AlertCircle className="text-amber-500 shrink-0" size={20} />
+                    )}
+                    <div className="text-xs text-gray-700">
+                        브라우저 권한: 
+                        <span className="font-bold ml-1">
+                            {permission === 'granted' ? '허용됨' : permission === 'denied' ? '거부됨' : '미설정'}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Test Button */}
+                <div>
+                    <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="w-full justify-start gap-2 h-9 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border" 
+                        onClick={handleTestNotification}
+                    >
+                        <Bell size={14} />
+                        <span className="text-xs">테스트 알림 발송 (로컬)</span>
+                    </Button>
+                </div>
+            </div>
+          </section>
+
+          {/* PWA Install Guide */}
+          <section className="space-y-3">
+             <div className="px-1">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <Download size={16} className="text-blue-500" />
+                    앱 설치 (PWA)
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                    앱을 홈 화면에 추가하여 더 편리하게 이용하세요.
+                </p>
+            </div>
+            
+            <div className="bg-white border rounded-xl p-4 space-y-4 shadow-sm">
+                {isInstallable && (
+                    <>
+                        <Button 
+                            variant="outline"
+                            className="w-full justify-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                            onClick={promptInstall}
+                        >
+                            <Download size={16} />
+                            앱설치
+                        </Button>
+                        <div className="h-px bg-gray-100" />
+                    </>
+                )}
+
+                <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                        <div className="bg-gray-100 p-1.5 rounded text-gray-600 mt-0.5">
+                            <Share size={16} />
+                        </div>
+                        <div>
+                            <span className="text-xs font-bold text-gray-900 block mb-0.5">iOS (iPhone/iPad)</span>
+                            <p className="text-xs text-gray-600 leading-snug">
+                                Safari 브라우저 하단 <strong>공유</strong> 버튼 <Share size={10} className="inline mx-0.5" /> 클릭 후 <br/>
+                                <strong>'홈 화면에 추가'</strong>를 선택하세요.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-gray-100" />
+
+                    <div className="flex items-start gap-3">
+                        <div className="bg-gray-100 p-1.5 rounded text-gray-600 mt-0.5">
+                            <Download size={16} />
+                        </div>
+                        <div>
+                            <span className="text-xs font-bold text-gray-900 block mb-0.5">Android</span>
+                            <p className="text-xs text-gray-600 leading-snug">
+                                Chrome 브라우저 메뉴에서 <strong>'앱 설치'</strong> 또는 <br/>
+                                <strong>'홈 화면에 추가'</strong>를 선택하세요.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </section>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

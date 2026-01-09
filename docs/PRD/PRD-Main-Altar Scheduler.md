@@ -487,6 +487,11 @@
       - 이름(영문): (예: Beomeo Cathedral), 중복 체크
       - 교구: 16개 교구 목록 콤보박스 선택 (서울, 인천, 수원, 의정부, 춘천, 대전, 대구, 부산, 광주, 전주, 제주 등)
       - 활성 상태(Active) 토글
+  ② 사용자 지원 (User Support)
+    . 사용자 목록에서 개별 [지원] 버튼 제공
+    . 사용자 지원 드로어:
+      - 테스트 메시지 발송: 특정 사용자에게 테스트 푸시 알림을 보내 수신 여부 확인
+      - 기기 토큰 관리: 사용자의 등록된 FCM 토큰 목록 조회 및 개별 삭제(Refresh/Delete/Guide) 지원
 
 ---
 
@@ -504,6 +509,18 @@
 - 상단 공통 헤더: 사용자 이름 + 이메일 + 로그아웃 버튼 표시
 - 페이지 본문은 Layout의 Outlet 영역에서만 표시 (중복 방지)
 - 따라서 각 화면(Dashboard, ServerMain)에서는 별도의 Layout 래핑 제거
+
+- 따라서 각 화면(Dashboard, ServerMain)에서는 별도의 Layout 래핑 제거
+
+#### 2.13.2 메뉴 및 설정 (Drawer)
+
+- **앱 설정 (App Settings)**:
+  . 알림 수신 설정 (Soft Opt-out 지원)
+  . **PWA 설치 가이드**: iOS/Android 설치 방법 안내 및 설치 버튼(Install Prompt) 제공
+- **문의 하기 (Contact)**:
+  . 메뉴 내 [문의] 버튼 및 팝업 가이드
+  . 이메일 문의 안내 (jagalchi@naver.com)
+- **PWA 준수**: iOS `apple-touch-icon` 및 Manifest 표준 적용
 
 #### 📍2.14 (임시)
 
@@ -622,10 +639,32 @@
 - 세부 정책 : : 'PRD-3.4.2-Firestore doc Modeling.md' 파일 내용을 참고함.
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 
+- 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
+
+### 📍2.16 알림 시스템 (Notifications)
+
+- **기술 스택**: Firebase Cloud Messaging (FCM) + Cloud Functions
+- **알림 정책**:
+  - **Soft Opt-out**: 브라우저 권한과 별개로 앱 내 설정에서 알림 수신 여부(ON/OFF) 제어.
+    . OFF: LocalStorage 저장 및 Firestore 토큰 삭제.
+    . ON: 토큰 재발급 및 Firestore 등록.
+- **자동 알림 트리거 (Cloud Functions)**:
+  1. **신규 회원 가입 (`onUserCreated`)**:
+     . 수신: Super Admin
+     . 내용: "새로운 회원이 가입했습니다."
+  2. **입단/권한 신청 (`onMemberEvents`)**:
+     . 수신: 해당 Group Admin
+     . 내용: "신규 복사단원 입단 신청" 또는 "플래너 권한 신청"
+  3. **월간 일정 상태 변경 (`onMonthlyStatusChanged`)**:
+     . 수신: 해당 그룹 전체 멤버
+     . 조건: 상태 'OPEN'(설문시작), 'CLOSED'(설문마감), 'CONFIRMED'(배정완료) 변경 시
+     . 내용: 각 상태별 안내 메시지 발송
+
+---
+
 ## 🎯4. 향후 확장
 
 - 다국어 지원 (한국어/영어/스페인어 등)
-- 복사/부모 전용 앱 (푸시 알림 연동)
 - 교구 단위 통계/리포트
 
 ---

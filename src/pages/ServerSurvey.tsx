@@ -390,6 +390,18 @@ export default function ServerSurvey() {
                     );
                 })}
             </div>
+
+            {/* 범례 */}
+            <div className="mt-4 flex justify-center gap-4 text-xs text-gray-500 border-t pt-3">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>가능</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-red-300" />
+                    <span>불가능</span>
+                </div>
+            </div>
         </div>
         
         {/* Footer Actions */}

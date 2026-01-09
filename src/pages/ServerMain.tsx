@@ -97,11 +97,16 @@ export default function ServerMain() {
   }, [serverGroupId, currentMonth.format('YYYYMM')]); // Stable Dependency
 
   // 3.5) 설문 진행 중인 달 조회 (Survey Status='OPEN') - Realtime
-  const [surveyNoticeMonth, setSurveyNoticeMonth] = useState<string | null>(null);
+  const [surveyInfo, setSurveyInfo] = useState<{ 
+      month: string; 
+      targetMemberIds: string[]; 
+      startDate: any; 
+      endDate: any; 
+  } | null>(null);
   
   useEffect(() => {
     if (!serverGroupId) {
-      setSurveyNoticeMonth(null);
+      setSurveyInfo(null);
       return;
     }
 
@@ -111,9 +116,14 @@ export default function ServerMain() {
 
     const unsub = onSnapshot(surveyRef, (snap) => {
       if (snap.exists() && snap.data().status === 'OPEN') {
-        setSurveyNoticeMonth(yyyymm);
+        setSurveyInfo({
+            month: yyyymm,
+            targetMemberIds: snap.data().member_ids || [],
+            startDate: snap.data().start_date,
+            endDate: snap.data().end_date,
+        });
       } else {
-        setSurveyNoticeMonth(null);
+        setSurveyInfo(null);
       }
     });
 
@@ -278,16 +288,18 @@ export default function ServerMain() {
           />
         )}
 
-        {/* 2.5) 설문 알림 (Callout) */}
-        {surveyNoticeMonth && serverGroupId && (
+        {/* 2.5) 설문 알림 (Callout) - 기간 체크 추가 */}
+        {surveyInfo && 
+         checkedMemberIds.length === 1 && 
+         surveyInfo.targetMemberIds.includes(checkedMemberIds[0]) && 
+         serverGroupId && 
+         // Check if today is within survey period (inclusive)
+         !dayjs().isBefore(dayjs(surveyInfo.startDate?.toDate()), 'day') && 
+         !dayjs().isAfter(dayjs(surveyInfo.endDate?.toDate()), 'day') && (
           <div 
             onClick={() => {
-                if (checkedMemberIds.length !== 1) {
-                    toast.error("설문을 진행할 복사를 한 명만 선택해주세요.");
-                    return;
-                }
                 const targetId = checkedMemberIds[0];
-                navigate(`/survey/${serverGroupId}/${surveyNoticeMonth}?memberId=${targetId}`);
+                navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}`);
             }}
             className="mt-4 mb-2 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 transition shadow-sm fade-in"
           >
@@ -297,7 +309,7 @@ export default function ServerMain() {
             <div className="flex-1">
                <h3 className="text-sm font-bold text-yellow-900">미사일정 설문이 시작되었습니다</h3>
                <p className="text-xs text-yellow-700 mt-1">
-                 {dayjs(surveyNoticeMonth, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
+                 {dayjs(surveyInfo.month, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
                </p>
             </div>
             <ChevronRight className="text-yellow-400" size={20} />

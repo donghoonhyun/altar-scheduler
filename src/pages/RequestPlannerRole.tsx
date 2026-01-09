@@ -47,6 +47,7 @@ export default function RequestPlannerRole() {
 
   // Existing request state
   const [existingRequest, setExistingRequest] = useState<PendingRequest | null>(null);
+  const [requestHistory, setRequestHistory] = useState<PendingRequest[]>([]);
   const [checkingStatus, setCheckingStatus] = useState(true);
 
   // Selection
@@ -65,12 +66,8 @@ export default function RequestPlannerRole() {
     const checkPendingRequests = () => {
       if (!user) return;
       
-      setCheckingStatus(true); // Start loading
+      setCheckingStatus(true); 
 
-      // Listen to ALL role_requests for this user (not just pending)
-      // We want to detect if a pending request changes to 'approved' or 'rejected'
-      // Sort manually in JS or try orderBy created_at desc if index exists.
-      // To minimize index errors, we'll just query by uid and sort in client.
       const q = query(
         collectionGroup(db, 'role_requests'),
         where('uid', '==', user.uid)
@@ -83,7 +80,6 @@ export default function RequestPlannerRole() {
             return;
         }
 
-        // Find the latest request (client-side sort)
         const docs = snap.docs.map(d => ({ id: d.id, ref: d.ref, data: d.data() }));
         docs.sort((a, b) => {
             const timeA = a.data.created_at?.toMillis() || 0;
@@ -91,45 +87,60 @@ export default function RequestPlannerRole() {
             return timeB - timeA;
         });
 
-        const latestDoc = docs[0];
-        const data = latestDoc.data;
-
-        // If 'approved', we might want to redirect effectively.
-        // But for now, let's just show status.
-        // For 'rejected', show rejected.
-
-        // Get server group info
-        const serverGroupRef = latestDoc.ref.parent.parent;
-        let groupName = '알 수 없는 복사단';
-        let parishName = '';
-        
-        if (serverGroupRef) {
-            try {
-                const sgSnap = await getDoc(serverGroupRef);
-                if (sgSnap.exists()) {
-                    const sgData = sgSnap.data();
-                    groupName = sgData.name;
-                    const parishDoc = await getDoc(doc(db, 'parishes', sgData.parish_code));
-                    if (parishDoc.exists()) {
-                         parishName = (parishDoc.data() as Parish).name_kor;
+        // Process all docs to get full history
+        const allRequests = await Promise.all(docs.map(async (docObj) => {
+            const data = docObj.data;
+            const serverGroupRef = docObj.ref.parent.parent;
+            let groupName = '알 수 없는 복사단';
+            let parishName = '';
+            
+            if (serverGroupRef) {
+                try {
+                    const sgSnap = await getDoc(serverGroupRef);
+                    if (sgSnap.exists()) {
+                        const sgData = sgSnap.data();
+                        groupName = sgData.name;
+                        const parishDoc = await getDoc(doc(db, 'parishes', sgData.parish_code));
+                        if (parishDoc.exists()) {
+                             parishName = (parishDoc.data() as Parish).name_kor;
+                        }
                     }
+                } catch (e) {
+                    console.error("Error fetching group info", e);
                 }
-            } catch (e) {
-                console.error("Error fetching group info", e);
+            }
+            
+            return {
+                id: docObj.id,
+                serverGroupId: serverGroupRef?.id || '',
+                groupName,
+                parishName,
+                created_at: data.created_at,
+                user_name: data.user_name,
+                baptismal_name: data.baptismal_name,
+                status: data.status,
+                ref: docObj.ref
+            } as PendingRequest & { ref: any };
+        }));
+
+        allRequests.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0));
+        setRequestHistory(allRequests);
+
+        // Determine which request to show mainly (existing logic using resolved list)
+        let targetReq = allRequests[0];
+        
+        if (session.currentServerGroupId) {
+            const contextReq = allRequests.find(r => r.ref.parent.parent?.id === session.currentServerGroupId);
+            if (contextReq) {
+                targetReq = contextReq;
+            } else {
+                setExistingRequest(null);
+                setCheckingStatus(false);
+                return;
             }
         }
         
-        setExistingRequest({
-            id: latestDoc.id,
-            serverGroupId: serverGroupRef?.id || '',
-            groupName,
-            parishName,
-            created_at: data.created_at,
-            user_name: data.user_name,
-            baptismal_name: data.baptismal_name,
-            status: data.status, // Add status to tracking
-        } as PendingRequest & { status: string });
-
+        setExistingRequest(targetReq);
         setCheckingStatus(false);
       }, (err) => {
           console.error("Error watching requests:", err);
@@ -145,12 +156,13 @@ export default function RequestPlannerRole() {
             (unsubscribe as any)();
         }
     };
-  }, [user]);
+  }, [user, session.currentServerGroupId]);
 
-  // Load User Profile Pre-fill (if no existing request)
+  // Load User Profile & Pre-fill Context
   useEffect(() => {
-    if (existingRequest || checkingStatus) return; // Skip if checking or found
+    if (existingRequest || checkingStatus) return; 
 
+    // Pre-fill based on User Profile
     const loadProfile = async () => {
       if (!user) return;
       try {
@@ -168,7 +180,15 @@ export default function RequestPlannerRole() {
       }
     };
     loadProfile();
-  }, [user, existingRequest, checkingStatus]);
+
+    // Pre-fill Parish/Group based on Session Context
+    if (session.currentServerGroupId && session.serverGroups[session.currentServerGroupId]) {
+        const groupInfo = session.serverGroups[session.currentServerGroupId];
+        setSelectedParish(groupInfo.parishCode);
+        setSelectedGroup(session.currentServerGroupId);
+    }
+
+  }, [user, existingRequest, checkingStatus, session.currentServerGroupId, session.serverGroups]);
 
   // Load Server Groups when Parish changes
   useEffect(() => {
@@ -178,8 +198,6 @@ export default function RequestPlannerRole() {
         return;
       }
       try {
-        // Query by parish_code only to avoid index issues with multiple fields
-        // Now adding active=true condition as well
         const q = query(
           collection(db, 'server_groups'), 
           where('parish_code', '==', selectedParish),
@@ -191,7 +209,6 @@ export default function RequestPlannerRole() {
             id: d.id,
             ...(d.data() as Omit<ServerGroupItem, 'id'>),
           }));
-          //.filter((sg) => sg.active !== false); // Moved to query
         
         setServerGroups(list);
       } catch (e) {
@@ -441,41 +458,23 @@ export default function RequestPlannerRole() {
         {/* Step 2: Applicant Info */}
         <div className="space-y-4">
             <h3 className="text-sm font-semibold text-gray-900">2. 신청자 정보</h3>
-            <div className="space-y-4">
-                <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">이름</label>
-                    <Input
-                        placeholder="실명을 입력하세요"
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                    />
+            <div className="bg-gray-50 rounded-lg p-4 space-y-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-500">이름</span>
+                    <span className="text-sm font-bold text-gray-900">{userName}</span>
                 </div>
-                <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">세례명</label>
-                    <Input
-                        placeholder="세례명을 입력하세요"
-                        value={baptismalName}
-                        onChange={(e) => setBaptismalName(e.target.value)}
-                    />
+                <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-500">세례명</span>
+                    <span className="text-sm font-bold text-gray-900">{baptismalName || '-'}</span>
                 </div>
-                <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">전화번호</label>
-                    <Input
-                        placeholder="010-0000-0000"
-                        value={phone}
-                        onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, '');
-                            let formatted = raw;
-                            if (raw.length > 3 && raw.length <= 7) {
-                                formatted = `${raw.slice(0, 3)}-${raw.slice(3)}`;
-                            } else if (raw.length > 7) {
-                                formatted = `${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7, 11)}`;
-                            }
-                            setPhone(formatted);
-                        }}
-                    />
+                <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-500">전화번호</span>
+                    <span className="text-sm font-bold text-gray-900">{phone || '-'}</span>
                 </div>
             </div>
+            <p className="text-[11px] text-gray-400 text-right">
+               * 정보 수정은 마이페이지에서 가능합니다.
+            </p>
         </div>
 
         <div className="pt-4 flex gap-3">
@@ -495,6 +494,41 @@ export default function RequestPlannerRole() {
                 {loading ? '신청 중...' : '권한 신청하기'}
             </Button>
         </div>
+
+        {/* Request History Section */}
+        {requestHistory.length > 0 && (
+            <div className="mt-12 border-t pt-8">
+                <h3 className="text-sm font-bold text-gray-900 mb-4">나의 신청 내역</h3>
+                <div className="space-y-3">
+                    {requestHistory.map((req) => (
+                        <div key={req.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <div className="text-xs text-gray-500 mb-0.5">{req.parishName}</div>
+                                    <div className="text-sm font-bold text-gray-900">{req.groupName}</div>
+                                </div>
+                                <div>
+                                    {req.status === 'approved' ? (
+                                        <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">승인됨</span>
+                                    ) : req.status === 'rejected' ? (
+                                        <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">반려됨</span>
+                                    ) : (
+                                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">승인 대기</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="text-xs text-gray-400">
+                                {req.created_at?.toDate 
+                                    ? req.created_at.toDate().toLocaleString('ko-KR', { 
+                                        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                      }) 
+                                    : '-'}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );
