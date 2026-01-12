@@ -5,12 +5,15 @@ import { useSession } from '@/state/session';
 import { firebaseConfig } from '@/config/firebaseConfig';
 
 export function useFcmToken() {
-  const { user } = useSession();
+  const { user, userInfo } = useSession();
   const [token, setToken] = useState<string | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   const handleTokenUpdate = useCallback(async (enable: boolean) => {
       if (!user) return;
+      // Don't request permission if profile is incomplete (avoids conflict with Profile Dialog)
+      if (!userInfo?.userName) return;
+      
       if (!('Notification' in window)) return;
 
       try {
@@ -61,7 +64,7 @@ export function useFcmToken() {
       } catch (err) {
           console.error('FCM Token Error:', err);
       }
-  }, [user]);
+  }, [user, userInfo]);
 
   // Initial Load
   useEffect(() => {

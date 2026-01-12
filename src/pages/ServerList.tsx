@@ -26,6 +26,7 @@ interface Member {
   name_kor: string;
   baptismal_name: string;
   grade: string;
+  start_year?: string;
   email?: string;
   active: boolean;
   request_confirmed?: boolean; // 승인 여부 (true: 승인됨, false/undefined: 미승인)
@@ -70,6 +71,7 @@ export default function ServerList() {
   // ✅ 상태 수정용 state
   const [editActive, setEditActive] = useState(false);
   const [editGrade, setEditGrade] = useState('');
+  const [editStartYear, setEditStartYear] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   // ✅ 정렬 상태: 'name' | 'grade'
@@ -80,6 +82,7 @@ export default function ServerList() {
     if (selectedMember) {
       setEditActive(selectedMember.active);
       setEditGrade(selectedMember.grade || 'M1');
+      setEditStartYear(selectedMember.start_year || '');
       // Drawer 열릴 때 현재 월로 초기화
       setStatsBaseDate(dayjs());
     }
@@ -274,12 +277,13 @@ export default function ServerList() {
       await updateDoc(memberRef, { 
         active: editActive, 
         grade: editGrade,
+        start_year: editStartYear,
         request_confirmed: true, // 수정 시 확정 상태 보장 (비활동 전환 시 필요)
         updated_at: new Date() 
       });
       
       // 로컬 상태 업데이트
-      setSelectedMember(prev => prev ? ({ ...prev, active: editActive, grade: editGrade, request_confirmed: true }) : null);
+      setSelectedMember(prev => prev ? ({ ...prev, active: editActive, grade: editGrade, start_year: editStartYear, request_confirmed: true }) : null);
       
       toast.success('정보가 저장되었습니다.');
       setIsDrawerOpen(false);
@@ -296,10 +300,11 @@ export default function ServerList() {
     if (selectedMember) {
       setEditActive(selectedMember.active);
       setEditGrade(selectedMember.grade || 'M1');
+      setEditStartYear(selectedMember.start_year || '');
     }
   };
 
-  const hasChanges = selectedMember ? (selectedMember.active !== editActive || selectedMember.grade !== editGrade) : false;
+  const hasChanges = selectedMember ? (selectedMember.active !== editActive || selectedMember.grade !== editGrade || selectedMember.start_year !== editStartYear) : false;
 
   // ✅ 정렬된 리스트 계산 (useMemo)
   const sortedActiveMembers = useMemo(() => {
@@ -504,7 +509,7 @@ export default function ServerList() {
                     <div className="flex-1 min-w-0 mr-1">
                       <p className="font-semibold text-gray-800 text-sm truncate">{m.name_kor}</p>
                       <p className="text-[11px] text-gray-500 mt-0.5 truncate">
-                        {m.baptismal_name} · {m.grade}
+                        {m.baptismal_name} · {m.grade} {m.start_year && `· ${m.start_year}년`}
                       </p>
                     </div>
                     
@@ -717,6 +722,42 @@ export default function ServerList() {
                         ))}
                       </SelectContent>
                    </Select>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                   <span className="font-medium text-gray-500">입단년도</span>
+                   <div className="flex items-center gap-1">
+                     <button
+                       className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                       onClick={() => {
+                         const current = parseInt(editStartYear) || new Date().getFullYear();
+                         setEditStartYear((current - 1).toString());
+                       }}
+                       disabled={isSaving}
+                     >
+                       <ChevronLeft size={14} />
+                     </button>
+                     <input 
+                       type="text" 
+                       className="w-[50px] text-center border-b border-gray-200 focus:border-blue-500 outline-none text-sm"
+                       value={editStartYear}
+                       onChange={(e) => {
+                         const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                         setEditStartYear(val);
+                       }}
+                       placeholder="YYYY"
+                       disabled={isSaving}
+                     />
+                     <button
+                       className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                       onClick={() => {
+                         const current = parseInt(editStartYear) || new Date().getFullYear();
+                         setEditStartYear((current + 1).toString());
+                       }}
+                       disabled={isSaving}
+                     >
+                       <ChevronRight size={14} />
+                     </button>
+                   </div>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-50 pb-2">
                   <span className="font-medium text-gray-500">상태</span>

@@ -49,6 +49,12 @@ export default function SurveyManagement() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+
+  // Filter & Sort State
+  const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
+  const [showSubmitted, setShowSubmitted] = useState(true);
+  const [showUnsubmitted, setShowUnsubmitted] = useState(true);
+
   const fetchSurveys = useCallback(async (isRefresh = false) => {
     if (!serverGroupId) return;
     try {
@@ -154,8 +160,7 @@ export default function SurveyManagement() {
                      return (
                          <Card 
                             key={survey.id} 
-                            className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => handleOpenDetail(survey)}
+                            className="p-4 transition-shadow"
                          >
                             <div className="flex justify-between items-start mb-2">
                                 <div>
@@ -175,8 +180,17 @@ export default function SurveyManagement() {
                                   <span className="text-gray-600">응답률</span>
                                   <span className="font-bold text-blue-600">{rate}% ({responseCount}/{total}명)</span>
                                </div>
-                               <div className="w-full bg-gray-200 rounded-full h-2">
+                               <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                                   <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${rate}%` }} />
+                               </div>
+                               
+                               <div className="grid grid-cols-2 gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => handleOpenDetail(survey)}>
+                                        설문 명단
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => navigate(`/server-groups/${serverGroupId}/surveys/${survey.id}/calendar`)}>
+                                        달력 보기
+                                    </Button>
                                </div>
                             </div>
                          </Card>
@@ -188,62 +202,126 @@ export default function SurveyManagement() {
 
        {/* Detail Drawer */}
        <Drawer open={isDrawerOpen} onOpenChange={(o) => !o && closeDrawer()}>
-          <DrawerContent className="max-h-[85vh]">
+          <DrawerContent className="max-h-[85vh] flex flex-col">
               <DrawerHeader>
                   <DrawerTitle>
                       {selectedSurvey && `${selectedSurvey.id.slice(0,4)}년 ${parseInt(selectedSurvey.id.slice(4))}월 설문 현황`}
                   </DrawerTitle>
               </DrawerHeader>
               
-              <div className="p-4 overflow-y-auto">
-                 {detailLoading ? (
-                     <div className="py-10 text-center text-gray-400">명단 로딩 중...</div>
-                 ) : selectedSurvey ? (
-                     <div className="space-y-4">
-                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                           <span className="text-sm font-medium text-gray-600">총 대상자</span>
-                           <span className="font-bold text-gray-900">{selectedSurvey.member_ids?.length || 0}명</span>
-                        </div>
-                        
-                        <div className="space-y-2">
-                           <h4 className="text-sm font-bold text-gray-700">응답자 목록</h4>
-                           <div className="grid grid-cols-2 gap-2">
-                              {/* Separate into Submitted / Not Submitted */}
-                              {(() => {
-                                  const targets = selectedSurvey.member_ids || [];
-                                  const responses = selectedSurvey.responses || {};
-                                  
-                                  const list = targets.map(uid => {
-                                      const info = memberMap[uid] || { id: uid, name: '...', grade: '' };
-                                      const hasRes = !!responses[uid];
-                                      return { ...info, hasRes };
-                                  });
-                                  
-                                  // Sort: Submitted first, then by name
-                                  list.sort((a, b) => {
-                                      if (a.hasRes === b.hasRes) return a.name.localeCompare(b.name);
-                                      return a.hasRes ? -1 : 1;
-                                  });
-
-                                  return list.map(m => (
-                                      <div key={m.id} className={`p-2 rounded border text-sm flex items-center justify-between ${m.hasRes ? 'bg-blue-50 border-blue-100' : 'bg-white border-gray-100'}`}>
-                                           <div className="flex items-center gap-1.5">
-                                              <span className="font-medium text-gray-800">{m.name}</span>
-                                              <span className="text-[10px] text-gray-400">{m.grade}</span>
-                                           </div>
-                                           {m.hasRes ? (
-                                               <Badge variant="outline" className="text-[10px] bg-white text-blue-600 border-blue-200 px-1 py-0 h-5">제출완료</Badge>
-                                           ) : (
-                                               <span className="text-[10px] text-gray-400">미제출</span>
-                                           )}
+               <div className="p-4 overflow-y-auto flex-1">
+                  {detailLoading ? (
+                      <div className="py-10 text-center text-gray-400">명단 로딩 중...</div>
+                  ) : selectedSurvey ? (
+                      <div className="space-y-4">
+                          <div className="bg-gray-50 p-3 rounded-lg text-center">
+                              <div className="text-sm">
+                                  <span className="font-bold text-gray-900">총 대상자 {selectedSurvey.member_ids?.length || 0}명</span>
+                                  <span className="mx-2 text-gray-300">|</span>
+                                  <span className="font-bold text-blue-600">응답자 {Object.keys(selectedSurvey.responses || {}).length}명</span>
+                                  <span className="ml-1 text-gray-500">({
+                                      (selectedSurvey.member_ids?.length || 0) > 0 
+                                      ? Math.round((Object.keys(selectedSurvey.responses || {}).length / (selectedSurvey.member_ids?.length || 1)) * 100) 
+                                      : 0
+                                  }%)</span>
+                              </div>
+                          </div>
+                          
+                          <div className="space-y-3">
+                              <div className="flex flex-col gap-2 bg-white sticky top-0 z-10">
+                                  <div className="flex justify-between items-center">
+                                      <h4 className="text-sm font-bold text-gray-700">응답자 목록</h4>
+                                      <div className="flex bg-gray-100 rounded p-0.5">
+                                          <button 
+                                              onClick={() => setSortBy('name')} 
+                                              className={`text-xs px-2 py-0.5 rounded transition-all ${sortBy === 'name' ? 'bg-white shadow-sm font-bold text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                                          >
+                                              이름순
+                                          </button>
+                                          <button 
+                                              onClick={() => setSortBy('grade')} 
+                                              className={`text-xs px-2 py-0.5 rounded transition-all ${sortBy === 'grade' ? 'bg-white shadow-sm font-bold text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                                          >
+                                              학년순
+                                          </button>
                                       </div>
-                                  ));
-                              })()}
-                           </div>
-                        </div>
-                     </div>
-                 ) : null}
-              </div>
+                                  </div>
+                                  
+                                  <div className="flex gap-4 text-xs text-gray-600 pb-2 border-b border-gray-100">
+                                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
+                                          <input 
+                                              type="checkbox" 
+                                              checked={showSubmitted} 
+                                              onChange={(e) => setShowSubmitted(e.target.checked)} 
+                                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" 
+                                          />
+                                          제출자 보기
+                                      </label>
+                                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
+                                          <input 
+                                              type="checkbox" 
+                                              checked={showUnsubmitted} 
+                                              onChange={(e) => setShowUnsubmitted(e.target.checked)} 
+                                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" 
+                                          />
+                                          미제출자 보기
+                                      </label>
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                  {(() => {
+                                      const targets = selectedSurvey.member_ids || [];
+                                      const responses = selectedSurvey.responses || {};
+                                      
+                                      let list = targets.map(uid => {
+                                          const info = memberMap[uid] || { id: uid, name: '...', grade: '' };
+                                          const hasRes = !!responses[uid];
+                                          return { ...info, hasRes };
+                                      });
+
+                                      // Filter
+                                      list = list.filter(m => {
+                                          if (m.hasRes && !showSubmitted) return false;
+                                          if (!m.hasRes && !showUnsubmitted) return false;
+                                          return true;
+                                      });
+                                      
+                                      // Sort
+                                      list.sort((a, b) => {
+                                          if (sortBy === 'grade') {
+                                              if (a.grade !== b.grade) {
+                                                  return (a.grade || '').localeCompare(b.grade || '');
+                                              }
+                                              return a.name.localeCompare(b.name);
+                                          } else {
+                                              return a.name.localeCompare(b.name);
+                                          }
+                                      });
+
+                                      if (list.length === 0) {
+                                          return <div className="col-span-2 text-center text-gray-400 py-4 text-xs">표시할 대상이 없습니다.</div>;
+                                      }
+
+                                      return list.map(m => (
+                                          <div key={m.id} className={`p-2 rounded border text-sm flex items-center justify-between ${m.hasRes ? 'bg-blue-50 border-blue-100' : 'bg-white border-gray-100'}`}>
+                                              <div className="flex items-center gap-1.5 overflow-hidden">
+                                                  <span className="font-medium text-gray-800 truncate">{m.name}</span>
+                                                  <span className="text-[10px] text-gray-400 shrink-0">{m.grade}</span>
+                                              </div>
+                                              {m.hasRes ? (
+                                                  <Badge variant="outline" className="text-[10px] bg-white text-blue-600 border-blue-200 px-1 py-0 h-5 shrink-0">제출</Badge>
+                                              ) : (
+                                                  <span className="text-[10px] text-gray-400 shrink-0">미제출</span>
+                                              )}
+                                          </div>
+                                      ));
+                                  })()}
+                              </div>
+                          </div>
+                      </div>
+                  ) : null}
+               </div>
               <DrawerFooter>
                  <Button variant="outline" onClick={closeDrawer}>닫기</Button>
               </DrawerFooter>

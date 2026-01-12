@@ -47,7 +47,7 @@ const DrawerContent = React.forwardRef<
       )}
       {...props}
     >
-      <div className="w-full max-w-md mx-auto relative">
+      <div className="w-full max-w-md mx-auto relative flex flex-col h-auto max-h-[calc(100vh-6rem)]">
         {children}
         <DrawerPrimitive.Close className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
           <X className="h-5 w-5 text-gray-400" />

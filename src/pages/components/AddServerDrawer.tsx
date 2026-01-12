@@ -35,6 +35,7 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
   const [name, setName] = useState('');
   const [baptismalName, setBaptismalName] = useState('');
   const [grade, setGrade] = useState('');
+  const [startYear, setStartYear] = useState('');
   
   // Parent Mode State
   const [parentMode, setParentMode] = useState<'search' | 'manual'>('search');
@@ -155,7 +156,7 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
   };
 
   const handleAdd = async () => {
-    if (!name.trim() || !baptismalName.trim() || !grade) {
+    if (!name.trim() || !baptismalName.trim() || !grade || !startYear) {
       toast.error('필수 정보를 모두 입력해주세요.');
       return;
     }
@@ -183,6 +184,7 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
         name_kor: name,
         baptismal_name: baptismalName,
         grade: grade,
+        start_year: startYear,
         phone_student: phoneStudent || '', // Ensure no undefined
         active: true,
         request_confirmed: true,
@@ -207,6 +209,7 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
       setName('');
       setBaptismalName('');
       setGrade('');
+      setStartYear('');
       setPhoneGuardian('');
       setPhoneStudent('');
       setGuardianName('');
@@ -279,6 +282,56 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
                   })}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="start_year" className="text-xs">입단년도 <span className="text-red-500">*</span></Label>
+              <div className="flex gap-2">
+                 <Button 
+                   variant="outline"
+                   size="sm"
+                   tabIndex={-1}
+                   onClick={() => {
+                      const current = parseInt(startYear) || new Date().getFullYear();
+                      setStartYear((current - 1).toString());
+                   }}
+                   className="h-9 whitespace-nowrap text-xs px-3"
+                 >
+                   &lt;
+                 </Button>
+                <Input
+                  id="start_year"
+                  type="number"
+                  value={startYear}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    setStartYear(val);
+                  }}
+                  placeholder="직접 입력 (YYYY)"
+                  className="h-9 flex-1 text-center"
+                />
+                 <Button 
+                   variant="outline"
+                   size="sm"
+                   tabIndex={-1}
+                   onClick={() => {
+                      const current = parseInt(startYear) || new Date().getFullYear();
+                      setStartYear((current + 1).toString());
+                   }}
+                   className="h-9 whitespace-nowrap text-xs px-3"
+                 >
+                   &gt;
+                 </Button>
+                 <Button 
+                   variant="outline"
+                   size="sm"
+                   tabIndex={-1}
+                   onClick={() => setStartYear(new Date().getFullYear().toString())}
+                   className="h-9 whitespace-nowrap text-xs px-3"
+                 >
+                   올해
+                 </Button>
+              </div>
             </div>
 
             <div className="space-y-1">

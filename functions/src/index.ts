@@ -30,8 +30,7 @@ if (!admin.apps.length) {
 export { createServerGroup } from './serverGroups/createServerGroup';
 
 // 📌 MassEvents
-export { createMassEvent } from './massEvents/createMassEvent';
-export { copyPrevMonthMassEvents } from './massEvents/copyPrevMonth';
+export { autoAssignMassEvents } from './massEvents/autoAssignMassEvents';
 
 // 📌 Notifications
 export { createNotification } from './notifications/createNotification';

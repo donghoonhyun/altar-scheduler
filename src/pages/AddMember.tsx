@@ -43,6 +43,7 @@ export default function AddMember() {
   const [nameKor, setNameKor] = useState<string>('');
   const [baptismalName, setBaptismalName] = useState<string>('');
   const [grade, setGrade] = useState<string>('');
+  const [startYear, setStartYear] = useState<string>('');
 
   // ✅ [수정] URL 파라미터(sg) 또는 현재 세션 그룹(session.currentServerGroupId)로 초기값 세팅 - 1단계: 성당 선택
   useEffect(() => {
@@ -74,9 +75,13 @@ export default function AddMember() {
   // ✅ [수정] URL 파라미터 혹은 현재 세션 그룹으로 초기값 세팅 - 2단계: 목록 로드 후 그룹 선택
   useEffect(() => {
       let targetSgId = searchParams.get('sg');
+      
+      // Removed session fallback to enforce manual selection rule (controlled by load logic)
+      /*
       if (!targetSgId && session.currentServerGroupId) {
           targetSgId = session.currentServerGroupId;
       }
+      */
 
       if (targetSgId && serverGroups.length > 0 && !selectedGroup) {
           // 로드된 목록에 해당 그룹이 있는지 확인
@@ -109,6 +114,14 @@ export default function AddMember() {
       }));
 
       setServerGroups(list);
+
+      // Auto-select if only one group exists
+      if (list.length === 1) {
+          setSelectedGroup(list[0].id);
+      } else {
+          // Force reset to require manual selection if multiple (or zero)
+          setSelectedGroup(''); 
+      }
     };
 
     load();
@@ -128,8 +141,8 @@ export default function AddMember() {
       return;
     }
 
-    if (!nameKor || !baptismalName || !grade) {
-      toast.error('이름, 세례명, 학년을 모두 입력해주세요.');
+    if (!nameKor || !baptismalName || !grade || !startYear) {
+      toast.error('이름, 세례명, 학년, 시작년도를 모두 입력해주세요.');
       return;
     }
 
@@ -140,6 +153,7 @@ export default function AddMember() {
         name_kor: nameKor,
         baptismal_name: baptismalName,
         grade,
+        start_year: startYear,
         active: false,
         request_confirmed: false,
         created_at: serverTimestamp(),
@@ -250,6 +264,51 @@ export default function AddMember() {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* 복사시작년도 */}
+
+      <div className="mb-4">
+        <label className="text-sm">입단년도</label>
+        <div className="flex gap-2 mt-1">
+          <button 
+             tabIndex={-1}
+             onClick={() => {
+                const current = parseInt(startYear) || new Date().getFullYear();
+                setStartYear((current - 1).toString());
+             }}
+             className="px-3 bg-gray-100 border border-gray-200 rounded text-gray-600 hover:bg-gray-200"
+          >
+             &lt;
+          </button>
+          <input
+            type="number"
+            className="flex-1 border rounded p-2 text-center"
+            value={startYear}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+              setStartYear(val);
+            }}
+            placeholder="직접 입력 (YYYY)"
+          />
+          <button 
+             tabIndex={-1}
+             onClick={() => {
+                const current = parseInt(startYear) || new Date().getFullYear();
+                setStartYear((current + 1).toString());
+             }}
+             className="px-3 bg-gray-100 border border-gray-200 rounded text-gray-600 hover:bg-gray-200"
+          >
+             &gt;
+          </button>
+          <button 
+            tabIndex={-1}
+            onClick={() => setStartYear(new Date().getFullYear().toString())}
+            className="whitespace-nowrap px-3 text-xs bg-gray-100 border border-gray-200 rounded text-gray-600 hover:bg-gray-200"
+          >
+            올해
+          </button>
+        </div>
       </div>
 
       <button className="w-full bg-blue-600 text-white py-2 rounded text-lg" onClick={handleSubmit}>

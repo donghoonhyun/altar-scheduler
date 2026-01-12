@@ -9,8 +9,9 @@ import {
   getDocs,
   serverTimestamp,
   DocumentData,
+  runTransaction,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions'; // httpsCallable removed
 import dayjs from 'dayjs';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
@@ -23,10 +24,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { MemberDoc } from '@/types/firestore';
-import type {
-  CreateMassEventRequest,
-  CreateMassEventResponse,
-} from '../../../functions/src/massEvents/createMassEvent';
+// Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
 import { RefreshCw } from 'lucide-react';
 import { useCallback } from 'react';
@@ -56,7 +54,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [requiredServers, setRequiredServers] = useState<number | null>(null);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [mainMemberId, setMainMemberId] = useState<string | null>(null);
-  const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean }[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean; start_year?: string }[]>([]);
   const [unavailableMembers, setUnavailableMembers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -99,7 +97,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             id: memberId,
             name: `${m.name_kor} ${m.baptismal_name}`,
             grade,
-            active: m.active !== false // active가 false인 경우만 비활성으로 간주 (undefined는 활성으로 취급)
+            active: m.active !== false, // active가 false인 경우만 비활성으로 간주 (undefined는 활성으로 취급)
+            start_year: m.start_year
           };
         })
         .sort((a, b) => {
@@ -207,17 +206,29 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
       setShowUnavailableWarning(true);
       setTimeout(() => setShowUnavailableWarning(false), 3000);
     }
+
+    let newIds: string[];
+    if (memberIds.includes(id)) {
+      newIds = memberIds.filter((x) => x !== id);
+    } else {
+      newIds = [...memberIds, id];
+    }
     
-    setMemberIds((prev) => {
-      const newIds = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      
-      // If removing main member, clear main member selection
-      if (!newIds.includes(mainMemberId || '')) {
-        setMainMemberId(null);
-      }
-      
-      return newIds;
-    });
+    setMemberIds(newIds);
+
+    // 🤖 주복사 자동 지정 로직 (입단년도 빠른 순 > 이름 순)
+    if (newIds.length > 0) {
+      const selectedMembers = members.filter(m => newIds.includes(m.id));
+      selectedMembers.sort((a, b) => {
+        const yearA = a.start_year || '9999';
+        const yearB = b.start_year || '9999';
+        if (yearA !== yearB) return yearA.localeCompare(yearB);
+        return a.name.localeCompare(b.name, 'ko');
+      });
+      setMainMemberId(selectedMembers[0].id);
+    } else {
+      setMainMemberId(null);
+    }
   };
 
   // ✅ 저장 처리
@@ -286,21 +297,40 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         );
         console.log(`✅ MassEvent updated: ${eventId}`);
       } else {
-        const functions = getFunctions();
-        const createMassEvent = httpsCallable<CreateMassEventRequest, CreateMassEventResponse>(
-          functions,
-          'createMassEvent'
-        );
 
-        const localMidnight = fromLocalDateToFirestore(date!, tz);
-        const formattedDate = dayjs(localMidnight).format('YYYY-MM-DD[T]00:00:00');
-        const res = await createMassEvent({
-          serverGroupId,
-          title,
-          date: formattedDate,
-          requiredServers,
+        // ✅ [Refactored] Create Mass Event locally (No Cloud Function)
+        await runTransaction(db, async (transaction) => {
+           // 1. Get Counter for ID generation
+           const counterRef = doc(db, 'counters', 'mass_events');
+           const counterSnap = await transaction.get(counterRef);
+           
+           let newSeq = 1;
+           if (counterSnap.exists()) {
+             newSeq = (counterSnap.data().last_seq || 0) + 1;
+           }
+
+           const newEventId = `ME${String(newSeq).padStart(6, '0')}`;
+           const newEventRef = doc(db, 'server_groups', serverGroupId, 'mass_events', newEventId);
+
+           // 2. Prepare Data (PRD: event_date is string YYYYMMDD)
+           // date is Date | null passed from props.
+           const eventDateStr = dayjs(date).format('YYYYMMDD');
+           
+           // 3. Writes
+           transaction.set(counterRef, { last_seq: newSeq }, { merge: true });
+           transaction.set(newEventRef, {
+             server_group_id: serverGroupId,
+             title,
+             event_date: eventDateStr,
+             required_servers: requiredServers,
+             member_ids: [], // Initial empty
+             status: 'MASS-NOTCONFIRMED',
+             created_at: serverTimestamp(),
+             updated_at: serverTimestamp(),
+           });
         });
-        if (!res.data.success) throw new Error(res.data.error || '저장 실패');
+        
+        console.log(`✅ MassEvent created locally`);
       }
 
       onClose();
@@ -449,12 +479,21 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                               isMain
                                 ? 'bg-blue-600 text-white font-bold border-blue-600'
                                 : isActive 
-                                    ? 'bg-white border-gray-300' 
+                                    ? 'bg-green-50 border-green-200 text-green-900' 
                                     : 'bg-red-100 border-red-300 text-red-700' // 🔴 비활성: 붉은 계통
                             }`}
                           >
                             {member
-                              ? `${member.name} ${isMain ? '(주복사)' : ''}`
+                              ? (
+                                  <>
+                                    <span>{member.name} {isMain ? '(주복사)' : ''}</span>
+                                    {member.start_year && (
+                                    <span className={`text-[10px] ml-0.5 ${isMain ? 'text-blue-100' : 'text-violet-600'}`}>
+                                        {member.start_year.length === 4 ? member.start_year.slice(2) : member.start_year}년
+                                      </span>
+                                    )}
+                                  </>
+                                )
                               : `ID: ${id.substring(0, 8)}... (미확인)`}
                             
                             {/* 비활성 뱃지 */}

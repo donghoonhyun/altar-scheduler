@@ -183,7 +183,7 @@
 - 기능 : 복사 명단 리스트/검색 지원
 - 권한관리 : manager(본당 단위) 또는 해당 복사단의 planner 권한자
 - Firebase Store Collection : pk='name_kor||baptismal_name' <- 이후 중복 체크시 한국이름과 세례명을 합쳐서 체크함, 동명이인은 이름에 숫자등을 넣어서 구분함
-- 필수입력 Collection field : name_kor, baptismal_name, grade(학년, value=E1/E2/E3/E4/E5/E6/M1/M2/M3/H1/H2/H3), create_at, updated_at
+- 필수입력 Collection field : name_kor, baptismal_name, start_year(입단년도, YYYY), grade(학년, value=E1/E2/E3/E4/E5/E6/M1/M2/M3/H1/H2/H3), create_at, updated_at
 - optoinal field : uid (users/{uid}와 연결될 경우), phone_guardian, phone_student, notes(비고)
 - 중복 체크 기준:
   . 동일 성당 내에서는 name_kor + baptismal_name 조합으로 중복 방지
@@ -253,6 +253,8 @@
     title: string;
     event_date: string;             // ex: "20251024" , 변환예제:const event_date = dayjs(selectedDate).format("YYYYMMDD");
     required_servers: number;
+    member_ids: string[];          // 배정된 복사 ID 목록
+    main_member_id?: string;       // 주복사 ID (Optional)
     status: "MASS-NOTCONFIRMED";   // 초기 상태
     created_at: timestamp;
     updated_at: timestamp;
@@ -638,6 +640,11 @@
 
 - 세부 정책 : : 'PRD-3.4.2-Firestore doc Modeling.md' 파일 내용을 참고함.
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
+
+### 3.4.3 Backend Guidelines & Troubleshooting
+
+- 세부 정책 : 'PRD-3.4.3-Backend Guidelines.md' 파일 내용을 참고함.
+- **주요 내용**: Cloud Functions 사용 시 주의 사항 (CORS/Auth 에러 대응, V1/V2 버전 정책 등)
 
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 

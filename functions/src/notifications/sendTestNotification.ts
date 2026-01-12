@@ -39,8 +39,8 @@ export const sendTestNotification = onCall(
     // 3. Send Message
     const payload = {
       notification: {
-        title: '🔔 알림 테스트',
-        body: '관리자가 발송한 테스트 메세지입니다. 수신 여부를 확인해주세요.',
+        title: '🔔[Altar Scheduler] 알림 테스트',
+        body: '테스트 메시지(FCM)를 정상적으로 수신하였습니다.',
       },
       tokens: tokens,
     };

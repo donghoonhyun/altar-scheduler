@@ -1,3 +1,4 @@
+// src/pages/superadmin/UserManagement.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -18,9 +19,10 @@ import {
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { Container, Heading, Button, Input } from '@/components/ui';
-import { ArrowLeft, Search, Edit2, Trash2, Check, X, ChevronDown, Heart } from 'lucide-react';
+import { ArrowLeft, Search, Edit2, Trash2, Check, X, ChevronDown, Heart, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import UserSupportDrawer from './UserSupportDrawer';
+import UserMembershipsDialog from './UserMembershipsDialog';
 
 interface UserData {
   uid: string;
@@ -49,6 +51,7 @@ export default function UserManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<UserData>>({});
   const [supportTarget, setSupportTarget] = useState<UserData | null>(null);
+  const [membershipTarget, setMembershipTarget] = useState<UserData | null>(null);
 
   const PAGE_SIZE = 20;
 
@@ -63,10 +66,6 @@ export default function UserManagement() {
       let q;
 
       if (search) {
-        // Simple search by name (case-sensitive usually in Firestore unless handled)
-        // For partial search, Firestore is limited. We might rely on exact match or prefix.
-        // Let's implement name-based prefix search if possible, or just exact for email/name
-        // Ideally we use a 'keywords' array or similar, but for now let's try prefix search on user_name
         q = query(
           collection(db, 'users'),
           where('user_name', '>=', search),
@@ -103,7 +102,6 @@ export default function UserManagement() {
         setLastDoc(snap.docs[snap.docs.length - 1] || null);
         setHasMore(snap.docs.length === PAGE_SIZE);
       } else {
-        // Search results might not be paginated nicely with this simple logic
         setHasMore(false); 
       }
     } catch (e) {
@@ -298,7 +296,16 @@ export default function UserManagement() {
                                             </Button>
                                             <Button 
                                                 size="sm"
-                                                className="bg-pink-100 text-pink-600 hover:bg-pink-200 border-pink-200"
+                                                className="bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200 ml-2"
+                                                variant="outline"
+                                                onClick={() => setMembershipTarget(user)}
+                                            >
+                                                <Shield size={14} className="mr-1" />
+                                                멤버십
+                                            </Button>
+                                            <Button 
+                                                size="sm"
+                                                className="bg-pink-100 text-pink-600 hover:bg-pink-200 border-pink-200 ml-2"
                                                 variant="outline"
                                                 onClick={() => setSupportTarget(user)}
                                             >
@@ -413,6 +420,15 @@ export default function UserManagement() {
                                 </Button>
                                 <Button 
                                     size="sm"
+                                    className="bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200 ml-2"
+                                    variant="outline"
+                                    onClick={() => setMembershipTarget(user)}
+                                >
+                                    <Shield size={14} className="mr-1" />
+                                    멤버십
+                                </Button>
+                                <Button 
+                                    size="sm"
                                     className="bg-pink-50 text-pink-600 hover:bg-pink-100 border-pink-200 ml-2"
                                     variant="outline"
                                     onClick={() => setSupportTarget(user)}
@@ -436,6 +452,15 @@ export default function UserManagement() {
         )}
       </div>
       
+      {membershipTarget && (
+        <UserMembershipsDialog 
+            open={!!membershipTarget} 
+            onOpenChange={(open) => !open && setMembershipTarget(null)}
+            uid={membershipTarget.uid} 
+            userName={membershipTarget.user_name}
+        />
+      )}
+
       {supportTarget && (
         <UserSupportDrawer 
             open={!!supportTarget} 

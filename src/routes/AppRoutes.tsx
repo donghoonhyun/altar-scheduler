@@ -30,6 +30,8 @@ import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
 import ParishAdminManagement from '../pages/superadmin/ParishAdminManagement';
 import UserManagement from '../pages/superadmin/UserManagement';
 import SurveyManagement from '../pages/SurveyManagement';
+import SurveyCalendar from '@/pages/SurveyCalendar';
+import WelcomeStandby from '../pages/WelcomeStandby';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -91,8 +93,8 @@ export default function AppRoutes() {
         return;
       }
 
-      // 5) 어떤 역할도 없으면 AddMember 로
-      navigate('/add-member', { replace: true });
+      // 5) 어떤 역할도 없으면 WelcomeStandby 로
+      navigate('/welcome-standby', { replace: true });
     }, [session.loading, session.groupRolesLoaded, session.groupRoles, navigate]);
 
     return <LoadingSpinner label="홈으로 이동 중..." />;
@@ -122,7 +124,7 @@ export default function AppRoutes() {
     // Server 는 ServerMain 으로 진입
     if (userRoles.includes('server')) return <ServerMain />;
 
-    return <Navigate to="/forbidden" replace />;
+    return <Navigate to="/request-planner-role" replace />;
   };
 
   return (
@@ -137,6 +139,9 @@ export default function AppRoutes() {
 
       {/* 4) 메인 앱 레이아웃 (Layout 적용) */}
       <Route element={<Layout />}>
+        {/* 대기 페이지 (Layout 적용) */}
+        <Route path="/welcome-standby" element={<WelcomeStandby />} />
+
         {/* 복사 추가 페이지 (Layout 적용, RoleGuard 없음) */}
         <Route path="/add-member" element={<AddMember />} />
         
@@ -242,6 +247,15 @@ export default function AppRoutes() {
           element={
             <RoleGuard require="planner">
               <SurveyManagement />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/:serverGroupId/surveys/:surveyId/calendar"
+          element={
+            <RoleGuard require="planner">
+              <SurveyCalendar />
             </RoleGuard>
           }
         />

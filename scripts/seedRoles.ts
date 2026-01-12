@@ -181,6 +181,7 @@ async function seed() {
     batch.set(mRef, {
       ...s,
       active: true,
+      start_year: ['2021', '2022', '2023', '2024', '2025'][Math.floor(Math.random() * 5)],
       created_at: new Date(),
       updated_at: new Date(),
     });

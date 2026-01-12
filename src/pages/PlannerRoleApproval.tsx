@@ -169,15 +169,17 @@ export default function PlannerRoleApproval() {
         // 3. Update memberships
         if (membershipSnap.exists()) {
           const currentData = membershipSnap.data();
-          let newRoles = [];
+          let newRoles: string[] = [];
           if (Array.isArray(currentData.role)) {
             newRoles = [...currentData.role];
             if (!newRoles.includes('planner')) {
               newRoles.push('planner');
             }
           } else {
-            newRoles = [currentData.role, 'planner'];
+            // Handle legacy single-role string if exists, though unlikely now
+            newRoles = [currentData.role, 'planner']; 
           }
+
 
           transaction.update(membershipRef, {
             role: newRoles, 
@@ -185,6 +187,7 @@ export default function PlannerRoleApproval() {
             updated_at: serverTimestamp(),
           });
         } else {
+          // New Membership
           transaction.set(membershipRef, {
             uid: req.uid,
             server_group_id: serverGroupId,

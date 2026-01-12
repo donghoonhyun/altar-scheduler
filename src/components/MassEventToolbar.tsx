@@ -1,7 +1,7 @@
 // src/components/MassEventToolbar.tsx
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Copy, Lock, Send, StopCircle, Repeat, Settings } from 'lucide-react';
+import { Copy, Lock, Send, StopCircle, Repeat, Settings, Check, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MassEventToolbarProps {
@@ -13,6 +13,7 @@ interface MassEventToolbarProps {
   onOpenSurvey: () => void;
   onCloseSurvey: () => void;
   onAutoAssign: () => void;
+  onFinalConfirm: () => void;
   onOpenMonthStatus: () => void;
 }
 
@@ -25,10 +26,11 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
   onOpenSurvey,
   onCloseSurvey,
   onAutoAssign,
+  onFinalConfirm,
   onOpenMonthStatus,
 }) => {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-4 justify-end">
+    <div className="flex flex-wrap items-center gap-1.5 mb-4 justify-center">
       {/* 🔵 그룹 ① 확정 준비 */}
       <Button
         variant="outline"
@@ -41,7 +43,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         disabled={!isCopyEnabled}
         onClick={onApplyPreset}
       >
-        <Copy className="w-3.5 h-3.5 mr-1" /> Preset 초기화
+        <Copy className="w-3.5 h-3.5 mr-1" /> Preset초기화
       </Button>
 
       <Button
@@ -55,7 +57,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         disabled={monthStatus !== 'MASS-NOTCONFIRMED' || isLocked}
         onClick={onConfirmMass}
       >
-        <Lock className="w-3.5 h-3.5 mr-1" /> 미사 일정 확정
+        <Lock className="w-3.5 h-3.5 mr-1" /> 미사일정확정
       </Button>
 
       {/* 🟠 그룹 ② 설문 단계 */}
@@ -73,7 +75,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         onClick={onOpenSurvey}
       >
         <Send className="w-3.5 h-3.5 mr-1" /> 
-        {monthStatus === 'SURVEY-CONFIRMED' || monthStatus === 'FINAL-CONFIRMED' ? '설문 보기' : '설문 진행'}
+        {monthStatus === 'SURVEY-CONFIRMED' || monthStatus === 'FINAL-CONFIRMED' ? '설문보기' : '설문발송'}
       </Button>
 
       <Button
@@ -87,7 +89,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         disabled={monthStatus !== 'MASS-CONFIRMED'}
         onClick={onCloseSurvey}
       >
-        <StopCircle className="w-3.5 h-3.5 mr-1" /> 설문 종료
+        <StopCircle className="w-3.5 h-3.5 mr-1" /> 설문종료
       </Button>
 
       {/* 🔴 그룹 ③ 최종 확정 */}
@@ -102,8 +104,25 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         disabled={monthStatus !== 'SURVEY-CONFIRMED'}
         onClick={onAutoAssign}
       >
-        <Repeat className="w-3.5 h-3.5 mr-1" /> 자동 배정 (최종 확정)
+        <Bot className="w-3.5 h-3.5 mr-1" /> 자동배정
       </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(
+          'h-7 text-[12px] px-2 py-1 border border-red-500 text-red-700',
+          'hover:bg-red-50 hover:border-red-600 hover:text-red-800',
+          'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
+        )}
+        disabled={monthStatus !== 'SURVEY-CONFIRMED'}
+        onClick={onFinalConfirm}
+      >
+        <Check className="w-3.5 h-3.5 mr-1" /> 최종확정
+      </Button>
+
+      {/* 구분선 */}
+      <div className="w-px h-4 bg-gray-300 mx-1" />
 
       {/* ⚙️ 기타 */}
       <Button
@@ -116,7 +135,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         )}
         onClick={onOpenMonthStatus}
       >
-        <Settings className="w-3.5 h-3.5 mr-1" /> 월 상태변경
+        <Settings className="w-3.5 h-3.5 mr-1" /> 월상태변경
       </Button>
     </div>
   );

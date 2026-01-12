@@ -41,6 +41,7 @@ export interface MemberDoc {
   grade: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'M1' | 'M2' | 'M3' | 'H1' | 'H2' | 'H3';
   phone_guardian?: string;
   phone_student?: string;
+  start_year?: string; // e.g. "2023"
   notes?: string;
   active: boolean;
   request_confirmed?: boolean;

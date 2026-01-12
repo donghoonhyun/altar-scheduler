@@ -54,6 +54,13 @@ export async function sendNotificationToUids(
             link
         }
     } : undefined,
+    data: {
+        title,
+        body,
+        url: link || '/',
+        link: link || '/', // Redundant but safe
+        click_action: link || '/'
+    },
     tokens: tokens,
   };
 

@@ -22,14 +22,19 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
         messaging.onBackgroundMessage((payload) => {
             console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-            const notificationTitle = payload.notification.title;
+            // Prioritize data payload, fallback to notification payload
+            const notificationTitle = payload.data?.title || payload.notification?.title || '알림';
+            const notificationBody = payload.data?.body || payload.notification?.body || '';
+            const notificationIcon = payload.data?.icon || '/pwa-icon.png';
+
             const notificationOptions = {
-                body: payload.notification.body,
-                icon: '/pwa-icon.png',
-                data: payload.data
+                body: notificationBody,
+                icon: notificationIcon,
+                data: payload.data,
+                // Add actions or other PWA specific options here if needed
             };
 
-            self.registration.showNotification(notificationTitle, notificationOptions);
+            return self.registration.showNotification(notificationTitle, notificationOptions);
         });
         console.log('[SW] Firebase Messaging Initialized with dynamic config');
     } catch (e) {

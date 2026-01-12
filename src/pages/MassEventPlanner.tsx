@@ -11,10 +11,10 @@ import {
   getDocs,
   writeBatch,
   doc,
-  query,
   where,
   setDoc,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
 import { toast } from 'sonner';
 
 import MassCalendar from './components/MassCalendar';
@@ -22,6 +22,7 @@ import MassEventDrawer from './components/MassEventDrawer';
 import MonthStatusDrawer from './components/MonthStatusDrawer';
 import ApplyPresetDrawer from './components/ApplyPresetDrawer';
 import ConfirmMassDrawer from './components/ConfirmMassDrawer';
+import FinalConfirmDrawer from './components/FinalConfirmDrawer';
 import { SendSurveyDrawer } from '@/components/SendSurveyDrawer';
 import CloseSurveyDrawer from './components/CloseSurveyDrawer';
 import AutoAssignDrawer from './components/AutoAssignDrawer';
@@ -81,7 +82,9 @@ const MassEventPlanner: React.FC = () => {
   const [confirmDrawerOpen, setConfirmDrawerOpen] = useState(false);
   const [surveyDrawerOpen, setSurveyDrawerOpen] = useState(false);
   const [closeSurveyDrawerOpen, setCloseSurveyDrawerOpen] = useState(false);
+
   const [autoAssignDrawerOpen, setAutoAssignDrawerOpen] = useState(false);
+  const [finalConfirmDrawerOpen, setFinalConfirmDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   /** ✅ 날짜 클릭 시 Drawer 열기 */
@@ -120,9 +123,35 @@ const MassEventPlanner: React.FC = () => {
 
     toast.success('📊 설문이 종료되었습니다.');
   };
+
   const handleAutoAssign = async () => {
+    const functions = getFunctions(undefined, 'asia-northeast3');
+    
+    // Connect to emulator in dev
+    if (import.meta.env.DEV) {
+      connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+    }
+
+    const autoAssignFn = httpsCallable(functions, 'autoAssignMassEvents');
+    
+    try {
+      await autoAssignFn({
+        serverGroupId,
+        year: currentMonth.year(),
+        month: currentMonth.month() + 1 // 0-indexed to 1-indexed
+      });
+      toast.success('✅ 자동 배정이 완료되었습니다.');
+      // Force refresh (update currentMonth trigger or useMassEvents should pick up changes via snapshot)
+      // Since useMassEvents is likely snapshot listener, it should update automatically.
+    } catch (error: any) {
+      console.error('Auto Assign Error:', error);
+      toast.error(`자동 배정 실패: ${error.message}`);
+      throw error; // Re-throw so drawer knows it failed
+    }
+  };
+  const handleFinalConfirm = async () => {
     await updateStatus('FINAL-CONFIRMED', 'planner@test.com');
-    toast.success('✅ 자동배정이 완료되고 최종 확정되었습니다.');
+    toast.success('✅ 최종 확정되었습니다.');
   };
 
   /** ✅ 툴바 버튼 활성화 조건 */
@@ -149,7 +178,9 @@ const MassEventPlanner: React.FC = () => {
         onConfirmMass={() => setConfirmDrawerOpen(true)}
         onOpenSurvey={() => setSurveyDrawerOpen(true)}
         onCloseSurvey={() => setCloseSurveyDrawerOpen(true)}
+
         onAutoAssign={() => setAutoAssignDrawerOpen(true)}
+        onFinalConfirm={() => setFinalConfirmDrawerOpen(true)}
         onOpenMonthStatus={() => setMonthStatusDrawerOpen(true)}
       />
 
@@ -215,6 +246,12 @@ const MassEventPlanner: React.FC = () => {
         open={autoAssignDrawerOpen}
         onClose={() => setAutoAssignDrawerOpen(false)}
         onConfirm={handleAutoAssign}
+      />
+
+      <FinalConfirmDrawer
+        open={finalConfirmDrawerOpen}
+        onClose={() => setFinalConfirmDrawerOpen(false)}
+        onConfirm={handleFinalConfirm}
       />
 
       {monthStatusDrawerOpen && (

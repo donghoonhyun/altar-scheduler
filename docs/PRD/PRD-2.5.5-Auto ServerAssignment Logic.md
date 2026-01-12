@@ -28,6 +28,7 @@ Firestore 컬렉션:
 | `event_date`         | string   | (yyyymmdd) 현지 기준 날짜 문자열                                |
 | `required_servers`  | number   | 필요한 복사 인원                                               |
 | `member_ids`        | string[] | 배정된 복사 ID 목록                                            |
+| `main_member_id`    | string   | 주복사 ID (배정된 인원 중 선임)                                   |
 | `available_members` | string[] | 설문에서 가능 응답한 복사 목록                                   |
 | `status`            | string   | `MASS-NOTCONFIRMED` / `SURVEY-CONFIRMED` / `FINAL-CONFIRMED` |
 
@@ -36,35 +37,42 @@ Firestore 컬렉션:
 ## 🧩 1️⃣ 자동 배정 로직 (Assign)
 
 ```ts
-async function assignMassServers(serverGroupId: string, eventId: string) {
-  const eventRef = doc(db, `server_groups/${serverGroupId}/mass_events/${eventId}`);
-  const eventSnap = await getDoc(eventRef);
-  if (!eventSnap.exists()) return;
-
-  const event = eventSnap.data();
-  const { required_servers, available_members } = event;
-
-  if (!Array.isArray(available_members) || available_members.length === 0) {
-    console.warn('No available members for assignment');
-    return;
-  }
-
-  // ✅ Round-robin 방식으로 균등 배정
-  const assigned = available_members.slice(0, required_servers);
-
-  await updateDoc(eventRef, {
-    member_ids: assigned,
-    status: 'SURVEY-CONFIRMED',
-    updated_at: serverTimestamp(),
-  });
+async function autoAssignMassEvents(data, context) {
+    // 1. 대상 월의 미사 목록 조회
+    // 2. 활동 중인(Active) 멤버 조회
+    // 3. 해당 월의 설문 응답(Availability) 조회 (불가 인원 파악)
+    // 4. 전월 배정 실적(Count) 계산
+    
+    // 5. 각 미사별 루프:
+    //    a. 후보군 필터링 (불참자 제외)
+    //    b. 정렬 (Sort):
+    //       1순위: 총 배정 횟수 (전월 + 이번달 누적) 오름차순 (적게 한 사람 우선)
+    //       2순위: 이름 가나다순
+    //    c. 상위 N명 선택 (required_servers)
+    //    d. 주복사(Main Server) 선정:
+    //       1순위: 입단년도(start_year) 빠른 순 (오래된 사람 우선)
+    //       2순위: 이름 가나다순
+    //    e. 배정 결과(member_ids, main_member_id, updated_at) 업데이트
 }
 ```
 
-### 💡 특징
+### 💡 주요 로직 상세
 
-* Round-robin 또는 Random 방식으로 배정 가능
-* 배정 후 상태 자동 변경 (`SURVEY-CONFIRMED`)
-* 동일 복사 중복 방지 (직전 주차 데이터와 비교)
+1.  **제외 조건 (Exclusion)**:
+    *   활동 중단(`active: false`) 멤버.
+    *   해당 미사에 '불가능'(`unavailable`)으로 설문 응답한 멤버.
+
+2.  **배정 우선순위 (Priority)**:
+    *   **균등 배정 원칙**: `(전월 배정 횟수 + 금월 현재까지 배정된 횟수)`가 **적은** 멤버를 우선 배정한다.
+    *   실적이 동일한 경우, **이름 가나다순**으로 배정하여 예측 가능성을 유지한다.
+
+3.  **주복사 선정 (Main Server)**:
+    *   배정된 인원들 중에서 주복사를 자동 선정한다.
+    *   **1순위**: `start_year`가 가장 빠른(오래된) 멤버 (선임 복사).
+    *   **2순위**: 입단년도가 같으면 이름 가나다순.
+
+4.  **초기화 경고**:
+    *   자동 배정 실행 시, 해당 월의 기존 배정 정보는 모두 **초기화(삭제)** 되고 새로 배정됨을 사용자에게 경고(Confirm)한다.
 
 ---
 
@@ -109,7 +117,7 @@ async function swapServerRequest(serverGroupId: string, eventId: string, oldMemb
 | **Random**      | 설문 응답자 중 무작위 선택 (테스트용)          |
 | **Weighted**    | 특정 직분/숙련도 점수 기반 가중치 배정 (차후 확장용) |
 
-기본 구현은 Round-robin 기반이며, `last_assigned_at` 필드를 활용해 우선순위를 계산한다.
+기본 구현은 **누적 배정 횟수(전월+금월)** 를 기준으로 정렬하여, 배정 기회가 적었던 복사에게 우선권을 주는 방식을 사용한다.
 
 ---
 

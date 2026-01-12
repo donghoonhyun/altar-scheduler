@@ -185,7 +185,6 @@ export default function RequestPlannerRole() {
     if (session.currentServerGroupId && session.serverGroups[session.currentServerGroupId]) {
         const groupInfo = session.serverGroups[session.currentServerGroupId];
         setSelectedParish(groupInfo.parishCode);
-        setSelectedGroup(session.currentServerGroupId);
     }
 
   }, [user, existingRequest, checkingStatus, session.currentServerGroupId, session.serverGroups]);
@@ -211,6 +210,14 @@ export default function RequestPlannerRole() {
           }));
         
         setServerGroups(list);
+        
+        // Auto-select if only one group exists
+        if (list.length === 1) {
+            setSelectedGroup(list[0].id);
+        } else {
+            // Force reset to require manual selection if multiple (or zero)
+            setSelectedGroup(''); 
+        }
       } catch (e) {
         console.error('Failed to load server groups', e);
       }
@@ -232,6 +239,20 @@ export default function RequestPlannerRole() {
     if (!userName || !baptismalName || !phone) {
       toast.error('이름, 세례명, 전화번호를 모두 입력해주세요.');
       return;
+    }
+
+    // Check existing role
+    const currentRoles = session.groupRoles[selectedGroup] || [];
+    if (currentRoles.includes('admin') || currentRoles.includes('planner')) {
+        toast.error('이미 해당 복사단의 관리자(또는 플래너) 권한을 보유하고 있습니다.');
+        return;
+    }
+
+    // Check duplicates in history
+    const alreadyPending = requestHistory.find(r => r.serverGroupId === selectedGroup && r.status === 'pending');
+    if (alreadyPending) {
+        toast.error('이미 해당 복사단에 승인 대기 중인 신청 건이 있습니다.');
+        return;
     }
 
     setLoading(true);
@@ -268,18 +289,38 @@ export default function RequestPlannerRole() {
 
   const handleCancelRequest = async () => {
     if (!existingRequest || !user) return;
+    await cancelRequestById(existingRequest);
+  };
 
+  const cancelRequestById = async (req: PendingRequest) => {
+    if (!user) return;
     if (!window.confirm("정말로 신청을 취소하시겠습니까?")) return;
 
     setLoading(true);
     try {
-      // delete role request
       await deleteDoc(
-        doc(db, 'server_groups', existingRequest.serverGroupId, 'role_requests', existingRequest.id)
+        doc(db, 'server_groups', req.serverGroupId, 'role_requests', req.id) // req.id is user uid.
+        // Wait, req.id in the map above (line 114) is docObj.id which IS the user uid. 
+        // Correct.
       );
 
       toast.success("신청이 취소되었습니다.");
-      window.location.reload(); 
+      // We don't necessarily need reload if snapshot listener updates automatically.
+      // But based on previous logic, reload is used.
+      // Snapshot listener should update the list automatically though.
+      // Let's rely on snapshot if possible, but reload is safer for full state reset.
+      // I'll stick to logic similar to existing usage or let snapshot handle it.
+      // Ideally snapshot handles it.
+      
+      
+      // Optimistic Update
+      setRequestHistory(prev => prev.filter(item => !(item.id === req.id && item.serverGroupId === req.serverGroupId)));
+      
+      // If we are cancelling the one currently being viewed as 'existingRequest', we should probably clear it?
+      if (existingRequest && existingRequest.serverGroupId === req.serverGroupId) {
+          setExistingRequest(null);
+      }
+      
     } catch (e) {
       console.error("Failed to cancel request", e);
       toast.error("신청 취소 중 오류가 발생했습니다.");
@@ -513,7 +554,20 @@ export default function RequestPlannerRole() {
                                     ) : req.status === 'rejected' ? (
                                         <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">반려됨</span>
                                     ) : (
-                                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">승인 대기</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">승인 대기</span>
+                                            <Button 
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    cancelRequestById(req);
+                                                }} 
+                                                className="h-7 px-2 text-xs ml-1"
+                                            >
+                                                취소
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
                             </div>

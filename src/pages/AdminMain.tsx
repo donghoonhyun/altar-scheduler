@@ -3,7 +3,7 @@ import { MIGRATION_MEMBERS } from '@/data/migrationData';
 import { SG00002_MEMBERS } from '@/data/sg00002Members';
 import { DECEMBER_2025_SCHEDULE_SG00002 } from '@/data/schedule2025DecSG00002';
 import { db } from '@/lib/firebase';
-import { doc, writeBatch, serverTimestamp, collection, getDocs } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { Upload } from 'lucide-react';
 
 import { useNavigate, useParams } from 'react-router-dom';
@@ -47,25 +47,23 @@ const AdminMain: React.FC = () => {
 
   const sgInfo = serverGroupId ? session.serverGroups[serverGroupId] : null;
   
-  // Pending request count check
+  // Pending request count check (Real-time)
   const [pendingCount, setPendingCount] = React.useState(0);
   React.useEffect(() => {
     if (!serverGroupId) return;
-    const fetchPending = async () => {
-      try {
-        const { getCountFromServer, collection, query, where } = await import('firebase/firestore');
-        const { db } = await import('@/lib/firebase');
-        const q = query(
-          collection(db, 'server_groups', serverGroupId, 'role_requests'), 
-          where('status', '==', 'pending')
-        );
-        const snapshot = await getCountFromServer(q);
-        setPendingCount(snapshot.data().count);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchPending();
+
+    const q = query(
+      collection(db, 'server_groups', serverGroupId, 'role_requests'), 
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot: any) => {
+      setPendingCount(snapshot.size); // snapshot.size gives the document count in the QuerySnapshot
+    }, (error: any) => {
+        console.error("Error watching pending requests:", error);
+    });
+
+    return () => unsubscribe();
   }, [serverGroupId]);
 
   const [isMigrating, setIsMigrating] = React.useState(false);
