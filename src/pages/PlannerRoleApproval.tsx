@@ -236,16 +236,16 @@ export default function PlannerRoleApproval() {
   };
 
   return (
-    <Container className="py-8 min-h-screen">
+    <Container className="py-8 min-h-screen bg-transparent">
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="dark:text-gray-200">
           <ArrowLeft size={24} />
         </Button>
         <div>
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900">
+          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
             신규 권한 승인
           </Heading>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-sm dark:text-gray-400">
             플래너 권한 요청을 확인하고 승인합니다.
           </p>
         </div>
@@ -256,36 +256,36 @@ export default function PlannerRoleApproval() {
       ) : (
         <>
           {requests.length === 0 ? (
-            <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-              <p className="text-gray-500">대기 중인 권한 요청이 없습니다.</p>
+            <div className="text-center py-16 bg-gray-50 dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+              <p className="text-gray-500 dark:text-gray-400">대기 중인 권한 요청이 없습니다.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {requests.map((req) => (
-                <Card key={req.uid} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <Card key={req.uid} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 dark:bg-slate-800 dark:border-slate-700">
                   <div className="flex-1">
-                    <div className="text-xs font-bold text-gray-500 mb-1">
+                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
                        {session.serverGroups[serverGroupId || '']?.groupName}
                     </div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-lg text-gray-900">{req.user_name}</span>
-                      <span className="text-sm text-gray-600">({req.baptismal_name})</span>
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium border border-purple-200">
+                      <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{req.user_name}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">({req.baptismal_name})</span>
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800">
                         플래너 신청
                       </span>
                     </div>
                     {childrenMap[req.uid] && childrenMap[req.uid].length > 0 && (
-                      <div className="flex items-center gap-1.5 mb-2 bg-blue-50 w-fit px-2 py-1 rounded-md">
-                         <Baby size={12} className="text-blue-500" />
-                         <span className="text-xs text-blue-700 font-medium">
+                      <div className="flex items-center gap-1.5 mb-2 bg-blue-50 dark:bg-blue-900/20 w-fit px-2 py-1 rounded-md">
+                         <Baby size={12} className="text-blue-500 dark:text-blue-400" />
+                         <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">
                             자녀: {childrenMap[req.uid].join(', ')}
                          </span>
                       </div>
                     )}
-                    <div className="text-sm text-gray-500 space-y-0.5">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 space-y-0.5">
                       <p>{req.email}</p>
                       <p>{req.phone}</p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                         신청일시: {req.created_at?.toDate().toLocaleString()}
                       </p>
                     </div>
@@ -299,7 +299,7 @@ export default function PlannerRoleApproval() {
                     </Button>
                     <Button 
                         variant="outline" 
-                        className="flex-1 sm:flex-none text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+                        className="flex-1 sm:flex-none text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200 dark:hover:bg-red-900/20 dark:border-red-900/50"
                         onClick={() => handleReject(req)}
                     >
                       반려
@@ -312,7 +312,7 @@ export default function PlannerRoleApproval() {
 
           {/* History Section */}
           <div className="mt-12">
-            <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <h3 className="text-md font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
               이전 신청 이력
             </h3>
             
@@ -321,24 +321,24 @@ export default function PlannerRoleApproval() {
             ) : (
               <div className="space-y-2">
                 {history.map((req) => (
-                  <div key={req.uid} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:border-gray-200 transition-colors">
+                  <div key={req.uid} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-lg shadow-sm hover:border-gray-200 dark:hover:border-slate-600 transition-colors">
                      <div className="flex items-center gap-3 overflow-hidden">
                         <div className={`w-1 h-8 rounded-full flex-shrink-0 ${req.status === 'approved' ? 'bg-blue-500' : 'bg-red-500'}`} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
-                            <span className="font-bold text-gray-800 text-sm truncate">{req.user_name}</span>
-                            <span className="text-xs text-gray-500 truncate">({req.baptismal_name})</span>
+                            <span className="font-bold text-gray-800 dark:text-gray-200 text-sm truncate">{req.user_name}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate">({req.baptismal_name})</span>
                           </div>
                           {childrenMap[req.uid] && childrenMap[req.uid].length > 0 && (
-                             <div className="flex items-center gap-1 text-[10px] text-gray-500 mt-0.5 mb-1">
-                               <Baby size={10} className="text-gray-400" />
+                             <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 mb-1">
+                               <Baby size={10} className="text-gray-400 dark:text-gray-500" />
                                <span>자녀: {childrenMap[req.uid].join(', ')}</span>
                              </div>
                           )}
-                          <div className="text-[10px] text-gray-500 mb-0.5">
-                            {req.phone} <span className="text-gray-300 mx-1">|</span> {req.email}
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">
+                            {req.phone} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> {req.email}
                           </div>
-                          <div className="text-[10px] text-gray-400 flex items-center gap-2 truncate">
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2 truncate">
                              <span>{req.created_at?.toDate().toLocaleDateString()} 신청</span>
                              {req.updated_at && (
                                <span>• {req.updated_at?.toDate().toLocaleDateString()} {req.status === 'approved' ? '승인' : '반려'}</span>
@@ -349,11 +349,11 @@ export default function PlannerRoleApproval() {
                      
                      <div className="flex-shrink-0 ml-2">
                           {req.status === 'approved' ? (
-                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-medium">
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-medium dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/50">
                               승인됨
                             </span>
                           ) : (
-                            <span className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-medium">
+                            <span className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-medium dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50">
                               반려됨
                             </span>
                           )}
@@ -370,7 +370,7 @@ export default function PlannerRoleApproval() {
                   size="sm" 
                   onClick={() => fetchHistory(false)}
                   disabled={historyLoading}
-                  className="text-gray-500"
+                  className="text-gray-500 dark:text-gray-400 dark:border-slate-700 dark:hover:bg-slate-800"
                 >
                   {historyLoading ? '로딩 중...' : (
                     <>

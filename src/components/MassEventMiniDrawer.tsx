@@ -96,14 +96,14 @@ export default function MassEventMiniDrawer({
             leaveFrom="translate-y-0"
             leaveTo="translate-y-full"
           >
-            <Dialog.Panel className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl">
+            <Dialog.Panel className="w-full max-w-md rounded-t-2xl bg-white dark:bg-slate-900 p-5 shadow-xl">
               <div className="flex justify-between items-center mb-3">
-                <Dialog.Title className="text-lg font-bold text-gray-800">
+                <Dialog.Title className="text-lg font-bold text-gray-800 dark:text-gray-100">
                   {date.format('YYYY년 M월 D일 (ddd)')}
                 </Dialog.Title>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xl leading-none"
                 >
                   ✕
                 </button>
@@ -120,8 +120,8 @@ export default function MassEventMiniDrawer({
                     const hasMembers = members.length > 0;
 
                     return (
-                      <Card key={ev.id} className="p-3 border border-gray-200">
-                        <h3 className="font-semibold text-gray-800 mb-2">{ev.title}</h3>
+                      <Card key={ev.id} className="p-3 border border-gray-200 dark:border-slate-800 dark:bg-slate-800">
+                        <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">{ev.title}</h3>
                         <div className="flex flex-wrap gap-1">
                           {hasMembers ? (
                             members.map((m) => (
@@ -129,8 +129,8 @@ export default function MassEventMiniDrawer({
                                 key={m.id}
                                 className={`px-2 py-0.5 rounded-md text-sm ${
                                   m.isMain
-                                    ? 'bg-blue-100 text-blue-700 font-bold border border-blue-200'
-                                    : 'bg-gray-100 text-gray-700'
+                                    ? 'bg-blue-100 text-blue-700 font-bold border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800'
+                                    : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300'
                                 }`}
                               >
                                 {m.name}
@@ -138,7 +138,7 @@ export default function MassEventMiniDrawer({
                               </span>
                             ))
                           ) : (
-                            <span className="text-gray-400 text-sm">배정 대기 중</span>
+                            <span className="text-gray-400 dark:text-gray-500 text-sm">배정 대기 중</span>
                           )}
                         </div>
                       </Card>

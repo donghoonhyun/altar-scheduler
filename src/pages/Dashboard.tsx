@@ -74,19 +74,19 @@ const Dashboard: React.FC = () => {
   if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-200">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-200 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
       <Container className="py-6 transition-all duration-300">
         {/* 👋 상단 인사말 */}
         <div className="mb-6 mt-1 flex flex-col items-center">
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 text-center relative inline-block">
+          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 text-center relative inline-block">
             플래너 Dashboard
-            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-blue-500/30 rounded-full"></span>
+            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-blue-500/30 dark:bg-blue-400/30 rounded-full"></span>
           </Heading>
         </div>
 
         <div className="mb-6 text-center">
-          <h2 className="text-lg font-bold text-gray-800">
-            <span className="text-blue-600 font-extrabold">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+            <span className="text-blue-600 dark:text-blue-400 font-extrabold">
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
             {serverGroupId && (() => {

@@ -19,7 +19,7 @@ export default function ServerGroupSelector() {
   return (
     <div className="w-full">
       <select
-        className="w-full border-none px-2 py-1.5 text-sm bg-transparent text-gray-800 font-bold focus:outline-none appearance-none cursor-pointer"
+        className="w-full border-none px-2 py-1.5 text-sm bg-transparent text-gray-800 dark:text-gray-100 font-bold focus:outline-none appearance-none cursor-pointer"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0rem center', backgroundSize: '1rem' }}
         value={currentId}
         onChange={(e) => {

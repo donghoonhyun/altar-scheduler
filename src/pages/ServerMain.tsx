@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import MyMembersPanel from './components/MyMembersPanel';
-import UpdateUserProfileDialog from './components/UpdateUserProfileDialog';
+
 import MassEventMiniDrawer from '@/components/MassEventMiniDrawer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -220,36 +220,15 @@ export default function ServerMain() {
   const isMyEvent = (ev: MassEventDoc) =>
     ev.member_ids?.some((mid: string) => checkedMemberIds.includes(mid));
 
-  // 📝 사용자 프로필 정보 누락 체크
-  const [showProfileUpdate, setShowProfileUpdate] = useState<boolean>(false);
 
-  useEffect(() => {
-    // 이미 건너 뛰었으면 다시 안 띄움 (세션 스토리지 체크)
-    const skipped = sessionStorage.getItem('profile_skip');
-    if (skipped) {
-      setShowProfileUpdate(false);
-      return;
-    }
-
-    // 세션 로딩이 끝났고(userInfo 체크 가능), 로그인 상태일 때
-    if (!session.loading && session.user) {
-      // userInfo가 아예 없거나, userName이 비어있으면 팝업
-      if (!session.userInfo || !session.userInfo.userName) {
-        setShowProfileUpdate(true);
-      } else {
-        // 정보가 있거나 로드되면 팝업을 닫음
-        setShowProfileUpdate(false);
-      }
-    }
-  }, [session.loading, session.user, session.userInfo]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-emerald-200 pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-emerald-200 dark:from-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
       <div className="max-w-lg mx-auto px-4">
         {/* 👋 상단 인사말 */}
         <div className="mb-4 mt-1 px-1">
-          <h2 className="text-xl font-bold text-gray-800">
-            <span className="text-emerald-600 font-extrabold">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+            <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
             {serverGroupId && (
@@ -262,20 +241,6 @@ export default function ServerMain() {
             )}님 반갑습니다.
           </h2>
         </div>
-
-        {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
-        {showProfileUpdate && session.user && (
-          <UpdateUserProfileDialog
-            uid={session.user.uid}
-            currentName={session.userInfo?.userName}
-            currentBaptismalName={session.userInfo?.baptismalName}
-            onClose={() => {
-              // "나중에 하기" 또는 닫기 시 이번 세션에서는 다시 안 띄움
-              sessionStorage.setItem('profile_skip', 'true');
-              setShowProfileUpdate(false);
-            }}
-          />
-        )}
 
         {/* 2) 내 복사 목록 */}
         {serverGroupId && session.user && (
@@ -301,25 +266,25 @@ export default function ServerMain() {
                 const targetId = checkedMemberIds[0];
                 navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}`);
             }}
-            className="mt-4 mb-2 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 transition shadow-sm fade-in"
+            className="mt-4 mb-2 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/20 transition shadow-sm fade-in"
           >
-            <div className="bg-yellow-100 p-2 rounded-full text-yellow-600">
+            <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-full text-yellow-600 dark:text-yellow-500">
                <ClipboardCheck size={24} />
             </div>
             <div className="flex-1">
-               <h3 className="text-sm font-bold text-yellow-900">미사일정 설문이 시작되었습니다</h3>
-               <p className="text-xs text-yellow-700 mt-1">
+               <h3 className="text-sm font-bold text-yellow-900 dark:text-yellow-200">미사일정 설문이 시작되었습니다</h3>
+               <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
                  {dayjs(surveyInfo.month, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
                </p>
             </div>
-            <ChevronRight className="text-yellow-400" size={20} />
+            <ChevronRight className="text-yellow-400 dark:text-yellow-600" size={20} />
           </div>
         )}
 
         {/* 🔥 3) 복사 0명일 때 안내 카드 */}
         {members.length === 0 && (
-          <div className="mt-4 p-4 bg-white rounded-xl shadow text-center">
-            <p className="text-gray-700 mb-3">
+          <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl shadow text-center dark:border dark:border-slate-800">
+            <p className="text-gray-700 dark:text-gray-300 mb-3">
               복사 정보가 없습니다.
               <br />
               복사 정보를 등록해주세요.
@@ -327,7 +292,7 @@ export default function ServerMain() {
 
             <button
               onClick={() => navigate(`/add-member?sg=${serverGroupId}`)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-xl shadow"
+              className="px-4 py-2 bg-emerald-600 dark:bg-emerald-700 text-white rounded-xl shadow hover:bg-emerald-700 dark:hover:bg-emerald-600"
             >
               + 복사 추가하기
             </button>
@@ -346,19 +311,19 @@ export default function ServerMain() {
                 {/* ✅ [수정] 세션 상태 업데이트 함수 사용 */}
                 <button 
                   onClick={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
-                  className="p-1 hover:bg-emerald-100 rounded-full transition-colors"
+                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-800 dark:text-gray-300"
                   title="이전 달"
                 >
                   <ChevronLeft size={20} />
                 </button>
 
-                <span className="font-bold text-lg text-gray-800 tracking-tight">
+                <span className="font-bold text-lg text-gray-800 dark:text-gray-100 tracking-tight">
                   {currentMonth.format('M월')}
                 </span>
 
                 <button 
                   onClick={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
-                  className="p-1 hover:bg-emerald-100 rounded-full transition-colors"
+                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-800 dark:text-gray-300"
                   title="다음 달"
                 >
                   <ChevronRight size={20} />
@@ -366,13 +331,13 @@ export default function ServerMain() {
 
                 <button
                   onClick={() => session.setCurrentViewDate?.(dayjs())}
-                  className="ml-1 text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-emerald-50 text-gray-600 rounded-lg shadow-sm transition-colors font-medium"
+                  className="ml-1 text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-emerald-50 text-gray-600 rounded-lg shadow-sm transition-colors font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   오늘
                 </button>
 
-                <div className="ml-2 flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap">
-                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                <div className="ml-2 flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 dark:bg-rose-400"></span>
                    나의 배정
                 </div>
               </div>
@@ -383,7 +348,7 @@ export default function ServerMain() {
             {/* 달력 */}
             <div className="grid grid-cols-7 gap-1 text-sm mb-4">
               {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
-                <div key={d} className="text-center font-semibold text-gray-600 py-1">
+                <div key={d} className="text-center font-semibold text-gray-600 dark:text-gray-300 py-1">
                   {d}
                 </div>
               ))}
@@ -411,26 +376,26 @@ export default function ServerMain() {
                     className={cn(
                       "h-14 flex flex-col items-center justify-start pt-1 rounded transition border relative",
                       // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
-                      !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50",
-                      isToday ? "border-emerald-500 ring-1 ring-emerald-500 z-10" : "border-transparent",
-                      !showDots && mine && "bg-rose-600 text-white font-bold hover:bg-rose-700",
-                      !showDots && !mine && any && "bg-gray-200 text-gray-600 hover:bg-gray-300",
-                      !showDots && !any && "text-gray-300",
+                      !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/30",
+                      isToday ? "border-emerald-500 ring-1 ring-emerald-500 z-10 dark:border-emerald-500" : "border-transparent",
+                      !showDots && mine && "bg-rose-600 text-white font-bold hover:bg-rose-700 dark:bg-rose-700",
+                      !showDots && !mine && any && "bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600",
+                      !showDots && !any && "text-gray-300 dark:text-slate-700",
                       
                       // Confirmed: Assigned (mine)
-                      showDots && !isSelected && mine && "bg-rose-100 border-rose-300",
+                      showDots && !isSelected && mine && "bg-rose-100 border-rose-300 dark:bg-rose-900/20 dark:text-rose-200 dark:border-rose-900/50",
                       // Confirmed: Not Assigned
-                      showDots && !isSelected && !mine && "bg-white",
+                      showDots && !isSelected && !mine && "bg-white dark:bg-slate-900 dark:border-slate-800 border-gray-100 border text-gray-700 dark:text-gray-300",
 
                       // Selected (Override)
                       // If mine is true, keep rose bg but add yellow ring
-                      isSelected && mine && "bg-rose-100 border-yellow-400 ring-2 ring-yellow-400 z-20",
-                      isSelected && !mine && "bg-white border-yellow-400 ring-1 ring-yellow-400 z-20"
+                      isSelected && mine && "bg-rose-100 border-yellow-400 ring-2 ring-yellow-400 z-20 dark:bg-rose-900/30 dark:border-yellow-500 dark:ring-yellow-500",
+                      isSelected && !mine && "bg-white border-yellow-400 ring-1 ring-yellow-400 z-20 dark:bg-slate-800 dark:border-yellow-500 dark:ring-yellow-500"
                     )}
                   >
                     <span className={cn(
                       "text-sm", 
-                      isToday && "font-bold text-emerald-600",
+                      isToday && "font-bold text-emerald-600 dark:text-emerald-400",
                       !showDots && mine && "text-white"
                     )}>{day}</span>
                   

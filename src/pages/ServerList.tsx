@@ -3,7 +3,7 @@ import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, que
 import { db } from '@/lib/firebase';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Check } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { openConfirm } from '@/components/common/ConfirmDialog';
@@ -14,7 +14,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import dayjs from 'dayjs';
@@ -241,17 +242,17 @@ export default function ServerList() {
   };
 
   // ✅ 삭제(거절) 처리
-  const handleDelete = async (uid: string) => {
-    if (!serverGroupId) return;
+  const handleDelete = async (uid: string): Promise<boolean> => {
+    if (!serverGroupId) return false;
 
     const ok = await openConfirm({
       title: '회원 삭제',
-      message: '정말로 이 복사단원 신청을 삭제하시겠습니까?',
+      message: '정말로 이 복사단원을 영구적으로 삭제하시겠습니까?',
       confirmText: '삭제',
       cancelText: '취소',
     });
 
-    if (!ok) return;
+    if (!ok) return false;
 
     try {
       // (1) members 문서 삭제
@@ -262,9 +263,11 @@ export default function ServerList() {
       await deleteDoc(doc(db, 'memberships', membershipId));
 
       toast.success('🚫 회원이 삭제되었습니다.');
+      return true;
     } catch (err) {
       console.error(err);
       toast.error('삭제 중 오류가 발생했습니다.');
+      return false;
     }
   };
 
@@ -292,6 +295,37 @@ export default function ServerList() {
       toast.error('정보 저장 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleExcelDownload = () => {
+    if (activeMembers.length === 0) return;
+    
+    try {
+        const data = activeMembers.map(m => {
+            const p = m.parent_uid ? parentInfos[m.parent_uid] : undefined;
+            return {
+                '이름': m.name_kor,
+                '세례명': m.baptismal_name,
+                '학년': m.grade,
+                '입단년도': m.start_year || '',
+                '상태': m.active ? '활동중' : '비활동',
+                '신청자(부모)': p ? p.user_name : '',
+                '이메일': p ? p.email : '',
+                '전화번호': p ? p.phone || '' : ''
+            };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "ActiveMembers");
+
+        const fileName = `복사단원_활동중_${dayjs().format('YYYYMMDD')}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+        toast.success('엑셀 다운로드 완료');
+    } catch (e) {
+        console.error('Excel download failed', e);
+        toast.error('엑셀 다운로드 실패');
     }
   };
 
@@ -341,15 +375,15 @@ export default function ServerList() {
     <div className="p-6 max-w-5xl mx-auto space-y-6 fade-in">
       {/* ✅ 상단 네비게이션 */}
       <div className="flex items-center gap-2 mb-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
           <ArrowLeft size={24} />
         </Button>
-        <h1 className="text-2xl font-bold">복사단원 관리</h1>
+        <h1 className="text-2xl font-bold dark:text-white">복사단원 관리</h1>
       </div>
 
       {/* ✅ 승인 대기중 */}
-      <Card className="p-4 bg-pink-50 border-pink-100">
-        <h2 className="text-lg font-semibold mb-3 text-gray-700">
+      <Card className="p-4 bg-pink-50 border-pink-100 dark:bg-pink-900/20 dark:border-pink-900/50">
+        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-pink-300">
           승인 대기중{' '}
           <span className="text-sm font-normal text-gray-500">({pendingMembers.length}명)</span>
         </h2>
@@ -368,14 +402,14 @@ export default function ServerList() {
               return (
                 <Card
                   key={m.id}
-                  className="p-3 flex items-stretch gap-4 hover:shadow-md transition-shadow"
+                  className="p-3 flex items-stretch gap-4 hover:shadow-md transition-shadow dark:bg-slate-700/60 dark:border-slate-600"
                 >
                   {/* Left Column: Server Info & Actions */}
                   <div className="flex flex-row items-center gap-3 shrink-0">
                     {/* Server Info */}
                     <div className="text-left w-[90px]">
-                      <p className="font-semibold text-gray-800 text-sm">{m.name_kor}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm">{m.name_kor}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         ({m.baptismal_name}) · {m.grade}
                       </p>
                     </div>
@@ -398,13 +432,13 @@ export default function ServerList() {
                   </div>
 
                   {/* Right Column: Applicant(Parent) Info */}
-                  <div className="flex-1 border-l border-gray-100 pl-4 flex flex-col justify-center items-end min-w-0 text-right">
+                  <div className="flex-1 border-l border-gray-100 dark:border-slate-700 pl-4 flex flex-col justify-center items-end min-w-0 text-right">
                     {parent ? (
-                       <div className="text-xs text-gray-600 space-y-1 w-full flex flex-col items-end">
+                       <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1 w-full flex flex-col items-end">
                           <div className="flex items-center justify-end gap-2">
-                            <span className="font-bold text-gray-700">신청: {parent.user_name}</span>
+                            <span className="font-bold text-gray-700 dark:text-gray-200">신청: {parent.user_name}</span>
                           </div>
-                          <div className="flex flex-wrap items-center justify-end gap-x-2 text-gray-500">
+                          <div className="flex flex-wrap items-center justify-end gap-x-2 text-gray-500 dark:text-gray-400">
                              <span className="truncate">{parent.email}</span>
                              {parent.phone && (
                                <>
@@ -420,7 +454,7 @@ export default function ServerList() {
                     
                     {/* 신청일 표시 */}
                     {dateStr && (
-                      <p className="text-[10px] text-gray-400 mt-1.5 pt-1.5 border-t border-dashed border-gray-100 w-full">
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 pt-1.5 border-t border-dashed border-gray-100 dark:border-slate-700 w-full">
                         신청일: {dateStr}
                       </p>
                     )}
@@ -433,43 +467,56 @@ export default function ServerList() {
       </Card>
 
       {/* ✅ 활동중인 복사단원 */}
-      <Card className="p-4 bg-green-50 border-green-100">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-700">
+      <Card className="p-4 bg-green-50 border-green-100 dark:bg-green-900/20 dark:border-green-800/50">
+        <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-green-200 mb-2">
               활동중 복사단원{' '}
               <span className="text-sm font-normal text-gray-500">({activeMembers.length}명)</span>
             </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs px-2 border-green-200 text-green-700 hover:bg-green-50"
-              onClick={() => setIsAddDrawerOpen(true)}
-            >
-              + 추가
-            </Button>
-          </div>
-          {/* 정렬 탭 */}
-          <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
-             <button
-               onClick={() => setSortBy('name')} 
-               className={cn(
-                 "px-2.5 py-1 rounded-md transition-all",
-                 sortBy === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-               )}
-             >
-               이름
-             </button>
-             <button
-               onClick={() => setSortBy('grade')} 
-               className={cn(
-                 "px-2.5 py-1 rounded-md transition-all",
-                 sortBy === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-               )}
-             >
-               학년
-             </button>
-          </div>
+            
+            <div className="flex flex-wrap items-center justify-between gap-2">
+               <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-semibold px-2 border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/40 dark:bg-green-900/10"
+                  onClick={() => setIsAddDrawerOpen(true)}
+                >
+                  + 추가
+                </Button>
+
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-gray-100 dark:bg-slate-700 p-0.5 rounded-lg text-xs font-medium">
+                      <button
+                        onClick={() => setSortBy('name')} 
+                        className={cn(
+                          "px-2.5 py-1 rounded-md transition-all",
+                          sortBy === 'name' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        )}
+                      >
+                        이름
+                      </button>
+                      <button
+                        onClick={() => setSortBy('grade')} 
+                        className={cn(
+                          "px-2.5 py-1 rounded-md transition-all",
+                          sortBy === 'grade' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        )}
+                      >
+                        학년
+                      </button>
+                   </div>
+    
+                    <div className="w-[1px] h-6 bg-gray-300 mx-1"></div>
+    
+                    <Button variant="outline" size="sm" onClick={handleExcelDownload} className="hidden sm:flex" title="엑셀로 저장">
+                        <Download size={16} className="mr-2" />
+                        엑셀
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={handleExcelDownload} className="sm:hidden" title="엑셀로 저장">
+                        <Download size={16} />
+                    </Button>
+                </div>
+            </div>
         </div>
 
         {sortedActiveMembers.length === 0 ? (
@@ -491,15 +538,15 @@ export default function ServerList() {
               return (
                 <React.Fragment key={m.id}>
                   {showSeparator && (
-                     <div className="col-span-2 border-t border-dashed border-gray-300 my-1 relative h-4">
-                       <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white px-2 text-[10px] text-gray-400 font-medium">
+                     <div className="col-span-2 border-t border-dashed border-gray-300 dark:border-gray-600 my-1 relative h-4">
+                       <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-2 text-[10px] text-gray-400 font-medium">
                           {m.grade}
                        </span>
                      </div>
                   )}
 
                   <Card 
-                    className="p-2 flex items-center justify-between text-left hover:shadow-md transition-shadow cursor-pointer"
+                    className="p-2 flex items-center justify-between text-left hover:shadow-md transition-shadow cursor-pointer dark:bg-slate-700/60 dark:border-slate-600"
                     onClick={() => {
                       setSelectedMember(m);
                       setIsDrawerOpen(true);
@@ -507,8 +554,8 @@ export default function ServerList() {
                   >
                     {/* Left: Server Info (Prioritized) */}
                     <div className="flex-1 min-w-0 mr-1">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{m.name_kor}</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                      <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate">{m.name_kor}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                         {m.baptismal_name} · {m.grade} {m.start_year && `· ${m.start_year}년`}
                       </p>
                     </div>
@@ -516,9 +563,9 @@ export default function ServerList() {
                     {/* Right: Parent Info (Secondary, Truncatable) */}
                     {parent && (
                       <div className="text-right shrink-0 max-w-[40%]">
-                        <p className="text-[10px] text-gray-600 font-medium truncate">
-                          <span className="text-gray-400 mr-1 hidden sm:inline">신청:</span>
-                          <span className="text-gray-400 mr-1 sm:hidden">부:</span>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400 font-medium truncate">
+                          <span className="text-gray-400 dark:text-gray-600 mr-1 hidden sm:inline">신청:</span>
+                          <span className="text-gray-400 dark:text-gray-600 mr-1 sm:hidden">부:</span>
                           {parent.user_name}
                         </p>
                         {dateStr && (
@@ -537,8 +584,8 @@ export default function ServerList() {
       </Card>
 
       {/* ✅ 비활동 복사단원 (Inactive) */}
-      <Card className="p-4 bg-gray-50 border-gray-200">
-        <h2 className="text-lg font-semibold mb-3 text-gray-700">
+      <Card className="p-4 bg-gray-50 border-gray-200 dark:bg-slate-800/30 dark:border-slate-800">
+        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">
           비활동 복사단원{' '}
           <span className="text-sm font-normal text-gray-500">({inactiveMembers.length}명)</span>
         </h2>
@@ -558,7 +605,7 @@ export default function ServerList() {
               return (
                 <Card 
                   key={m.id} 
-                  className="p-2 flex items-center justify-between text-left hover:shadow-md transition-shadow cursor-pointer bg-white" 
+                  className="p-2 flex items-center justify-between text-left hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-slate-900/50 dark:border-slate-700" 
                   onClick={() => {
                     setSelectedMember(m);
                     setIsDrawerOpen(true);
@@ -566,27 +613,43 @@ export default function ServerList() {
                 >
                   {/* Left: Server Info */}
                   <div className="flex-1 min-w-0 mr-1">
-                    <p className="font-semibold text-gray-500 text-sm truncate">{m.name_kor}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                    <p className="font-semibold text-gray-500 dark:text-gray-400 text-sm truncate">{m.name_kor}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
                       {m.baptismal_name} · {m.grade}
                     </p>
                   </div>
                   
                   {/* Right: Parent Info */}
-                  {parent && (
-                    <div className="text-right shrink-0 max-w-[40%]">
-                      <p className="text-[10px] text-gray-400 font-medium truncate">
-                        <span className="text-gray-300 mr-1 hidden sm:inline">신청:</span>
-                        <span className="text-gray-300 mr-1 sm:hidden">부:</span>
-                        {parent.user_name}
-                      </p>
-                      {dateStr && (
-                        <p className="text-[9px] text-gray-300 mt-0.5">
+                  {/* Right: Parent Info & Action */}
+                  <div className="text-right shrink-0 max-w-[40%] flex flex-col items-end gap-0.5">
+                    {parent ? (
+                        <p className="text-[10px] text-gray-400 font-medium truncate">
+                          <span className="text-gray-300 mr-1 hidden sm:inline">신청:</span>
+                          <span className="text-gray-300 mr-1 sm:hidden">부:</span>
+                          {parent.user_name}
+                        </p>
+                    ) : (
+                        <span className="text-[10px] text-gray-300">정보없음</span>
+                    )}
+                    
+                    {dateStr && (
+                        <p className="text-[9px] text-gray-300 mb-1">
                           {dateStr}
                         </p>
-                      )}
-                    </div>
-                  )}
+                    )}
+
+                    <Button
+                        variant="destructive" 
+                        size="sm"
+                        className="h-6 text-[10px] px-2"
+                        onClick={(e) => {
+                             e.stopPropagation();
+                             handleDelete(m.id);
+                        }}
+                    >
+                        삭제
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
@@ -594,11 +657,11 @@ export default function ServerList() {
         )}
       </Card>
 
-      <hr className="my-8 border-dashed border-gray-300" />
+      <hr className="my-8 border-dashed border-gray-300 dark:border-gray-700" />
 
       {/* ✅ 일괄 변경 (Bulk Actions) */}
-      <Card className="p-4 bg-orange-50 border-orange-100">
-        <h2 className="text-lg font-semibold mb-3 text-gray-700">일괄 변경</h2>
+      <Card className="p-4 bg-orange-50 border-orange-100 dark:bg-orange-950/20 dark:border-orange-900/30">
+        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-orange-200">일괄 변경</h2>
         <div className="flex gap-2">
            <Button 
              className="bg-orange-500 hover:bg-orange-600 text-white"
@@ -661,21 +724,21 @@ export default function ServerList() {
         <DrawerContent>
           <div className="mx-auto w-full max-w-sm">
             <DrawerHeader className="pb-2">
-              <DrawerTitle className="text-xl font-bold flex items-center gap-2">
+              <DrawerTitle className="text-xl font-bold flex items-center gap-2 dark:text-gray-100">
                  {selectedMember?.name_kor} 
-                 <span className="text-base font-normal text-gray-500">({selectedMember?.baptismal_name})</span>
+                 <span className="text-base font-normal text-gray-500 dark:text-gray-400">({selectedMember?.baptismal_name})</span>
 
               </DrawerTitle>
             </DrawerHeader>
             <div className="p-4 space-y-6 pt-0">
                {/* 1. 복사 배정 정보 */}
                <div className="space-y-3">
-                 <h4 className="font-bold text-gray-900 border-l-4 border-blue-500 pl-2 text-sm mb-3">
+                 <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm mb-3">
                    복사 배정 현황
                  </h4>
-                 <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
+                 <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
                       {/* Left Arrow */}
-                      <button onClick={() => setStatsBaseDate(prev => prev.subtract(1, 'month'))} className="p-1 hover:bg-gray-200 rounded-full text-gray-400">
+                      <button onClick={() => setStatsBaseDate(prev => prev.subtract(1, 'month'))} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400">
                           <ChevronLeft size={16} />
                       </button>
 
@@ -683,20 +746,20 @@ export default function ServerList() {
                       <div className="grid grid-cols-3 gap-2 text-center flex-1">
                           <div className="flex flex-col">
                              <span className="text-xs font-bold text-gray-500 mb-1">{statsBaseDate.subtract(1, 'month').format('YY년 M월')}</span>
-                             <span className="font-bold text-lg">{assignmentStats.lastMonth}회</span>
+                             <span className="font-bold text-lg dark:text-gray-200">{assignmentStats.lastMonth}회</span>
                           </div>
-                          <div className="flex flex-col border-x border-gray-200">
-                             <span className="text-xs font-bold text-blue-600 mb-1">{statsBaseDate.format('YY년 M월')}</span>
-                             <span className="font-bold text-lg text-blue-600">{assignmentStats.thisMonth}회</span>
+                          <div className="flex flex-col border-x border-gray-200 dark:border-gray-700">
+                             <span className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">{statsBaseDate.format('YY년 M월')}</span>
+                             <span className="font-bold text-lg text-blue-600 dark:text-blue-400">{assignmentStats.thisMonth}회</span>
                           </div>
                           <div className="flex flex-col">
                              <span className="text-xs font-bold text-gray-500 mb-1">{statsBaseDate.add(1, 'month').format('YY년 M월')}</span>
-                             <span className="font-bold text-lg">{assignmentStats.nextMonth}회</span>
+                             <span className="font-bold text-lg dark:text-gray-200">{assignmentStats.nextMonth}회</span>
                           </div>
                       </div>
 
                       {/* Right Arrow */}
-                      <button onClick={() => setStatsBaseDate(prev => prev.add(1, 'month'))} className="p-1 hover:bg-gray-200 rounded-full text-gray-400">
+                      <button onClick={() => setStatsBaseDate(prev => prev.add(1, 'month'))} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400">
                           <ChevronRight size={16} />
                       </button>
                   </div>
@@ -705,29 +768,29 @@ export default function ServerList() {
 
               {/* 2. 복사단원 상세 정보 */}
               <div className="space-y-3 text-sm">
-                <h4 className="font-bold text-gray-900 border-l-4 border-blue-500 pl-2 text-sm mb-3">
+                <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm mb-3">
                    복사단원 상세 정보
                 </h4>
                 {/* 학년 정보 삭제됨 (Title 옆으로 이동) */}
                 {/* 학년 정보 (Dropdown) */}
-                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                  <span className="font-medium text-gray-500">학년</span>
+                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
+                  <span className="font-medium text-gray-500 dark:text-gray-400">학년</span>
                    <Select value={editGrade} onValueChange={setEditGrade} disabled={isSaving}>
-                      <SelectTrigger className="w-[80px] h-8 text-xs">
+                      <SelectTrigger className="w-[80px] h-8 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="z-[9999]">
+                      <SelectContent className="z-[9999] dark:bg-gray-800 dark:border-gray-700">
                         {ALL_GRADES.map(g => (
-                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                          <SelectItem key={g} value={g} className="dark:text-gray-200 dark:focus:bg-gray-700">{g}</SelectItem>
                         ))}
                       </SelectContent>
                    </Select>
                 </div>
-                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                   <span className="font-medium text-gray-500">입단년도</span>
+                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
+                   <span className="font-medium text-gray-500 dark:text-gray-400">입단년도</span>
                    <div className="flex items-center gap-1">
                      <button
-                       className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                        onClick={() => {
                          const current = parseInt(editStartYear) || new Date().getFullYear();
                          setEditStartYear((current - 1).toString());
@@ -738,7 +801,7 @@ export default function ServerList() {
                      </button>
                      <input 
                        type="text" 
-                       className="w-[50px] text-center border-b border-gray-200 focus:border-blue-500 outline-none text-sm"
+                       className="w-[50px] text-center border-b border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm dark:bg-transparent dark:text-white"
                        value={editStartYear}
                        onChange={(e) => {
                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
@@ -748,7 +811,7 @@ export default function ServerList() {
                        disabled={isSaving}
                      />
                      <button
-                       className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                        onClick={() => {
                          const current = parseInt(editStartYear) || new Date().getFullYear();
                          setEditStartYear((current + 1).toString());
@@ -759,14 +822,14 @@ export default function ServerList() {
                      </button>
                    </div>
                 </div>
-                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                  <span className="font-medium text-gray-500">상태</span>
+                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
+                  <span className="font-medium text-gray-500 dark:text-gray-400">상태</span>
                   <div className="flex items-center gap-2">
                      <Switch 
                         checked={editActive} 
                         onCheckedChange={setEditActive} 
                      />
-                     <span className={editActive ? "text-green-600 font-bold" : "text-gray-600"}>
+                     <span className={editActive ? "text-green-600 font-bold dark:text-green-400" : "text-gray-600 dark:text-gray-400"}>
                        {editActive ? '활동중' : '비활동'}
                      </span>
                   </div>
@@ -793,14 +856,14 @@ export default function ServerList() {
                  if (pInfo) {
                    return (
                       <div className="space-y-3 pt-2">
-                         <h4 className="font-bold text-gray-900 border-l-4 border-blue-500 pl-2 text-sm">
+                         <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm">
                            신청자 정보
                          </h4>
-                         <div className="bg-gray-50 p-3 rounded-xl text-sm space-y-1">
+                         <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl text-sm space-y-1">
                             <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm">
-                              <span className="font-bold text-gray-900">{pInfo.user_name}</span>
+                              <span className="font-bold text-gray-900 dark:text-gray-100">{pInfo.user_name}</span>
                               {pInfo.baptismal_name && (
-                                <span className="text-gray-600">({pInfo.baptismal_name})</span>
+                                <span className="text-gray-600 dark:text-gray-400">({pInfo.baptismal_name})</span>
                               )}
                               
                               <div className="flex items-center gap-2 text-gray-500 text-xs">

@@ -15,6 +15,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { toast } from 'sonner';
+import UpdateUserProfileDialog from './components/UpdateUserProfileDialog';
 
 import { Parish } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
@@ -185,15 +186,49 @@ export default function AddMember() {
     }
   };
 
+  // 📝 사용자 프로필 정보 누락 체크
+  const [showProfileUpdate, setShowProfileUpdate] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 이미 건너 뛰었으면 다시 안 띄움
+    const skipped = sessionStorage.getItem('profile_skip');
+    if (skipped) {
+      setShowProfileUpdate(false);
+      return;
+    }
+
+    // 세션 로딩이 끝났고(userInfo 체크 가능), 로그인 상태일 때
+    if (!session.loading && session.user) {
+      // userInfo가 아예 없거나, userName이 비어있으면 팝업
+      if (!session.userInfo || !session.userInfo.userName) {
+        setShowProfileUpdate(true);
+      } else {
+        setShowProfileUpdate(false);
+      }
+    }
+  }, [session.loading, session.user, session.userInfo]);
+
   return (
-    <div className="p-4 max-w-md mx-auto">
+    <div className="p-4 max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+      {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
+      {showProfileUpdate && session.user && (
+        <UpdateUserProfileDialog
+          uid={session.user.uid}
+          currentName={session.userInfo?.userName}
+          currentBaptismalName={session.userInfo?.baptismalName}
+          onClose={() => {
+            sessionStorage.setItem('profile_skip', 'true');
+            setShowProfileUpdate(false);
+          }}
+        />
+      )}
       <h2 className="text-xl font-bold mb-4">복사 추가하기</h2>
 
       {/* 성당 선택 */}
       <div className="mb-3">
-        <label className="text-sm">성당 선택</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">성당 선택</label>
         <select
-          className="w-full border rounded p-2 mt-1"
+          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
           value={selectedParish}
           onChange={(e) => {
             setSelectedParish(e.target.value);
@@ -212,9 +247,9 @@ export default function AddMember() {
 
       {/* 복사단 선택 */}
       <div className="mb-3">
-        <label className="text-sm">복사단 선택</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">복사단 선택</label>
         <select
-          className="w-full border rounded p-2 mt-1"
+          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-slate-900/50 disabled:text-gray-500 dark:disabled:text-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
           disabled={!selectedParish}
           value={selectedGroup}
           onChange={(e) => setSelectedGroup(e.target.value)}
@@ -231,9 +266,9 @@ export default function AddMember() {
 
       {/* 이름 */}
       <div className="mb-3">
-        <label className="text-sm">이름(한글)</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">이름(한글)</label>
         <input
-          className="w-full border rounded p-2 mt-1"
+          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500"
           value={nameKor}
           onChange={(e) => setNameKor(e.target.value)}
         />
@@ -241,9 +276,9 @@ export default function AddMember() {
 
       {/* 세례명 */}
       <div className="mb-3">
-        <label className="text-sm">세례명</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">세례명</label>
         <input
-          className="w-full border rounded p-2 mt-1"
+          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500"
           value={baptismalName}
           onChange={(e) => setBaptismalName(e.target.value)}
         />
@@ -251,9 +286,9 @@ export default function AddMember() {
 
       {/* 학년 */}
       <div className="mb-4">
-        <label className="text-sm">학년</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">학년</label>
         <select
-          className="w-full border rounded p-2 mt-1"
+          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
           value={grade}
           onChange={(e) => setGrade(e.target.value)}
         >
@@ -269,7 +304,7 @@ export default function AddMember() {
       {/* 복사시작년도 */}
 
       <div className="mb-4">
-        <label className="text-sm">입단년도</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">입단년도</label>
         <div className="flex gap-2 mt-1">
           <button 
              tabIndex={-1}
@@ -277,13 +312,13 @@ export default function AddMember() {
                 const current = parseInt(startYear) || new Date().getFullYear();
                 setStartYear((current - 1).toString());
              }}
-             className="px-3 bg-gray-100 border border-gray-200 rounded text-gray-600 hover:bg-gray-200"
+             className="px-3 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
           >
              &lt;
           </button>
           <input
             type="number"
-            className="flex-1 border rounded p-2 text-center"
+            className="flex-1 border rounded p-2 text-center bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
             value={startYear}
             onChange={(e) => {
               const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
@@ -297,14 +332,14 @@ export default function AddMember() {
                 const current = parseInt(startYear) || new Date().getFullYear();
                 setStartYear((current + 1).toString());
              }}
-             className="px-3 bg-gray-100 border border-gray-200 rounded text-gray-600 hover:bg-gray-200"
+             className="px-3 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
           >
              &gt;
           </button>
           <button 
             tabIndex={-1}
             onClick={() => setStartYear(new Date().getFullYear().toString())}
-            className="whitespace-nowrap px-3 text-xs bg-gray-100 border border-gray-200 rounded text-gray-600 hover:bg-gray-200"
+            className="whitespace-nowrap px-3 text-xs bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
           >
             올해
           </button>
@@ -315,11 +350,11 @@ export default function AddMember() {
         등록하기
       </button>
 
-      <div className="mt-8 text-center pt-6 border-t border-gray-100">
-        <p className="text-sm text-gray-500 mb-2">플래너로 활동하실 예정인가요?</p>
+      <div className="mt-8 text-center pt-6 border-t border-gray-100 dark:border-slate-800">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">플래너로 활동하실 예정인가요?</p>
         <button 
           onClick={() => navigate('/request-planner-role')}
-          className="text-sm text-blue-600 font-medium underline underline-offset-2 hover:text-blue-700"
+          className="text-sm text-blue-600 dark:text-blue-400 font-medium underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300"
         >
           플래너 권한 신청하기
         </button>

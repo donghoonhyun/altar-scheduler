@@ -23,14 +23,14 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
   const inactive = members.filter((m) => m.active === false && m.request_confirmed);
 
   return (
-    <div className="p-3 border rounded-xl mb-4 bg-white shadow-sm">
+    <div className="p-3 border rounded-xl mb-4 bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 shadow-sm">
       {/* 1) 승인된 복사 (Toggle Buttons) */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-2">
-          <div className="font-semibold text-gray-800 text-sm">나의 복사 (선택하여 일정 보기)</div>
+          <div className="font-semibold text-gray-800 dark:text-gray-200 text-sm">나의 복사 (선택하여 일정 보기)</div>
           <button
             onClick={() => navigate('/add-member')}
-            className="text-gray-400 hover:text-blue-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             title="복사 추가"
           >
             <Plus size={18} />
@@ -50,8 +50,8 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
                   className={cn(
                     'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border',
                     checked
-                      ? 'bg-blue-50 border-blue-500 border-[1.5px] font-bold text-blue-800 shadow-md'
-                      : 'bg-green-50 border-green-200 text-gray-700 hover:bg-green-100'
+                      ? 'bg-blue-50 border-blue-500 border-[1.5px] font-bold text-blue-800 shadow-md dark:bg-blue-900/40 dark:border-blue-500 dark:text-blue-300'
+                      : 'bg-green-50 border-green-200 text-gray-700 hover:bg-green-100 dark:bg-emerald-900/20 dark:border-emerald-900/40 dark:text-gray-300 dark:hover:bg-emerald-900/30'
                   )}
                 >
                   {checked && <Check size={14} strokeWidth={3} />}
@@ -64,7 +64,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
             {pending.map((m) => (
               <div
                 key={m.memberId}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-400 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-500 cursor-not-allowed"
                 title="관리자 승인 대기 중"
               >
                 ⏳ {m.name_kor} (승인대기)
@@ -75,7 +75,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
             {inactive.map((m) => (
               <div
                 key={m.memberId}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-500 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-500 cursor-not-allowed"
                 title="비활성 상태"
               >
                 🚫 {m.name_kor} (비활성)

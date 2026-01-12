@@ -119,48 +119,48 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-blue-600" />
+          <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+            <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             {userName}님의 멤버십 정보
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-gray-500 dark:text-gray-400">
              사용자가 소속된 복사단 및 역할 정보입니다.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
             <div className="flex justify-center p-8">
-                <Loader2 className="animate-spin text-gray-400" />
+                <Loader2 className="animate-spin text-gray-400 dark:text-gray-500" />
             </div>
         ) : (
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
                 {memberships.length === 0 ? (
-                    <div className="text-center text-gray-500 py-8 bg-gray-50 rounded-lg">
+                    <div className="text-center text-gray-500 dark:text-gray-400 py-8 bg-gray-50 dark:bg-slate-800 rounded-lg">
                         멤버십 정보가 없습니다.
                     </div>
                 ) : (
                     memberships.map((m) => (
-                        <div key={m.id} className="p-3 border border-gray-200 rounded-lg bg-white shadow-sm space-y-2 relative group">
+                        <div key={m.id} className="p-3 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 shadow-sm space-y-2 relative group">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h4 className="font-bold text-sm text-gray-900">
+                                    <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100">
                                         {m.server_group_id === 'global' ? 'System' : (m.server_group_name || '알 수 없는 복사단')}
                                     </h4>
-                                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 block mt-0.5">
                                         {m.server_group_id === 'global' ? 'Global Admin' : m.server_group_id}
                                     </span>
                                 </div>
                                 {editTargetId !== m.id && (
-                                     <span className={`text-[10px] px-2 py-1 rounded font-medium ${m.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                     <span className={`text-[10px] px-2 py-1 rounded font-medium ${m.active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'}`}>
                                         {m.active ? 'Active' : 'Inactive'}
                                     </span>
                                 )}
                             </div>
                             
                             {editTargetId === m.id ? (
-                                <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                                <div className="mt-2 p-2 bg-gray-50 dark:bg-slate-900/50 rounded border border-gray-200 dark:border-slate-700">
                                     <div className="flex flex-wrap gap-2 mb-3">
                                         {AVAILABLE_ROLES.map(role => (
                                             <button 
@@ -168,8 +168,8 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                                                 onClick={() => toggleRole(role)}
                                                 className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
                                                     editRoles.includes(role) 
-                                                        ? 'bg-blue-100 text-blue-700 border-blue-200' 
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-100'
+                                                        ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' 
+                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-700'
                                                 }`}
                                             >
                                                 {role}
@@ -177,20 +177,20 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                                         ))}
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                                        <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
                                             <input 
                                                 type="checkbox" 
                                                 checked={editActive} 
                                                 onChange={(e) => setEditActive(e.target.checked)}
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600"
                                             />
                                             Active 상태
                                         </label>
                                         <div className="flex gap-1">
-                                            <Button size="sm" variant="ghost" onClick={cancelEdit} className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-500">
+                                            <Button size="sm" variant="ghost" onClick={cancelEdit} className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-500 dark:text-gray-400">
                                                 <X size={14} />
                                             </Button>
-                                            <Button size="sm" variant="ghost" onClick={saveEdit} className="h-6 w-6 p-0 hover:bg-green-100 text-green-600">
+                                            <Button size="sm" variant="ghost" onClick={saveEdit} className="h-6 w-6 p-0 hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400">
                                                 <Check size={14} />
                                             </Button>
                                         </div>
@@ -199,11 +199,11 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                             ) : (
                                 <div className="flex flex-wrap gap-1 items-center">
                                     {(Array.isArray(m.role) ? m.role : [m.role]).map((r, idx) => {
-                                        let badgeStyle = "bg-gray-100 text-gray-600 border-gray-200";
-                                        if (r === 'superadmin') badgeStyle = "bg-black text-white border-black";
-                                        else if (r === 'admin') badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
-                                        else if (r === 'planner') badgeStyle = "bg-blue-50 text-blue-700 border-blue-200";
-                                        else if (r === 'server') badgeStyle = "bg-green-50 text-green-700 border-green-200";
+                                        let badgeStyle = "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600";
+                                        if (r === 'superadmin') badgeStyle = "bg-black text-white border-black dark:bg-slate-950 dark:border-slate-900";
+                                        else if (r === 'admin') badgeStyle = "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-900/50";
+                                        else if (r === 'planner') badgeStyle = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/50";
+                                        else if (r === 'server') badgeStyle = "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50";
 
                                         return (
                                             <span key={idx} className={`px-2 py-0.5 border rounded text-xs font-medium ${badgeStyle}`}>
@@ -226,8 +226,8 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
             </div>
         )}
 
-        <div className="flex justify-end pt-4 border-t border-gray-100 mt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700">
                 닫기
             </Button>
         </div>

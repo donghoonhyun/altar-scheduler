@@ -21,28 +21,26 @@ const AdminMain: React.FC = () => {
       title: '플래너 대시보드',
       description: '플래너 대시보드(스케줄, 복사단원 관리)로 이동합니다.',
       icon: LayoutDashboard,
-      color: 'text-orange-600',
-      bg: 'bg-orange-100',
+      color: 'text-orange-600 dark:text-orange-400',
+      bg: 'bg-orange-100 dark:bg-orange-900/30',
       path: `/server-groups/${serverGroupId}/dashboard`,
     },
     {
       title: '플래너 권한 승인',
       description: '새로운 플래너 권한 요청을 확인하고 승인합니다.',
       icon: UserPlus,
-      color: 'text-green-600',
-      bg: 'bg-green-100',
+      color: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-100 dark:bg-green-900/30',
       path: `/server-groups/${serverGroupId}/admin/role-approval`,
     },
     {
       title: '멤버십 역할 관리',
       description: '멤버별 역할(권한)을 관리합니다.',
       icon: Users,
-      color: 'text-blue-600',
-      bg: 'bg-blue-100',
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-100 dark:bg-blue-900/30',
       path: `/server-groups/${serverGroupId}/admin/members`,
     },
-
-
   ];
 
   const sgInfo = serverGroupId ? session.serverGroups[serverGroupId] : null;
@@ -257,21 +255,20 @@ const AdminMain: React.FC = () => {
       setIsSG00002ScheduleMigrating(false);
     }
   };
-
-
+  
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
       <Container className="py-6">
         <div className="mb-6 mt-1 flex flex-col items-center">
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 text-center relative inline-block">
+          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 text-center relative inline-block">
             복사단 Admin Panel
-            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-purple-500/30 rounded-full"></span>
+            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-purple-500/30 dark:bg-purple-400/30 rounded-full"></span>
           </Heading>
         </div>
 
         <div className="mb-6 text-center">
-          <h2 className="text-lg font-bold text-gray-800">
-            <span className="text-purple-600 font-extrabold">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+            <span className="text-purple-600 dark:text-purple-400 font-extrabold">
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
             {serverGroupId && (() => {
@@ -287,7 +284,7 @@ const AdminMain: React.FC = () => {
           {adminActions.map((action, index) => (
             <Card 
               key={index} 
-              className="hover:shadow-md transition-all duration-200 cursor-pointer group border-none shadow-sm"
+              className="hover:shadow-md transition-all duration-200 cursor-pointer group border-none shadow-sm dark:bg-gray-800"
               onClick={() => action.path !== '#' && navigate(action.path)}
             >
               <div className="p-1 sm:p-1.5">
@@ -295,33 +292,33 @@ const AdminMain: React.FC = () => {
                   <div className={`${action.bg} ${action.color} w-9 h-9 rounded flex items-center justify-center group-hover:scale-110 transition-transform duration-200 flex-shrink-0`}>
                     <action.icon size={18} />
                   </div>
-                  <h3 className="text-sm font-bold text-gray-800 break-keep">{action.title}</h3>
+                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 break-keep">{action.title}</h3>
                   {action.title === '플래너 권한 승인' && pendingCount > 0 && (
                     <span className="ml-1.5 inline-flex items-center justify-center px-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold shadow-sm">
                       {pendingCount}
                     </span>
                   )}
                 </div>
-                <p className="text-[9px] text-gray-400 leading-tight break-keep">{action.description}</p>
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight break-keep">{action.description}</p>
               </div>
             </Card>
           ))}
         </div>
 
         <div className="space-y-4">
-          <Heading size="md" className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <Heading size="md" className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             <Info size={20} className="text-gray-400" />
             복사단 정보 상세
           </Heading>
-          <Card className="border-none shadow-sm overflow-hidden relative">
+          <Card className="border-none shadow-sm overflow-hidden relative dark:bg-gray-800">
             <button 
               onClick={() => navigate(`/server-groups/${serverGroupId}/admin/settings`)}
-              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors shadow-sm z-10"
+              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm z-10"
             >
               <Settings size={12} />
               수정
             </button>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-50 dark:divide-gray-700">
               {[
                 { label: '복사단 ID', value: serverGroupId },
                 { label: '복사단 명칭', value: sgInfo?.groupName },
@@ -331,10 +328,10 @@ const AdminMain: React.FC = () => {
               ].map((item, idx) => (
                 <div 
                   key={idx} 
-                  className={`flex items-center justify-between p-2 px-4 hover:bg-gray-50/50 ${idx === 0 ? 'pr-20' : ''}`}
+                  className={`flex items-center justify-between p-2 px-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 ${idx === 0 ? 'pr-20' : ''}`}
                 >
-                  <span className="text-xs font-medium text-gray-500">{item.label}</span>
-                  <span className="text-xs font-bold text-gray-800">{item.value || '-'}</span>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{item.label}</span>
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">{item.value || '-'}</span>
                 </div>
               ))}
             </div>
@@ -343,11 +340,11 @@ const AdminMain: React.FC = () => {
 
         {session.user?.email === 'pongso.hyun@gmail.com' && (
           <div className="mt-8 mb-8">
-            <Card className="border-none shadow-sm p-4 bg-white">
+            <Card className="border-none shadow-sm p-4 bg-white dark:bg-gray-800">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-800">마이그레이션 (임시)</h3>
-                  <p className="text-xs text-gray-500">데이터 초기화를 위한 일괄 업로드 기능입니다.</p>
+                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">마이그레이션 (임시)</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">데이터 초기화를 위한 일괄 업로드 기능입니다.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button

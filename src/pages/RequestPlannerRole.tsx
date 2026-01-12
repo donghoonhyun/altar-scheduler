@@ -16,6 +16,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { toast } from 'sonner';
+import UpdateUserProfileDialog from './components/UpdateUserProfileDialog';
 import { Parish } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
 import { Button, Input } from '@/components/ui';
@@ -60,6 +61,28 @@ export default function RequestPlannerRole() {
   const [baptismalName, setBaptismalName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  // 📝 사용자 프로필 정보 누락 체크
+  const [showProfileUpdate, setShowProfileUpdate] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 이미 건너 뛰었으면 다시 안 띄움
+    const skipped = sessionStorage.getItem('profile_skip');
+    if (skipped) {
+      setShowProfileUpdate(false);
+      return;
+    }
+
+    // 세션 로딩이 끝났고(userInfo 체크 가능), 로그인 상태일 때
+    if (!session.loading && session.user) {
+      // userInfo가 아예 없거나, userName이 비어있으면 팝업
+      if (!session.userInfo || !session.userInfo.userName) {
+        setShowProfileUpdate(true);
+      } else {
+        setShowProfileUpdate(false);
+      }
+    }
+  }, [session.loading, session.user, session.userInfo]);
 
   // Check for existing pending requests
   useEffect(() => {
@@ -336,41 +359,41 @@ export default function RequestPlannerRole() {
   // View: Application Pending
   if (existingRequest) {
     return (
-      <div className="p-6 max-w-md mx-auto min-h-screen bg-white flex flex-col pt-20 text-center">
-        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-          <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="p-6 max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 flex flex-col pt-20 text-center transition-colors duration-200">
+        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-6 mx-auto">
+          <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
         
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {existingRequest.status === 'approved' ? '승인 완료' : 
              existingRequest.status === 'rejected' ? '신청 반려' : 
              '승인 대기 중'}
         </h2>
-        <p className="text-gray-500 mb-8">
+        <p className="text-gray-500 dark:text-gray-400 mb-8">
           {existingRequest.status === 'approved' ? '플래너 권한이 승인되었습니다.' : 
            existingRequest.status === 'rejected' ? '요청하신 권한 신청이 반려되었습니다.' :
            '플래너 권한 신청 후 관리자 승인을 기다리고 있습니다.'}
         </p>
 
 
-        <div className="bg-gray-50 rounded-xl p-6 w-full text-left space-y-4 mb-8">
+        <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-6 w-full text-left space-y-4 mb-8 border border-gray-200 dark:border-slate-700">
             <div>
-                <span className="text-xs font-semibold text-gray-500 block mb-1">신청 소속</span>
-                <div className="text-sm font-medium text-gray-900">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">신청 소속</span>
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-200">
                     {existingRequest.parishName} {existingRequest.groupName}
                 </div>
             </div>
             <div>
-                <span className="text-xs font-semibold text-gray-500 block mb-1">신청자</span>
-                <div className="text-sm font-medium text-gray-900">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">신청자</span>
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-200">
                     {existingRequest.user_name} ({existingRequest.baptismal_name})
                 </div>
             </div>
             <div>
-                <span className="text-xs font-semibold text-gray-500 block mb-1">신청일시</span>
-                <div className="text-sm font-medium text-gray-900">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">신청일시</span>
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-200">
                     {existingRequest.created_at?.toDate 
                       ? existingRequest.created_at.toDate().toLocaleString('ko-KR', { 
                           year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
@@ -379,17 +402,17 @@ export default function RequestPlannerRole() {
                 </div>
             </div>
             <div>
-                <span className="text-xs font-semibold text-gray-500 block mb-1">상태</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">상태</span>
                 {existingRequest.status === 'approved' ? (
-                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-700 border border-green-200">
+                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-900/50">
                        승인됨
                    </span>
                 ) : existingRequest.status === 'rejected' ? (
-                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-700 border border-red-200">
+                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/50">
                        반려됨
                    </span>
                 ) : (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
                         검토 중
                     </span>
                 )}
@@ -398,24 +421,24 @@ export default function RequestPlannerRole() {
         
         {existingRequest.status === 'approved' ? (
              <Button 
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
                 onClick={() => window.location.href = '/'} 
              >
                 메인화면으로 이동
              </Button>
         ) : existingRequest.status === 'rejected' ? (
              <div className="w-full space-y-3">
-                 <p className="text-sm text-red-600">관리자가 요청을 반려했습니다. 다시 신청하시겠습니까?</p>
+                 <p className="text-sm text-red-600 dark:text-red-400">관리자가 요청을 반려했습니다. 다시 신청하시겠습니까?</p>
                  <Button 
                     variant="outline"
-                    className="w-full"
+                    className="w-full dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-700"
                     onClick={() => setExistingRequest(null)} // Clear request to show form
                  >
                     다시 신청하기
                  </Button>
                  <Button 
                     variant="ghost"
-                    className="w-full"
+                    className="w-full dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-800"
                     onClick={() => navigate('/')} 
                  >
                     홈으로 이동
@@ -425,14 +448,14 @@ export default function RequestPlannerRole() {
         <div className="flex gap-3 w-full mt-4">
             <Button 
                 variant="outline"
-                className="flex-1"
+                className="flex-1 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-700"
                 onClick={() => navigate('/')}
             >
                 홈으로 돌아가기
             </Button>
 
             <Button 
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white shadow-md focus:ring-red-300"
+                className="flex-1 bg-red-500 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-600 text-white shadow-md focus:ring-red-300"
                 onClick={handleCancelRequest}
                 disabled={loading}
             >
@@ -444,11 +467,25 @@ export default function RequestPlannerRole() {
     );
   }
 
+
+
   return (
-    <div className="p-6 max-w-md mx-auto min-h-screen bg-white">
+    <div className="p-6 max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 transition-colors duration-200">
+      {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
+      {showProfileUpdate && session.user && (
+        <UpdateUserProfileDialog
+          uid={session.user.uid}
+          currentName={session.userInfo?.userName}
+          currentBaptismalName={session.userInfo?.baptismalName}
+          onClose={() => {
+            sessionStorage.setItem('profile_skip', 'true');
+            setShowProfileUpdate(false);
+          }}
+        />
+      )}
       <div className="mb-8 text-center">
-        <h2 className="text-2xl font-bold text-gray-900">플래너 권한 신청</h2>
-        <p className="text-gray-500 mt-2 text-sm">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">플래너 권한 신청</h2>
+        <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
           관리자 승인 후 플래너로 활동할 수 있습니다.
         </p>
       </div>
@@ -456,12 +493,12 @@ export default function RequestPlannerRole() {
       <div className="space-y-6">
         {/* Step 1: Organization Selection */}
         <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">1. 소속 선택</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-200">1. 소속 선택</h3>
             <div className="grid gap-3">
                 <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">성당</label>
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">성당</label>
                     <select
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     value={selectedParish}
                     onChange={(e) => {
                         setSelectedParish(e.target.value);
@@ -478,9 +515,9 @@ export default function RequestPlannerRole() {
                 </div>
 
                 <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">복사단</label>
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">복사단</label>
                     <select
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100"
+                    className="w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 dark:disabled:bg-slate-900/50 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     disabled={!selectedParish}
                     value={selectedGroup}
                     onChange={(e) => setSelectedGroup(e.target.value)}
@@ -498,19 +535,19 @@ export default function RequestPlannerRole() {
 
         {/* Step 2: Applicant Info */}
         <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">2. 신청자 정보</h3>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4 border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-200">2. 신청자 정보</h3>
+            <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 space-y-4 border border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-500">이름</span>
-                    <span className="text-sm font-bold text-gray-900">{userName}</span>
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">이름</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{userName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-500">세례명</span>
-                    <span className="text-sm font-bold text-gray-900">{baptismalName || '-'}</span>
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">세례명</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{baptismalName || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-500">전화번호</span>
-                    <span className="text-sm font-bold text-gray-900">{phone || '-'}</span>
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">전화번호</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{phone || '-'}</span>
                 </div>
             </div>
             <p className="text-[11px] text-gray-400 text-right">
@@ -522,7 +559,7 @@ export default function RequestPlannerRole() {
             <Button 
                 variant="outline" 
                 onClick={() => navigate(-1)} 
-                className="flex-1 h-12 text-base"
+                className="flex-1 h-12 text-base dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-700"
                 disabled={loading}
             >
                 취소
@@ -538,24 +575,24 @@ export default function RequestPlannerRole() {
 
         {/* Request History Section */}
         {requestHistory.length > 0 && (
-            <div className="mt-12 border-t pt-8">
-                <h3 className="text-sm font-bold text-gray-900 mb-4">나의 신청 내역</h3>
+            <div className="mt-12 border-t border-gray-200 dark:border-slate-800 pt-8">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4">나의 신청 내역</h3>
                 <div className="space-y-3">
                     {requestHistory.map((req) => (
-                        <div key={req.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                        <div key={req.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 shadow-sm">
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <div className="text-xs text-gray-500 mb-0.5">{req.parishName}</div>
-                                    <div className="text-sm font-bold text-gray-900">{req.groupName}</div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{req.parishName}</div>
+                                    <div className="text-sm font-bold text-gray-900 dark:text-gray-200">{req.groupName}</div>
                                 </div>
                                 <div>
                                     {req.status === 'approved' ? (
-                                        <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">승인됨</span>
+                                        <span className="inline-block px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-bold rounded">승인됨</span>
                                     ) : req.status === 'rejected' ? (
-                                        <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">반려됨</span>
+                                        <span className="inline-block px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-bold rounded">반려됨</span>
                                     ) : (
                                         <div className="flex items-center gap-1">
-                                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">승인 대기</span>
+                                            <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold rounded">승인 대기</span>
                                             <Button 
                                                 variant="destructive"
                                                 size="sm"
@@ -563,7 +600,7 @@ export default function RequestPlannerRole() {
                                                     e.stopPropagation();
                                                     cancelRequestById(req);
                                                 }} 
-                                                className="h-7 px-2 text-xs ml-1"
+                                                className="h-7 px-2 text-xs ml-1 bg-red-500 hover:bg-red-600 dark:bg-red-900/50 dark:hover:bg-red-900/70 dark:text-red-200"
                                             >
                                                 취소
                                             </Button>
@@ -571,7 +608,7 @@ export default function RequestPlannerRole() {
                                     )}
                                 </div>
                             </div>
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-gray-400 dark:text-gray-500">
                                 {req.created_at?.toDate 
                                     ? req.created_at.toDate().toLocaleString('ko-KR', { 
                                         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 

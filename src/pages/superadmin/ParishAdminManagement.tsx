@@ -339,16 +339,16 @@ export default function ParishAdminManagement() {
   if (loading) return <div className="p-8 text-center text-gray-500">로딩 중...</div>;
 
   return (
-    <Container className="py-8 min-h-screen">
+    <Container className="py-8 min-h-screen bg-transparent">
        <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/superadmin')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/superadmin')} className="dark:text-gray-200">
           <ArrowLeft size={24} />
         </Button>
         <div>
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900">
+          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
             복사단 어드민 관리
           </Heading>
-          <p className="text-gray-500 text-sm font-medium mt-1">
+          <p className="text-gray-500 text-sm font-medium mt-1 dark:text-gray-400">
              {parishName} ({parishCode})
           </p>
         </div>
@@ -356,16 +356,16 @@ export default function ParishAdminManagement() {
 
       <div className="grid gap-6">
         {serverGroups.map(group => (
-            <Card key={group.id} className="p-5 border-none shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <Card key={group.id} className="p-5 border-none shadow-sm space-y-4 bg-white dark:bg-slate-800">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-700 pb-3">
                     <div>
-                        <h3 className="text-lg font-bold text-gray-800">{group.name}</h3>
-                        <span className="text-xs text-gray-400 font-mono">{group.id}</span>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">{group.name}</h3>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">{group.id}</span>
                     </div>
                     <Button 
                         size="sm" 
                         variant="outline"
-                        className="gap-2 text-violet-600 border-violet-100 bg-violet-50 hover:bg-violet-100"
+                        className="gap-2 text-violet-600 border-violet-100 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-900/50 dark:hover:bg-violet-900/40"
                         onClick={() => {
                             setTargetGroupId(group.id);
                             setSearchQuery('');
@@ -382,23 +382,23 @@ export default function ParishAdminManagement() {
                         <p className="text-sm text-gray-400 py-2">지정된 어드민이 없습니다.</p>
                     ) : (
                         adminsByGroup[group.id]?.map(admin => (
-                            <div key={admin.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                            <div key={admin.id} className="flex items-center justify-between bg-gray-50 dark:bg-slate-900 p-3 rounded-lg border border-transparent dark:border-slate-700">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400">
+                                    <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 flex items-center justify-center text-gray-400 dark:text-gray-500">
                                         <User size={16} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-gray-800">
+                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
                                             {admin.user_name} 
-                                            {admin.baptismal_name && <span className="text-gray-500 font-normal ml-1">({admin.baptismal_name})</span>}
+                                            {admin.baptismal_name && <span className="text-gray-500 dark:text-gray-400 font-normal ml-1">({admin.baptismal_name})</span>}
                                         </p>
-                                        <p className="text-xs text-gray-400">{admin.email}</p>
+                                        <p className="text-xs text-gray-400 dark:text-gray-500">{admin.email}</p>
                                     </div>
                                 </div>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                                     onClick={() => handleRemoveAdmin(admin, group.id)}
                                 >
                                     <Trash2 size={16} />
@@ -411,11 +411,11 @@ export default function ParishAdminManagement() {
         ))}
 
         {serverGroups.length === 0 && (
-            <div className="text-center py-10 bg-gray-50 rounded-lg text-gray-400 border border-dashed border-gray-200">
+            <div className="text-center py-10 bg-gray-50 dark:bg-slate-800 rounded-lg text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-slate-700">
                 <p className="mb-4">등록된 복사단이 없습니다.</p>
                 <Button 
                     variant="outline"
-                    className="gap-2 border-purple-200 text-purple-600 hover:bg-purple-50"
+                    className="gap-2 border-purple-200 text-purple-600 hover:bg-purple-50 dark:border-purple-900/50 dark:text-purple-400 dark:hover:bg-purple-900/20"
                     onClick={() => setIsCreateModalOpen(true)}
                 >
                     <Plus size={16} /> 새 복사단 생성
@@ -426,11 +426,11 @@ export default function ParishAdminManagement() {
 
       {/* Add Admin Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <Card className="w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm">
+            <Card className="w-full max-w-md p-6 max-h-[80vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex justify-between items-center mb-6">
-                    <Heading size="md" className="text-xl font-bold">어드민 추가</Heading>
-                    <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}>
+                    <Heading size="md" className="text-xl font-bold dark:text-gray-100">어드민 추가</Heading>
+                    <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)} className="dark:text-gray-400">
                         <X size={20} />
                     </Button>
                 </div>
@@ -443,7 +443,7 @@ export default function ParishAdminManagement() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                className="pr-8"
+                                className="pr-8 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-100"
                             />
                             {searchQuery && (
                                 <button
@@ -461,25 +461,25 @@ export default function ParishAdminManagement() {
 
                     <div className="space-y-2 mt-2">
                         {searchResults.map(user => (
-                            <div key={user.uid} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <div key={user.uid} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <p className="text-sm font-bold text-gray-800">
+                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
                                             {user.user_name}
-                                            {user.baptismal_name && <span className="text-gray-500 text-xs ml-1">({user.baptismal_name})</span>}
+                                            {user.baptismal_name && <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">({user.baptismal_name})</span>}
                                         </p>
-                                        <span className="text-[10px] text-gray-400 bg-white px-1.5 py-0.5 rounded border border-gray-100">
+                                        <span className="text-[10px] text-gray-400 bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-gray-100 dark:border-slate-600">
                                             가입일: {user.created_at ? format(user.created_at.toDate(), 'yyyy-MM-dd') : '-'}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-0.5">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                         {user.email}
                                         {user.phone && <span className="ml-2 pl-2 border-l border-gray-300">{user.phone}</span>}
                                     </p>
                                     {user.memberships && user.memberships.length > 0 && (
                                         <div className="mt-1.5 flex flex-wrap gap-1">
                                             {user.memberships.map((m, idx) => (
-                                                <span key={idx} className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">
+                                                <span key={idx} className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/50">
                                                     {m}
                                                 </span>
                                             ))}
@@ -488,7 +488,7 @@ export default function ParishAdminManagement() {
                                 </div>
                                 <Button 
                                     size="sm" 
-                                    className="bg-violet-600 hover:bg-violet-700 text-white text-xs h-8 shrink-0 ml-2"
+                                    className="bg-violet-600 hover:bg-violet-700 text-white text-xs h-8 shrink-0 ml-2 dark:bg-violet-700 dark:hover:bg-violet-600"
                                     onClick={() => handleAddAdmin(user)}
                                 >
                                     선택
@@ -506,38 +506,39 @@ export default function ParishAdminManagement() {
 
       {/* Create Group Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <Card className="w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-md p-6 animate-in zoom-in-95 duration-200 dark:bg-slate-900 dark:border-slate-800">
             <div className="flex justify-between items-center mb-6">
-              <Heading size="md" className="text-xl font-bold">새 복사단 생성</Heading>
-              <Button variant="ghost" size="icon" onClick={() => setIsCreateModalOpen(false)}>
+              <Heading size="md" className="text-xl font-bold dark:text-gray-100">새 복사단 생성</Heading>
+              <Button variant="ghost" size="icon" onClick={() => setIsCreateModalOpen(false)} className="dark:text-gray-400">
                 <X size={20} />
               </Button>
             </div>
             
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label className="text-sm font-bold">성당 (Code)</Label>
-                <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-500 font-medium">
+                <Label className="text-sm font-bold dark:text-gray-300">성당 (Code)</Label>
+                <div className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm text-gray-500 dark:text-gray-400 font-medium">
                   {parishCode}
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="new-name" className="text-sm font-bold">복사단 이름</Label>
+                <Label htmlFor="new-name" className="text-sm font-bold dark:text-gray-300">복사단 이름</Label>
                 <Input 
                   id="new-name" 
                   placeholder="예: 학생 복사단" 
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   autoFocus
+                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                 />
               </div>
 
               <div className="pt-4 flex gap-3">
                 <Button 
                     variant="ghost" 
-                    className="flex-1" 
+                    className="flex-1 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-gray-200" 
                     onClick={() => setIsCreateModalOpen(false)}
                     disabled={creatingGroup}
                 >

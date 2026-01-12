@@ -421,12 +421,13 @@ UI 상에서 일관되고 직관적으로 표현하기 위한 시각 언어 체�
 
 #### 8.5.1 상태별 컬러 팔레트 (Status Colors)
 
-상태 코드 의미 주요 배경색 강조 포인트 텍스트 컬러 사용 화면
+| 상태 코드 | 의미 | 주요 배경색 (Light) | 주요 배경색 (Dark) | 설명 | 텍스트 컬러 (Light/Dark) | 사용 화면 |
+|---|---|---|---|---|---|---|
 
-- MASS-NOTCONFIRMED : 미확정 (초안, 편집 가능) #F9FAFB (bg-gray-50) 회색톤으로 비활성화 느낌 #6B7280 Dashboard, Planner
-- MASS-CONFIRMED : 미사 일정 확정 (설문 전 단계) #DBEAFE (bg-blue-100) 기본 확정된 일정의 기준색 #1E3A8A Dashboard, Planner
-- SURVEY-CONFIRMED : 설문 응답 마감 (수정 불가) #FEF3C7 (bg-amber-50) 주의 강조 (노랑) #92400E Dashboard, Planner
-- FINAL-CONFIRMED : 최종 확정 완료 (완전 잠금) #D1FAE5 (bg-green-50) 확정 완료 (안정, 신뢰) #065F46 Dashboard, Planner
+- MASS-NOTCONFIRMED : 미확정 (초안, 편집 가능) | #F9FAFB (bg-gray-50) | `dark:bg-slate-700/50` | 회색톤으로 비활성화 느낌 | #6B7280 (`dark:text-gray-400`) | Dashboard, Planner
+- MASS-CONFIRMED : 미사 일정 확정 (설문 전 단계) | #DBEAFE (bg-blue-100) | `dark:bg-blue-900/30` | 기본 확정된 일정의 기준색 | #1E3A8A (`dark:text-blue-300`) | Dashboard, Planner
+- SURVEY-CONFIRMED : 설문 응답 마감 (수정 불가) | #FEF3C7 (bg-amber-50) | `dark:bg-amber-900/30` | 주의 강조 (노랑) | #92400E (`dark:text-amber-300`) | Dashboard, Planner
+- FINAL-CONFIRMED : 최종 확정 완료 (완전 잠금) | #D1FAE5 (bg-green-50) | `dark:bg-green-900/30` | 확정 완료 (안정, 신뢰) | #065F46 (`dark:text-green-300`) | Dashboard, Planner
 
 🎨 색상 기준:
 Tailwind 기반 파스텔톤 컬러 시스템
@@ -658,6 +659,54 @@ export default Forbidden;
 | **UX 가이드**    | 모달은 화면 중앙, dark-backdrop + blur 효과모바일에서도 화면 중앙 고정, 세로 비율 80% 이내 유지버튼 색상: 파란색(확인), 회색(취소) |
 ```
 
+```
+
+---
+
+## 📌11. Dark Mode Implementation Guidelines (v1.5)
+
+다크 모드는 `slate` 계열의 색상 팔레트를 기반으로 하며, 눈의 피로를 최소화하고 정보의 가독성을 유지하는 것을 목표로 한다.
+
+### 🧩11.1 기본 색상 팔레트 (Slate Palette)
+
+| 요소 | Light Mode | Dark Mode | 비고 |
+|------|------------|-----------|------|
+| **Page Background** | `bg-white` / `bg-gray-50` | `dark:bg-slate-950` | 전체 페이지 배경 |
+| **Container Background** | `bg-white` | `dark:bg-transparent` | 내부 컨테이너 배경 (페이지 배경과 조화) |
+| **Card Background** | `bg-white` | `dark:bg-slate-900` | 카드, 다이얼로그, 서랍 등 콘텐츠 영역 |
+| **Card Border** | `border-gray-200` | `dark:border-slate-800` | 카드의 경계선 |
+| **Table Header** | `bg-gray-50` | `dark:bg-slate-800` | 테이블 헤더 배경 |
+| **Row Hover** | `hover:bg-gray-50` | `dark:hover:bg-slate-800/50` | 리스트/테이블 행 마우스 오버 시 |
+| **Primary Text** | `text-gray-900` | `dark:text-gray-100` | 주요 제목, 본문 텍스트 |
+| **Secondary Text** | `text-gray-500` | `dark:text-gray-400` | 설명, 부가 정보 텍스트 |
+| **Muted Text** | `text-gray-400` | `dark:text-slate-500` | 비활성, 아주 약한 정보 |
+
+### 🧩11.2 UI 컴포넌트별 적용 규칙
+
+#### 11.2.1 Cards & Containers
+- `dark:bg-slate-900`: 기본 카드 배경. 너무 검지 않은 깊은 남색 계열 회색 사용.
+- `dark:border-slate-800` 또는 `dark:border-slate-700`: 테두리는 배경보다 한 단계 밝게 설정하여 은은한 구분을 줌.
+- **예외**: `MemberRoleManagement` 등의 리스트 아이템 카드는 `dark:bg-slate-800`을 사용하여 페이지 배경(`slate-900`)과 구분.
+
+#### 11.2.2 Inputs & Forms
+- **Input/Select**: `dark:bg-slate-800`, `dark:border-slate-700`, `dark:text-white`.
+- **Placeholder**: 시스템 기본값 또는 `dark:placeholder-gray-500`.
+- **Focus Ring**: `dark:ring-blue-900` (기존 Blue 링보다 어둡게).
+
+#### 11.2.3 Badges & Status Indicators
+- **원칙**: 다크 모드에서는 파스텔 톤 배경색(`bg-blue-100` 등)이 너무 밝게 빛나 눈이 부실 수 있으므로, **투명도(Opacity)**를 활용한다.
+- **Pattern**: `dark:bg-{colors}-900/20` (배경), `dark:text-{colors}-300` (텍스트), `dark:border-{colors}-900/50` (테두리).
+  - 예: `bg-blue-100 text-blue-700` → `dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/50`
+
+#### 11.2.4 Modals, Drawers & Dialogs
+- **Overlay**: `dark:bg-black/80` + `backdrop-blur-sm` (배경 흐림 효과).
+- **Content**: `dark:bg-slate-900`, `dark:border-slate-800`.
+- **Header/Foote Separator**: `dark:border-slate-800`.
+
+#### 11.2.5 Special Sections (Dashboard Calendar)
+- **Day Cells**: 평일 `dark:bg-gray-800`, 토요일 `dark:bg-sky-900/20`, 일요일 `dark:bg-pink-900/20`.
+- **Event Cards**: 날짜 셀과 구분되도록 조금 더 밝거나 다른 톤 사용 (`dark:bg-slate-700`).
+
 ---
 
 ## 📌12. 규칙 요약
@@ -678,7 +727,7 @@ export default Forbidden;
 ## 📌확장 계획 (v2 Preview)
 
 - `Input`, `Modal`, `Dropdown`, `Tooltip`, `Alert` 등 추가 예정  
-- `ThemeToggle` (라이트/다크 전환) 도입  
+- `ThemeToggle` (라이트/다크 전환) 도입 (완료 - 시스템 설정 연동 또는 수동 토글 지원)
 - 경북산 성당 로고 기반 Color Accent 그룹 지원
 
 ---

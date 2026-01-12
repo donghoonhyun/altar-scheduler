@@ -92,31 +92,31 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[340px] sm:w-[540px] overflow-y-auto">
+      <SheetContent className="w-[340px] sm:w-[540px] overflow-y-auto bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800">
         <SheetHeader className="mb-6">
-          <SheetTitle className="flex items-center gap-2 text-xl">
-             <span className="bg-pink-100 text-pink-600 p-1.5 rounded-lg">
+          <SheetTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-gray-100">
+             <span className="bg-pink-100 text-pink-600 p-1.5 rounded-lg dark:bg-pink-900/20 dark:text-pink-300">
                 <MessageSquare size={20} />
              </span>
              사용자 지원
           </SheetTitle>
-          <div className="text-sm text-gray-500 mt-1">
-             <span className="font-bold text-gray-900">{userName}</span> ({email})님에 대한 지원 도구
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+             <span className="font-bold text-gray-900 dark:text-gray-200">{userName}</span> ({email})님에 대한 지원 도구
           </div>
         </SheetHeader>
 
         <div className="space-y-8">
             {/* 1. Message Test Section */}
             <section className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-900 border-b pb-2 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-200 border-b border-gray-100 dark:border-slate-800 pb-2 flex items-center justify-between">
                     메세지 발송 테스트
                     {/* <span className="text-[10px] font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Admin Only</span> */}
                 </h3>
                 
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
                     <div className="flex items-start gap-3 mb-4">
                         <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-xs text-gray-600 leading-relaxed">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                             사용자 알림 수신 여부를 확인하기 위해 테스트 메세지를 발송합니다.
                         </p>
                     </div>
@@ -137,14 +137,14 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
 
             {/* Device Token Management */}
             <section className="space-y-4">
-                 <div className="flex items-center justify-between border-b pb-2">
-                    <h3 className="text-sm font-bold text-gray-900">
+                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-200">
                         기기 토큰 관리
                     </h3>
                     <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-6 w-6 p-0" 
+                        className="h-6 w-6 p-0 dark:text-gray-400 dark:hover:text-gray-200" 
                         onClick={fetchTokens}
                         disabled={loadingTokens}
                     >
@@ -156,21 +156,21 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
                     {loadingTokens ? (
                          <div className="text-center py-4 text-xs text-gray-400">로딩 중...</div>
                     ) : tokens.length === 0 ? (
-                        <div className="p-4 rounded-xl border border-dashed border-gray-300 text-center text-xs text-gray-400">
+                        <div className="p-4 rounded-xl border border-dashed border-gray-300 dark:border-slate-700 text-center text-xs text-gray-400 dark:text-slate-500">
                             등록된 기기(토큰)가 없습니다.
                         </div>
                     ) : (
                         tokens.map((token, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm text-xs">
+                            <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm text-xs">
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="bg-gray-100 p-1.5 rounded text-gray-500">
+                                    <div className="bg-gray-100 dark:bg-slate-700 p-1.5 rounded text-gray-500 dark:text-gray-400">
                                         <Smartphone size={16} />
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="font-medium text-gray-700 truncate max-w-[180px]">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[180px]">
                                             {token.substring(0, 10)}...{token.substring(token.length - 10)}
                                         </span>
-                                        <span className="text-[10px] text-gray-400">
+                                        <span className="text-[10px] text-gray-400 dark:text-gray-500">
                                             Device #{idx + 1}
                                         </span>
                                     </div>
@@ -178,7 +178,7 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-9 w-9 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                    className="h-9 w-9 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                                     onClick={() => handleDeleteToken(token)}
                                 >
                                     <Trash2 size={16} /> 
@@ -188,25 +188,25 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
                     )}
                 </div>
                 
-                <div className="bg-blue-50 rounded-lg overflow-hidden">
+                <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg overflow-hidden border border-transparent dark:border-blue-900/30">
                     <button 
                         onClick={() => setShowTokenHelp(!showTokenHelp)}
                         className="w-full flex items-center justify-between p-3 text-left"
                     >
                         <div className="flex items-center gap-2">
                             <span className="text-blue-500">💡</span>
-                            <span className="text-xs font-bold text-blue-700">토큰 삭제가 필요한 경우는?</span>
+                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300">토큰 삭제가 필요한 경우는?</span>
                         </div>
                         {showTokenHelp ? (
-                            <ChevronDown size={14} className="text-blue-400" />
+                            <ChevronDown size={14} className="text-blue-400 dark:text-blue-500" />
                         ) : (
-                            <ChevronRight size={14} className="text-blue-400" />
+                            <ChevronRight size={14} className="text-blue-400 dark:text-blue-500" />
                         )}
                     </button>
                     
                     {showTokenHelp && (
                         <div className="px-3 pb-3 pt-0">
-                            <p className="text-[11px] text-blue-700 leading-snug pl-6 border-l-2 border-blue-200">
+                            <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-snug pl-6 border-l-2 border-blue-200 dark:border-blue-800">
                                 1. 사용자가 기기를 변경했거나 더 이상 사용하지 않는 기기가 목록에 남아있을 때<br/>
                                 2. 알림이 특정 기기로만 오지 않거나, 중복으로 발송될 때<br/>
                                 3. 너무 많은 토큰이 쌓여 발송 오류가 발생할 때

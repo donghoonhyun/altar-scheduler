@@ -168,10 +168,10 @@ export default function ServerAssignmentStatus() {
                 className={cn(
                   "flex items-center justify-center w-full h-full font-bold text-xs rounded shadow-sm border",
                   isConflict 
-                    ? "bg-red-50 text-red-600 border-red-200" // Conflict: Assigned but Unavailable
+                    ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50" // Conflict: Assigned but Unavailable
                     : isMain 
-                        ? "bg-blue-600 text-white border-blue-600" 
-                        : "bg-blue-100 text-blue-800 border-blue-200"
+                        ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-600 dark:text-white dark:border-blue-500" 
+                        : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
                 )}
                 title={`${isMain ? "주복사" : "부복사"}${isConflict ? " (불참 설문)" : ""}`}
               >
@@ -182,7 +182,7 @@ export default function ServerAssignmentStatus() {
       
       if (isUnavailable) {
           return (
-            <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600 font-bold text-sm" title="참석불가">
+            <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600 font-bold text-sm dark:bg-red-900/10 dark:text-red-400" title="참석불가">
                  ✕ 
             </div>
           );
@@ -265,37 +265,37 @@ export default function ServerAssignmentStatus() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-transparent overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between shadow-sm shrink-0 gap-3">
+      <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between shadow-sm shrink-0 gap-3">
          <div className="flex items-center gap-3">
-             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
+             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:text-gray-200">
                 <ArrowLeft size={20} />
              </Button>
-             <h1 className="text-lg font-bold text-gray-800">복사별 배정 현황</h1>
+             <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">복사별 배정 현황</h1>
          </div>
          
          <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto">
-             <div className="flex items-center gap-2 lg:gap-4">
-                 <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="px-1 lg:px-2">
+             <div className="flex items-center gap-2 lg:gap-4 dark:text-gray-200">
+                 <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="px-1 lg:px-2 dark:hover:bg-slate-800">
                      <ChevronLeft size={20} />
                  </Button>
                  <span className="text-lg font-bold min-w-[90px] text-center">
                      {currentMonth.format('YYYY년 M월')}
                  </span>
-                 <Button variant="ghost" size="sm" onClick={handleNextMonth} className="px-1 lg:px-2">
+                 <Button variant="ghost" size="sm" onClick={handleNextMonth} className="px-1 lg:px-2 dark:hover:bg-slate-800">
                      <ChevronRight size={20} />
                  </Button>
              </div>
               
              <div className="flex items-center gap-2">
                 {/* Toggle View Mode */}
-                <div className="flex bg-gray-100 p-1 rounded-lg">
+                <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
                     <button
                     onClick={() => setViewMode('by-member')}
                     className={cn(
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                        viewMode === 'by-member' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                        viewMode === 'by-member' ? "bg-white shadow text-gray-900 dark:bg-slate-600 dark:text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
                     )}
                     >
                     <LayoutGrid size={16} />
@@ -305,7 +305,7 @@ export default function ServerAssignmentStatus() {
                     onClick={() => setViewMode('by-date')}
                     className={cn(
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                        viewMode === 'by-date' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                        viewMode === 'by-date' ? "bg-white shadow text-gray-900 dark:bg-slate-600 dark:text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
                     )}
                     >
                         <LayoutList size={16} />
@@ -313,11 +313,11 @@ export default function ServerAssignmentStatus() {
                     </button>
                 </div>
                 
-                <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex" title="엑셀로 저장">
+                <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700" title="엑셀로 저장">
                     <Download size={16} className="mr-2" />
                     엑셀
                 </Button>
-                <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden" title="엑셀로 저장">
+                <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700" title="엑셀로 저장">
                     <Download size={16} />
                 </Button>
              </div>
@@ -326,12 +326,12 @@ export default function ServerAssignmentStatus() {
 
       {/* Main Content Grid */}
       <div className="flex-1 overflow-auto relative p-4">
-          <div className="inline-block min-w-full align-middle border rounded-lg bg-white shadow-sm overflow-hidden min-h-[500px]">
+          <div className="inline-block min-w-full align-middle border dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 shadow-sm overflow-hidden min-h-[500px]">
               {viewMode === 'by-member' ? (
-              <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+                  <thead className="bg-gray-50 dark:bg-slate-800 sticky top-0 z-10">
                       <tr>
-                          <th scope="col" className="sticky left-0 z-20 bg-gray-50 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                          <th scope="col" className="sticky left-0 z-20 bg-gray-50 dark:bg-slate-800 px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[100px] border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                               성명
                           </th>
                           {events.map((ev, idx) => {
@@ -342,22 +342,22 @@ export default function ServerAssignmentStatus() {
                             
                             const nextEv = events[idx + 1];
                             const isSameDateAsNext = nextEv && nextEv.event_date === ev.event_date;
-                            const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r';
+                            const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r dark:border-slate-700';
                             
-                            let bgClass = "bg-white";
-                            if (dayNum === 0) bgClass = "bg-red-50"; // Sunday
-                            if (dayNum === 6) bgClass = "bg-blue-50"; // Saturday
+                            let bgClass = "bg-white dark:bg-slate-900";
+                            if (dayNum === 0) bgClass = "bg-red-50 dark:bg-red-900/10"; // Sunday
+                            if (dayNum === 6) bgClass = "bg-blue-50 dark:bg-blue-900/10"; // Saturday
 
                             // Header bg needs to be solid to cover scroll
-                            const headerBgClass = dayNum === 0 ? "bg-red-50" : (dayNum === 6 ? "bg-blue-50" : "bg-gray-50");
+                            const headerBgClass = dayNum === 0 ? "bg-red-50 dark:bg-red-900/10" : (dayNum === 6 ? "bg-blue-50 dark:bg-blue-900/10" : "bg-gray-50 dark:bg-slate-800");
 
                             return (
                               <th key={ev.id} scope="col" className={`px-1 py-1 text-center min-w-[60px] ${borderClass} ${headerBgClass} last:border-r-0`}>
                                   <div className="flex flex-col items-center gap-1">
-                                      <span className={`text-[10px] font-semibold ${dayNum === 0 ? "text-red-500" : (dayNum === 6 ? "text-blue-500" : "text-gray-400")}`}>
+                                      <span className={`text-[10px] font-semibold ${dayNum === 0 ? "text-red-500 dark:text-red-400" : (dayNum === 6 ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}`}>
                                           {dateStr} {dayOfWeek}
                                       </span>
-                                      <div className="bg-white border rounded px-1.5 py-0.5 text-xs text-gray-700 font-medium truncate max-w-[70px] shadow-sm" title={ev.title}>
+                                      <div className="bg-white dark:bg-slate-700 border dark:border-slate-600 rounded px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-200 font-medium truncate max-w-[70px] shadow-sm" title={ev.title}>
                                           {ev.title}
                                       </div>
                                   </div>
@@ -366,13 +366,13 @@ export default function ServerAssignmentStatus() {
                           })}
                       </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                       {members.map(member => (
-                          <tr key={member.id} className="hover:bg-gray-50">
-                              <td className="sticky left-0 z-10 bg-white px-2 py-1.5 whitespace-nowrap text-sm border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
+                          <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                              <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 whitespace-nowrap text-sm border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
                                   <div className="flex items-center">
-                                      <span className="font-medium text-gray-900">{member.name_kor}</span>
-                                      <span className="text-[11px] text-gray-500 ml-1.5">{member.baptismal_name}</span>
+                                      <span className="font-medium text-gray-900 dark:text-gray-100">{member.name_kor}</span>
+                                      <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5">{member.baptismal_name}</span>
                                   </div>
                               </td>
                               {events.map((ev, idx) => {
@@ -380,11 +380,11 @@ export default function ServerAssignmentStatus() {
                                   const dayNum = dateObj.day();
                                   const nextEv = events[idx + 1];
                                   const isSameDateAsNext = nextEv && nextEv.event_date === ev.event_date;
-                                  const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r';
+                                  const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r dark:border-slate-700';
                                   
                                   let bgClass = "";
-                                  if (dayNum === 0) bgClass = "bg-red-50/50"; // Sunday (lighter)
-                                  if (dayNum === 6) bgClass = "bg-blue-50/50"; // Saturday (lighter)
+                                  if (dayNum === 0) bgClass = "bg-red-50/50 dark:bg-red-900/10"; // Sunday (lighter)
+                                  if (dayNum === 6) bgClass = "bg-blue-50/50 dark:bg-blue-900/10"; // Saturday (lighter)
                                   
                                   return (
                                     <td key={`${member.id}-${ev.id}`} className={`px-1 py-1 whitespace-nowrap text-center h-[34px] ${borderClass} ${bgClass} last:border-r-0`}>
@@ -405,18 +405,18 @@ export default function ServerAssignmentStatus() {
               </table>
               ) : (
                 // By Date View
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+                    <thead className="bg-gray-50 dark:bg-slate-800 sticky top-0">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[150px] border-r">
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[150px] border-r dark:border-slate-700">
                                 날짜
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 배정 복사
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                         {eventsByDate.map(([dateStr, dayEvents]) => {
                             const dateObj = dayjs(dateStr);
                             const dayNum = dateObj.day();
@@ -425,19 +425,19 @@ export default function ServerAssignmentStatus() {
                             
                             return (
                                 <tr key={dateStr} className={cn(
-                                    "transition-colors hover:bg-gray-50",
-                                    isSun ? "bg-red-50/40" : isSat ? "bg-blue-50/40" : "bg-white"
+                                    "transition-colors hover:bg-gray-50 dark:hover:bg-slate-800/50",
+                                    isSun ? "bg-red-50/40 dark:bg-red-900/10" : isSat ? "bg-blue-50/40 dark:bg-blue-900/10" : "bg-white dark:bg-slate-900"
                                 )}>
-                                    <td className={cn("px-6 py-4 whitespace-nowrap text-sm font-medium border-r align-top", isSun ? "text-red-600" : isSat ? "text-blue-600" : "text-gray-900")}>
+                                    <td className={cn("px-6 py-4 whitespace-nowrap text-sm font-medium border-r dark:border-slate-700 align-top", isSun ? "text-red-600 dark:text-red-400" : isSat ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100")}>
                                         {dateObj.format('M월 D일 (ddd)')}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-wrap gap-3">
                                             {dayEvents.map(ev => (
-                                                <div key={ev.id} className="border rounded-md p-3 bg-white shadow-sm min-w-[200px] flex-1 max-w-[300px]">
-                                                    <div className="text-xs font-semibold text-gray-500 mb-2 pb-1 border-b flex justify-between items-center">
+                                                <div key={ev.id} className="border dark:border-slate-700 rounded-md p-3 bg-white dark:bg-slate-800 shadow-sm min-w-[200px] flex-1 max-w-[300px]">
+                                                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-300 mb-2 pb-1 border-b dark:border-slate-700 flex justify-between items-center">
                                                         <span>{ev.title}</span>
-                                                        <span className="text-[10px] bg-gray-100 px-1.5 rounded">{ev.member_ids?.length || 0}명</span>
+                                                        <span className="text-[10px] bg-gray-100 dark:bg-slate-700 px-1.5 rounded">{ev.member_ids?.length || 0}명</span>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-1">
                                                         {ev.member_ids && ev.member_ids.length > 0 ? (
@@ -450,10 +450,10 @@ export default function ServerAssignmentStatus() {
                                                                     <div key={mid} className={cn(
                                                                         "flex items-center gap-1.5 px-1.5 py-1 rounded text-xs transition-colors truncate",
                                                                         isMain 
-                                                                           ? "bg-blue-50 text-blue-700 font-medium border border-blue-100" 
-                                                                           : "bg-gray-50 text-gray-700 border border-transparent"
+                                                                           ? "bg-blue-50 text-blue-700 font-medium border border-blue-100 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-900/50" 
+                                                                           : "bg-gray-50 text-gray-700 border border-transparent dark:bg-slate-700 dark:text-gray-300 dark:border-transparent"
                                                                     )}>
-                                                                        {isMain && <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1 rounded shrink-0">주</span>}
+                                                                        {isMain && <span className="text-[9px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-200 px-1 rounded shrink-0">주</span>}
                                                                         <span className="truncate">{member.name_kor} {member.baptismal_name}</span>
                                                                     </div>
                                                                 )

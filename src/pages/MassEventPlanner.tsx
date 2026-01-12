@@ -161,12 +161,12 @@ const MassEventPlanner: React.FC = () => {
   if (statusLoading) return <LoadingSpinner label="월 상태 로딩 중..." />;
 
   return (
-    <div className="p-4">
+    <div className="p-4 bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
       <div className="flex items-center gap-2 mb-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800">
           <ArrowLeft size={24} />
         </Button>
-        <h2 className="text-xl font-bold flex items-center gap-2">📅 미사 일정 관리</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">📅 미사 일정 관리</h2>
       </div>
 
       {/* ✅ Toolbar */}

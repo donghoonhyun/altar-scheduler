@@ -35,7 +35,7 @@ export default function WelcomeStandby() {
             onClick={() => navigate('/add-member')} 
             className="w-full border-gray-300 text-gray-700 h-11"
           >
-            복사 추가하기 (자녀 등록)
+            복사 추가하기
           </Button>
 
           <Button 
@@ -43,7 +43,7 @@ export default function WelcomeStandby() {
             onClick={() => navigate('/request-planner-role')} 
             className="w-full text-gray-500 h-10 hover:bg-gray-50 hover:text-gray-900"
           >
-            자모회(플래너) 권한 신청
+            플래너 권한 신청
           </Button>
         </div>
 

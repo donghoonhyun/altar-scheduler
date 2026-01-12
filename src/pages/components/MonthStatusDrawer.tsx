@@ -111,7 +111,7 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
           <span className="text-gray-500 text-base ml-1">({monthLabel})</span>
         </DialogTitle>
 
-        <DialogDescription className="text-sm text-gray-600 mb-4">
+        <DialogDescription className="text-sm text-gray-600 mb-4 dark:text-gray-400">
           현재 월의 미사 일정 상태를 변경하고, 필요 시 비고 또는 편집 잠금을 설정합니다.
         </DialogDescription>
 

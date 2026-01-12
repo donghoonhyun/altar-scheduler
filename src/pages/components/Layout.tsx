@@ -41,9 +41,9 @@ export default function Layout() {
   const rolesInGroup = (serverGroupId && groupRoles[serverGroupId]) || [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-blue-100">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-blue-100 dark:from-slate-900 dark:to-slate-800 transition-colors">
       {/* 🔹공통 상단 바 (Header) */}
-      <header className="sticky top-0 z-40 w-full border-b border-purple-200/50 bg-gradient-to-r from-purple-200/90 via-violet-100/90 to-indigo-200/90 backdrop-blur-md shadow-sm">
+      <header className="sticky top-0 z-40 w-full border-b border-purple-200/50 dark:border-purple-900 bg-gradient-to-r from-purple-200/90 via-violet-100/90 to-indigo-200/90 dark:from-purple-950 dark:via-indigo-950 dark:to-violet-950 backdrop-blur-md shadow-sm">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           {/* 좌측: Church Icon (Purple) */}
           <div 
@@ -53,9 +53,9 @@ export default function Layout() {
             <img 
               src={getAppIconPath()} 
               alt="App Logo" 
-              className="w-10 h-10 rounded-lg shadow-sm border border-gray-100"
+              className="w-10 h-10 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700"
             />
-            <span className="font-bold text-lg text-gray-900 hidden xs:block tracking-tight">
+            <span className="font-bold text-lg text-gray-900 dark:text-gray-100 hidden xs:block tracking-tight">
               {getAppTitleWithEnv()}
             </span>
           </div>
@@ -68,7 +68,7 @@ export default function Layout() {
           {/* 우측: 메뉴 버튼 (Hamburger) */}
           <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-gray-800">
+              <Button variant="ghost" size="icon" className="text-gray-800 dark:text-gray-100">
                 <Menu size={32} strokeWidth={2.5} />
               </Button>
             </SheetTrigger>
@@ -82,10 +82,10 @@ export default function Layout() {
                 {/* 사용자 정보 & 설정 버튼 */}
                 <div className="mb-2 px-1 flex justify-between items-start">
                   <div>
-                    <p className="text-xl font-extrabold text-gray-900">
+                    <p className="text-xl font-extrabold text-gray-900 dark:text-white">
                       {userInfo?.userName}
                       {userInfo?.baptismalName && (
-                        <span className="ml-1 text-sm font-bold text-purple-600">
+                        <span className="ml-1 text-sm font-bold text-purple-600 dark:text-purple-400">
                           {userInfo.baptismalName}
                         </span>
                       )}
@@ -95,7 +95,7 @@ export default function Layout() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0"
+                    className="h-9 w-9 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-0"
                     onClick={() => {
                         setIsSettingsOpen(true);
                         // Optional: Keep menu open or close it? usually settings is on top, so maybe keep menu underneath or close menu?
@@ -108,7 +108,7 @@ export default function Layout() {
 
                 {/* 역할 표시 */}
                 {(rolesInGroup.length > 0 || isSuperAdmin) && (
-                  <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
+                  <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 italic">
                     * 나의 역할: {[
                       ...(isSuperAdmin ? ['슈퍼어드민'] : []),
                       ...rolesInGroup.map(r => r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사')
@@ -140,12 +140,12 @@ export default function Layout() {
 
                 {/* 역할별 바로가기 및 앱 설치 */}
                 {((serverGroupId && rolesInGroup.length > 0) || !isInstalled || isSuperAdmin) && (
-                  <div className="mt-2 pt-4 border-t border-gray-100 flex flex-col gap-2">
+                  <div className="mt-2 pt-4 border-t border-gray-100 dark:border-gray-600 flex flex-col gap-2">
                     <div className="flex items-center justify-between px-1 mb-1">
-                        <span className="text-xs font-semibold text-gray-500">바로가기</span>
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-300">바로가기</span>
                         <div className="relative">
                             <button 
-                                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-500"
+                                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-500 dark:text-gray-300 dark:hover:text-blue-400"
                                 onClick={() => setIsContactOpen(!isContactOpen)}
                             >
                                 <Mail size={12} />
@@ -186,7 +186,7 @@ export default function Layout() {
                     {isSuperAdmin && (
                       <Button
                         variant="ghost"
-                        className="justify-start gap-3 h-10 text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 rounded-xl"
+                        className="justify-start gap-3 h-10 text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 dark:bg-gray-900 rounded-xl"
                         onClick={() => {
                           navigate('/superadmin');
                           setIsMenuOpen(false);
@@ -202,7 +202,7 @@ export default function Layout() {
                         {rolesInGroup.includes('admin') && (
                           <Button
                             variant="ghost" 
-                            className="justify-start gap-3 h-10 text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl"
+                            className="justify-start gap-3 h-10 text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded-xl"
                             onClick={() => {
                               navigate(`/server-groups/${serverGroupId}/admin`);
                               setIsMenuOpen(false);
@@ -216,7 +216,7 @@ export default function Layout() {
                         {rolesInGroup.includes('planner') && (
                           <Button
                             variant="ghost"
-                            className="justify-start gap-3 h-10 text-sm font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 rounded-xl"
+                            className="justify-start gap-3 h-10 text-sm font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/50 rounded-xl"
                             onClick={() => {
                               navigate(`/server-groups/${serverGroupId}/dashboard`);
                               setIsMenuOpen(false);
@@ -230,7 +230,7 @@ export default function Layout() {
                         {rolesInGroup.includes('server') && (
                           <Button
                             variant="ghost"
-                            className="justify-start gap-3 h-10 text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl"
+                            className="justify-start gap-3 h-10 text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50 rounded-xl"
                             onClick={() => {
                               navigate(`/server-groups/${serverGroupId}/main`);
                               setIsMenuOpen(false);
@@ -272,7 +272,7 @@ export default function Layout() {
                 )}
 
                 {/* 로그아웃 버튼 (최하단 이동) */}
-                <div className="mt-auto pt-4 border-t border-gray-100">
+                <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-600">
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start gap-3 h-10 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"

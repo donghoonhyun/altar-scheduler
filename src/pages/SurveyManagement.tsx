@@ -125,21 +125,21 @@ export default function SurveyManagement() {
   if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-gray-50/50 dark:bg-transparent">
        <Container className="py-6">
           <div className="flex items-center justify-between mb-6">
              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
+                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:text-gray-200">
                    <ArrowLeft size={24} />
                 </Button>
-                <h1 className="text-2xl font-bold text-gray-900">설문 관리</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">설문 관리</h1>
              </div>
              <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => fetchSurveys(true)} 
                 disabled={refreshing}
-                className="gap-2"
+                className="gap-2 dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700"
              >
                 <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
                 새로고침
@@ -160,35 +160,35 @@ export default function SurveyManagement() {
                      return (
                          <Card 
                             key={survey.id} 
-                            className="p-4 transition-shadow"
+                            className="p-4 transition-shadow dark:bg-slate-800 dark:border-slate-700"
                          >
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">{title}</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                        {survey.start_date && dayjs(survey.start_date.toDate()).format('YYYY.MM.DD')} ~ 
                                        {survey.end_date && dayjs(survey.end_date.toDate()).format('YYYY.MM.DD')}
                                     </p>
                                 </div>
-                                <Badge variant={survey.status === 'OPEN' ? 'default' : 'secondary'} className={survey.status === 'OPEN' ? 'bg-green-600' : 'bg-gray-400'}>
+                                <Badge variant={survey.status === 'OPEN' ? 'default' : 'secondary'} className={survey.status === 'OPEN' ? 'bg-green-600 dark:bg-green-700 dark:text-white' : 'bg-gray-400 dark:bg-gray-600 dark:text-gray-200'}>
                                    {survey.status === 'OPEN' ? '진행중' : '마감됨'}
                                 </Badge>
                             </div>
                             
                             <div className="mt-4">
                                <div className="flex justify-between text-sm mb-1">
-                                  <span className="text-gray-600">응답률</span>
-                                  <span className="font-bold text-blue-600">{rate}% ({responseCount}/{total}명)</span>
+                                  <span className="text-gray-600 dark:text-gray-400">응답률</span>
+                                  <span className="font-bold text-blue-600 dark:text-blue-400">{rate}% ({responseCount}/{total}명)</span>
                                </div>
-                               <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                                  <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${rate}%` }} />
+                               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+                                  <div className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${rate}%` }} />
                                </div>
                                
                                <div className="grid grid-cols-2 gap-2">
-                                    <Button size="sm" variant="outline" onClick={() => handleOpenDetail(survey)}>
+                                    <Button size="sm" variant="outline" onClick={() => handleOpenDetail(survey)} className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200">
                                         설문 명단
                                     </Button>
-                                    <Button size="sm" variant="outline" onClick={() => navigate(`/server-groups/${serverGroupId}/surveys/${survey.id}/calendar`)}>
+                                    <Button size="sm" variant="outline" onClick={() => navigate(`/server-groups/${serverGroupId}/surveys/${survey.id}/calendar`)} className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200">
                                         달력 보기
                                     </Button>
                                </div>
@@ -202,9 +202,9 @@ export default function SurveyManagement() {
 
        {/* Detail Drawer */}
        <Drawer open={isDrawerOpen} onOpenChange={(o) => !o && closeDrawer()}>
-          <DrawerContent className="max-h-[85vh] flex flex-col">
+          <DrawerContent className="max-h-[85vh] flex flex-col dark:bg-slate-900 dark:border-slate-800">
               <DrawerHeader>
-                  <DrawerTitle>
+                  <DrawerTitle className="dark:text-gray-100">
                       {selectedSurvey && `${selectedSurvey.id.slice(0,4)}년 ${parseInt(selectedSurvey.id.slice(4))}월 설문 현황`}
                   </DrawerTitle>
               </DrawerHeader>
@@ -214,12 +214,12 @@ export default function SurveyManagement() {
                       <div className="py-10 text-center text-gray-400">명단 로딩 중...</div>
                   ) : selectedSurvey ? (
                       <div className="space-y-4">
-                          <div className="bg-gray-50 p-3 rounded-lg text-center">
+                          <div className="bg-gray-50 p-3 rounded-lg text-center dark:bg-slate-800">
                               <div className="text-sm">
-                                  <span className="font-bold text-gray-900">총 대상자 {selectedSurvey.member_ids?.length || 0}명</span>
-                                  <span className="mx-2 text-gray-300">|</span>
-                                  <span className="font-bold text-blue-600">응답자 {Object.keys(selectedSurvey.responses || {}).length}명</span>
-                                  <span className="ml-1 text-gray-500">({
+                                  <span className="font-bold text-gray-900 dark:text-gray-100">총 대상자 {selectedSurvey.member_ids?.length || 0}명</span>
+                                  <span className="mx-2 text-gray-300 dark:text-gray-600">|</span>
+                                  <span className="font-bold text-blue-600 dark:text-blue-400">응답자 {Object.keys(selectedSurvey.responses || {}).length}명</span>
+                                  <span className="ml-1 text-gray-500 dark:text-gray-400">({
                                       (selectedSurvey.member_ids?.length || 0) > 0 
                                       ? Math.round((Object.keys(selectedSurvey.responses || {}).length / (selectedSurvey.member_ids?.length || 1)) * 100) 
                                       : 0
@@ -228,41 +228,41 @@ export default function SurveyManagement() {
                           </div>
                           
                           <div className="space-y-3">
-                              <div className="flex flex-col gap-2 bg-white sticky top-0 z-10">
+                              <div className="flex flex-col gap-2 bg-white sticky top-0 z-10 dark:bg-slate-900">
                                   <div className="flex justify-between items-center">
-                                      <h4 className="text-sm font-bold text-gray-700">응답자 목록</h4>
-                                      <div className="flex bg-gray-100 rounded p-0.5">
+                                      <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">응답자 목록</h4>
+                                      <div className="flex bg-gray-100 dark:bg-slate-800 rounded p-0.5">
                                           <button 
                                               onClick={() => setSortBy('name')} 
-                                              className={`text-xs px-2 py-0.5 rounded transition-all ${sortBy === 'name' ? 'bg-white shadow-sm font-bold text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                                              className={`text-xs px-2 py-0.5 rounded transition-all ${sortBy === 'name' ? 'bg-white shadow-sm font-bold text-gray-900 dark:bg-slate-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}`}
                                           >
                                               이름순
                                           </button>
                                           <button 
                                               onClick={() => setSortBy('grade')} 
-                                              className={`text-xs px-2 py-0.5 rounded transition-all ${sortBy === 'grade' ? 'bg-white shadow-sm font-bold text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                                              className={`text-xs px-2 py-0.5 rounded transition-all ${sortBy === 'grade' ? 'bg-white shadow-sm font-bold text-gray-900 dark:bg-slate-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}`}
                                           >
                                               학년순
                                           </button>
                                       </div>
                                   </div>
                                   
-                                  <div className="flex gap-4 text-xs text-gray-600 pb-2 border-b border-gray-100">
-                                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
+                                  <div className="flex gap-4 text-xs text-gray-600 dark:text-gray-400 pb-2 border-b border-gray-100 dark:border-gray-800">
+                                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200">
                                           <input 
                                               type="checkbox" 
                                               checked={showSubmitted} 
                                               onChange={(e) => setShowSubmitted(e.target.checked)} 
-                                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" 
+                                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 dark:bg-slate-800 dark:border-slate-600" 
                                           />
                                           제출자 보기
                                       </label>
-                                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
+                                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200">
                                           <input 
                                               type="checkbox" 
                                               checked={showUnsubmitted} 
                                               onChange={(e) => setShowUnsubmitted(e.target.checked)} 
-                                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" 
+                                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 dark:bg-slate-800 dark:border-slate-600" 
                                           />
                                           미제출자 보기
                                       </label>
@@ -304,15 +304,15 @@ export default function SurveyManagement() {
                                       }
 
                                       return list.map(m => (
-                                          <div key={m.id} className={`p-2 rounded border text-sm flex items-center justify-between ${m.hasRes ? 'bg-blue-50 border-blue-100' : 'bg-white border-gray-100'}`}>
+                                          <div key={m.id} className={`p-2 rounded border text-sm flex items-center justify-between ${m.hasRes ? 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-white border-gray-100 dark:bg-slate-800 dark:border-slate-700'}`}>
                                               <div className="flex items-center gap-1.5 overflow-hidden">
-                                                  <span className="font-medium text-gray-800 truncate">{m.name}</span>
-                                                  <span className="text-[10px] text-gray-400 shrink-0">{m.grade}</span>
+                                                  <span className="font-medium text-gray-800 dark:text-gray-200 truncate">{m.name}</span>
+                                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">{m.grade}</span>
                                               </div>
                                               {m.hasRes ? (
-                                                  <Badge variant="outline" className="text-[10px] bg-white text-blue-600 border-blue-200 px-1 py-0 h-5 shrink-0">제출</Badge>
+                                                  <Badge variant="outline" className="text-[10px] bg-white text-blue-600 border-blue-200 dark:bg-transparent dark:text-blue-300 dark:border-blue-700 px-1 py-0 h-5 shrink-0">제출</Badge>
                                               ) : (
-                                                  <span className="text-[10px] text-gray-400 shrink-0">미제출</span>
+                                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">미제출</span>
                                               )}
                                           </div>
                                       ));
@@ -322,8 +322,8 @@ export default function SurveyManagement() {
                       </div>
                   ) : null}
                </div>
-              <DrawerFooter>
-                 <Button variant="outline" onClick={closeDrawer}>닫기</Button>
+              <DrawerFooter className="dark:bg-slate-900">
+                 <Button variant="outline" onClick={closeDrawer} className="dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700">닫기</Button>
               </DrawerFooter>
           </DrawerContent>
        </Drawer>

@@ -400,7 +400,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-6 flex flex-col bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto fade-in">
+      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-6 flex flex-col bg-white dark:bg-slate-800 shadow-2xl overflow-y-auto fade-in">
         {/* Header */}
         <div className="space-y-1">
           <DialogTitle>
@@ -422,12 +422,12 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         <div className="flex flex-col gap-4 text-sm text-gray-700">
           {/* 미사 제목 */}
           <label className="block">
-            <span className="font-medium">미사 제목</span>
+            <span className="font-medium text-gray-900 dark:text-gray-200">미사 제목</span>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full border rounded px-2 py-1 disabled:bg-gray-100 disabled:text-gray-500"
+              className="mt-1 w-full border rounded px-2 py-1 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               placeholder="예: 주일 11시 미사"
               disabled={loading || readOnly}
             />
@@ -435,10 +435,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
           {/* 필요 인원 */}
           <label className="block">
-            <span className="font-medium">필요 인원</span>
+            <span className="font-medium text-gray-900 dark:text-gray-200">필요 인원</span>
             <div className="flex gap-2 mt-1 flex-wrap">
               {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
-                <label key={n} className="flex items-center gap-1">
+                <label key={n} className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
                   <input
                     type="radio"
                     name="requiredServers"
@@ -456,12 +456,12 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           {/* 기 배정된 복사 표시 */}
           {eventId && (
             <div className="block">
-              <span className="font-medium">배정된 복사</span>
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
+              <span className="font-medium text-gray-900 dark:text-gray-200">배정된 복사</span>
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-slate-700/50 dark:border-slate-600">
                 {memberIds.length === 0 ? (
-                  <p className="text-sm text-gray-500">배정된 복사가 없습니다.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">배정된 복사가 없습니다.</p>
                 ) : members.length === 0 ? (
-                  <p className="text-sm text-gray-500">로딩 중...</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">로딩 중...</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {[...memberIds]
@@ -519,7 +519,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             <div className="block">
               {/* Row 1: Title & Refresh */}
               <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">배정 복사 선택</span>
+                <span className="font-medium text-gray-900 dark:text-gray-200">배정 복사 선택</span>
                 <Button
                     variant="ghost" 
                     size="sm" 
@@ -536,7 +536,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
               <div className="flex items-center justify-between mb-2">
                  <div className="flex items-center gap-2">
                     {/* 🔹 설문 불가 제외 체크박스 */}
-                    <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100 hover:border-gray-200 transition-colors">
+                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
                       <input 
                         id="chk-unavailable"
                         type="checkbox" 
@@ -544,7 +544,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                         onChange={(e) => setHideUnavailable(e.target.checked)}
                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
-                      <label htmlFor="chk-unavailable" className="text-xs text-gray-600 font-medium cursor-pointer select-none">
+                      <label htmlFor="chk-unavailable" className="text-xs text-gray-600 dark:text-gray-300 font-medium cursor-pointer select-none">
                         설문 불가 제외
                       </label>
                     </div>
@@ -556,12 +556,12 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     )}
                  </div>
 
-                  <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
+                  <div className="flex items-center bg-gray-100 dark:bg-slate-700 p-0.5 rounded-lg text-xs font-medium">
                     <button
                       onClick={() => setSortBy('name')} 
                       className={cn(
                         "px-2.5 py-1 rounded-md transition-all",
-                        sortBy === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                        sortBy === 'name' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                       )}
                     >
                       이름
@@ -570,14 +570,14 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                       onClick={() => setSortBy('grade')} 
                       className={cn(
                         "px-2.5 py-1 rounded-md transition-all",
-                        sortBy === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
+                        sortBy === 'grade' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                       )}
                     >
                       학년
                     </button>
                   </div>
               </div>
-              <div className="mt-2 border rounded p-3 max-h-[600px] overflow-y-auto">
+              <div className="mt-2 border rounded p-3 max-h-[600px] overflow-y-auto dark:border-slate-600">
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                   {sortedMembers.map((m, idx) => {
                     const isUnavailable = unavailableMembers.has(m.id);
@@ -592,14 +592,14 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     return (
                       <React.Fragment key={m.id}>
                          {showSeparator && (
-                           <div className="col-span-2 border-t border-dashed border-gray-300 my-2 pt-1 relative h-6">
-                             <span className="absolute top-[-8px] left-2 bg-white px-2 text-xs text-gray-500 font-bold">
+                           <div className="col-span-2 border-t border-dashed border-gray-300 dark:border-slate-600 my-2 pt-1 relative h-6">
+                             <span className="absolute top-[-8px] left-2 bg-white dark:bg-slate-800 px-2 text-xs text-gray-500 dark:text-gray-400 font-bold">
                                 {m.grade}
                              </span>
                            </div>
                          )}
 
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded">
                           <div className="flex items-center gap-1.5 overflow-hidden">
                              <input
                                 type="checkbox"
@@ -612,11 +612,11 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                              
                              <div className="flex flex-col truncate">
                                 <div className="flex items-center gap-1">
-                                    <span className={`text-sm ${isUnavailable ? 'text-orange-600 font-medium' : !isActive ? 'text-red-600 font-bold line-through' : 'text-gray-700 font-medium'}`}>
+                                    <span className={`text-sm ${isUnavailable ? 'text-orange-600 font-medium' : !isActive ? 'text-red-600 font-bold line-through' : 'text-gray-700 dark:text-gray-200 font-medium'}`}>
                                       {m.name}
                                     </span>
                                     {sortBy === 'name' && (
-                                       <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded-sm">{m.grade}</span>
+                                       <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-slate-700 px-1 rounded-sm">{m.grade}</span>
                                     )}
                                 </div>
                                 {!isActive && <span className="text-[9px] text-red-500">(비활성)</span>}
@@ -662,7 +662,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                   })}
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 정확히 {requiredServers ?? '-'}명 선택하고, 한 명을 주복사로 지정해주세요.
               </p>
             </div>

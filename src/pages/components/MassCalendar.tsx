@@ -165,7 +165,7 @@ export default function MassCalendar({
                   "p-2 rounded-lg border flex flex-col gap-1 transition-all duration-200 w-full",
                   !isFulfilled 
                     ? "bg-red-200 border-red-400 hover:bg-red-300 dark:bg-red-800/60 dark:border-red-600"
-                    : "bg-gray-50 border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600",
+                    : "bg-gray-50 border-gray-200 hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600 dark:border-slate-500",
                   
                   selectedEventId === ev.id && 
                     "border-amber-500 ring-2 ring-amber-200 dark:border-amber-400"

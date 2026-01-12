@@ -144,30 +144,30 @@ const MemberRoleManagement: React.FC = () => {
 
 
   return (
-    <Container className="py-8 min-h-screen">
+    <Container className="py-8 min-h-screen bg-transparent">
       {/* ... header ... */}
        <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="dark:text-gray-200">
           <ArrowLeft size={24} />
         </Button>
         <div>
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900">
+          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
             멤버십 역할 관리
           </Heading>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-sm dark:text-gray-400">
             복사단의 멤버별 권한과 정보를 관리합니다.
           </p>
         </div>
       </div>
 
       {/* Header with Count & Filter */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-base font-bold text-gray-800">
-             멤버 <span className="text-xs font-normal text-gray-500">({filteredMemberships.length}명)</span>
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-200">
+             멤버 <span className="text-xs font-normal text-gray-500 dark:text-gray-400">({filteredMemberships.length}명)</span>
           </h2>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar bg-gray-50 p-1 rounded-lg">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar bg-gray-50 dark:bg-slate-800 p-1 rounded-lg">
               {[
                 { id: 'all', label: '전체' },
                 { id: 'admin', label: '어드민' },
@@ -180,8 +180,8 @@ const MemberRoleManagement: React.FC = () => {
                   className={cn(
                     "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                     selectedRole === role.id
-                      ? "bg-white shadow-sm text-gray-900 border border-gray-200"
-                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                      ? "bg-white dark:bg-slate-600 shadow-sm text-gray-900 dark:text-white border border-gray-200 dark:border-slate-500"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-700"
                   )}
                 >
                   {role.label}
@@ -189,14 +189,14 @@ const MemberRoleManagement: React.FC = () => {
               ))}
             </div>
 
-            <label className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-md transition-colors whitespace-nowrap">
+            <label className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 px-2 py-1 rounded-md transition-colors whitespace-nowrap">
               <input 
                 type="checkbox"
                 checked={hideInactive}
                 onChange={(e) => setHideInactive(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-offset-slate-900"
               />
-              <span className="text-[10px] font-bold text-gray-500">비활성 제외</span>
+              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">비활성 제외</span>
             </label>
           </div>
       </div>
@@ -214,29 +214,29 @@ const MemberRoleManagement: React.FC = () => {
             <div 
               key={m.id} 
               className={cn(
-                "relative bg-white rounded-xl border shadow-sm p-5 transition-all",
-                editingId === m.id ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-gray-100 hover:border-gray-200 hover:shadow-md"
+                "relative bg-white dark:bg-slate-800 rounded-xl border shadow-sm p-5 transition-all",
+                editingId === m.id ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600 hover:shadow-md"
               )}
             >
               <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 min-w-0 pr-8">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0 border border-blue-100">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 border border-blue-100 dark:border-blue-900/50">
                       <User size={18} />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center flex-wrap gap-1.5 mb-0.5">
-                        <span className="font-bold text-gray-900 text-sm truncate">
+                        <span className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate">
                           {m.user_name}
                         </span>
                         {m.baptismal_name && (
-                           <span className="text-gray-500 text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+                           <span className="text-gray-500 dark:text-gray-400 text-[10px] bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                              {m.baptismal_name}
                            </span>
                         )}
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
                             m.active 
-                              ? 'bg-green-50 text-green-700 border-green-200' 
-                              : 'bg-gray-900 text-white border-gray-900'
+                              ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/40' 
+                              : 'bg-gray-900 text-white border-gray-900 dark:bg-gray-700 dark:border-gray-600'
                           }`}>
                             {m.active ? '활성' : '비활성'}
                         </span>
@@ -259,7 +259,7 @@ const MemberRoleManagement: React.FC = () => {
               {/* Content Section */}
               <div className="space-y-4">
                   {/* Meta Info */}
-                  <div className="flex items-center justify-between text-[11px] text-gray-400 bg-gray-50 px-3 py-2 rounded-lg">
+                  <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-slate-800/50 px-3 py-2 rounded-lg">
                       <div className="flex items-center gap-1.5">
                          <Info size={12} />
                          {m.parish_code}
@@ -285,7 +285,7 @@ const MemberRoleManagement: React.FC = () => {
                                   className={`px-2 py-1.5 rounded-md text-xs font-bold transition-all border w-full sm:w-auto text-center ${
                                     editRoles.includes(r)
                                       ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                      : 'bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'
                                   }`}
                                 >
                                   {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사'}
@@ -301,8 +301,8 @@ const MemberRoleManagement: React.FC = () => {
                                onClick={() => setEditActive(!editActive)}
                                className={`w-full px-3 py-2 rounded-lg text-xs font-bold transition-all border flex items-center justify-between ${
                                  editActive
-                                   ? 'bg-green-50 text-green-700 border-green-200'
-                                   : 'bg-gray-50 text-gray-500 border-gray-200'
+                                   ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/40'
+                                   : 'bg-gray-50 text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700'
                                }`}
                              >
                                <span>{editActive ? '활성 계정' : '비활성 계정'}</span>
@@ -322,7 +322,7 @@ const MemberRoleManagement: React.FC = () => {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="flex-1 h-9 text-xs border-gray-200"
+                              className="flex-1 h-9 text-xs border-gray-200 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700"
                               onClick={() => setEditingId(null)}
                             >
                               <X size={14} className="mr-1" /> 취소
@@ -343,9 +343,9 @@ const MemberRoleManagement: React.FC = () => {
                             <span 
                               key={r} 
                               className={`px-2 py-1 rounded text-xs font-bold uppercase border ${
-                                r === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                                r === 'planner' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                r === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-900/40' :
+                                r === 'planner' ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40' :
+                                'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/40'
                               }`}
                             >
                               {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사'}

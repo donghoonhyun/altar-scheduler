@@ -16,13 +16,13 @@ export const InfoBox: React.FC<InfoBoxProps> = ({
   className 
 }) => {
   return (
-    <div className={cn("bg-amber-50 p-4 rounded-xl border border-amber-200 flex gap-3", className)}>
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-amber-500 flex-shrink-0">
+    <div className={cn("bg-amber-50 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 flex gap-3", className)}>
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-amber-500 dark:text-amber-400 flex-shrink-0">
         <Icon size={18} />
       </div>
       <div>
-        {title && <h4 className="font-bold text-gray-800 mb-0.5 text-xs">{title}</h4>}
-        <div className="text-[11px] text-gray-600 leading-relaxed">
+        {title && <h4 className="font-bold text-gray-800 dark:text-gray-200 mb-0.5 text-xs">{title}</h4>}
+        <div className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed">
           {children}
         </div>
       </div>

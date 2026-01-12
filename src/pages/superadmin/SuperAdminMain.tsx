@@ -126,27 +126,27 @@ export default function SuperAdminMain() {
 
   return (
 
-    <div className="-m-2 min-h-screen bg-slate-200 pb-20">
+    <div className="-m-2 min-h-screen bg-slate-200 dark:bg-transparent pb-20">
       {/* Header Section */}
       <div className="py-12 text-center">
         <div className="relative inline-block">
-          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight relative z-10">
+          <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight relative z-10">
              시스템 관리 (Super Admin)
           </h1>
-          <div className="absolute -bottom-2 left-0 w-full h-4 bg-purple-300/60 -z-0 rounded-sm transform -rotate-1" />
+          <div className="absolute -bottom-2 left-0 w-full h-4 bg-purple-300/60 dark:bg-purple-900/60 -z-0 rounded-sm transform -rotate-1" />
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         {/* 성당 관리 섹션 */}
-        <section className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden">
-          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50/80">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                성당 관리
             </h2>
              <button
                 onClick={handleCreate}
-                className="h-8 px-3 text-xs font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-md flex items-center gap-1 transition-colors"
+                className="h-8 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md flex items-center gap-1 transition-colors"
               >
                 <Plus size={14} />
                 성당 추가
@@ -155,29 +155,29 @@ export default function SuperAdminMain() {
 
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-white">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+              <thead className="bg-white dark:bg-slate-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">이름 (한글)</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">교구</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">상태</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">관리</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">이름 (한글)</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">교구</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">상태</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">관리</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-100 dark:divide-slate-800">
                 {parishes?.map((p) => (
-                  <tr key={p.code} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-mono">{p.code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{p.name_kor}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{p.diocese}</td>
+                  <tr key={p.code} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300 font-mono">{p.code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-slate-100">{p.name_kor}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{p.diocese}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {p.active !== false ? (
-                        <span className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
+                        <span className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-900/50">
                           Active
                         </span>
                       ) : (
-                        <span className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                        <span className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
                           Inactive
                         </span>
                       )}
@@ -185,7 +185,7 @@ export default function SuperAdminMain() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => navigate(`/superadmin/parish/${p.code}/admins`)}
-                        className="text-violet-600 hover:text-violet-900 font-semibold mr-3"
+                        className="text-violet-600 dark:text-violet-400 hover:text-violet-900 dark:hover:text-violet-300 font-semibold mr-3"
                       >
                         어드민관리
                       </button>
@@ -193,6 +193,7 @@ export default function SuperAdminMain() {
                         variant="edit"
                         size="sm"
                         onClick={() => handleEdit(p)}
+                        className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                       >
                         수정
                       </Button>
@@ -204,22 +205,22 @@ export default function SuperAdminMain() {
           </div>
 
           {/* Mobile Card View */}
-          <div className="md:hidden p-3 space-y-2 bg-slate-50/50">
+          <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/50">
             {parishes?.map((p) => (
-              <div key={p.code} className="bg-white shadow-sm rounded-lg p-3 border border-slate-200">
+              <div key={p.code} className="bg-white dark:bg-slate-900 shadow-sm rounded-lg p-3 border border-slate-200 dark:border-slate-700">
                 <div className="flex justify-between items-center mb-1">
                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900">{p.name_kor}</h3>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{p.name_kor}</h3>
                       {p.active !== false ? (
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500" title="Active"></span>
                       ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300" title="Inactive"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" title="Inactive"></span>
                       )}
                    </div>
                    <div className="flex gap-2">
                       <button
                         onClick={() => navigate(`/superadmin/parish/${p.code}/admins`)}
-                        className="bg-violet-50 text-violet-700 hover:bg-violet-100 px-3 py-1.5 rounded text-xs font-medium transition-colors border border-violet-100"
+                        className="bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/40 px-3 py-1.5 rounded text-xs font-medium transition-colors border border-violet-100 dark:border-violet-900/50"
                       >
                         어드민관리
                       </button>
@@ -227,15 +228,16 @@ export default function SuperAdminMain() {
                         size="sm"
                         variant="edit"
                         onClick={() => handleEdit(p)}
+                        className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                       >
                         수정
                       </Button>
                    </div>
                 </div>
                 
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
                   <span>{p.code}</span>
-                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-300 dark:text-slate-600">|</span>
                   <span>{p.diocese}</span>
                 </div>
               </div>
@@ -245,14 +247,14 @@ export default function SuperAdminMain() {
 
 
         {/* 유저 관리 섹션 */}
-        <section className="mt-8 bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden">
-          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50/80">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <section className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                유저 관리
             </h2>
              <button
                 onClick={() => navigate('/superadmin/users')}
-                className="h-8 px-3 text-xs font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-md flex items-center gap-1 transition-colors"
+                className="h-8 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md flex items-center gap-1 transition-colors"
               >
                 더보기
                 <ChevronRight size={14} />
@@ -261,16 +263,16 @@ export default function SuperAdminMain() {
 
           {/* Desktop Table: Hidden on Mobile */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-white">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+              <thead className="bg-white dark:bg-slate-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">이름 / 세례명</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">이메일</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">전화번호</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">최근 수정</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">이름 / 세례명</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">이메일</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">전화번호</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">최근 수정</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-100 dark:divide-slate-800">
                 {recentUsers.length === 0 ? (
                     <tr>
                         <td colSpan={4} className="px-6 py-8 text-center text-slate-400 text-sm">
@@ -279,21 +281,21 @@ export default function SuperAdminMain() {
                     </tr>
                 ) : (
                     recentUsers.map((u) => (
-                    <tr key={u.uid} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={u.uid} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                                <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
                                     <User size={16} />
                                 </div>
                                 <div>
-                                    <div className="text-sm font-bold text-slate-900">{u.user_name}</div>
-                                    <div className="text-xs text-slate-500">{u.baptismal_name}</div>
+                                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{u.user_name}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">{u.baptismal_name}</div>
                                 </div>
                             </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{u.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{u.phone}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-xs text-slate-400">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">{u.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">{u.phone}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-xs text-slate-400 dark:text-slate-500">
                             {u.updated_at?.toDate().toLocaleString()}
                         </td>
                     </tr>
@@ -310,20 +312,20 @@ export default function SuperAdminMain() {
                     최근 활동한 유저가 없습니다.
                 </div>
             ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-gray-100 dark:divide-slate-800">
                     {recentUsers.map((u) => (
-                    <div key={u.uid} className="flex flex-col p-4 hover:bg-slate-50 transition-colors gap-2">
+                    <div key={u.uid} className="flex flex-col p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors gap-2">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                 <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+                                 <div className="h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
                                      <User size={18} />
                                 </div>
                                 <div>
-                                     <div className="text-sm font-bold text-slate-900">
+                                     <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
                                         {u.user_name}
-                                        {u.baptismal_name && <span className="text-xs font-normal text-slate-500 ml-1">({u.baptismal_name})</span>}
+                                        {u.baptismal_name && <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">({u.baptismal_name})</span>}
                                      </div>
-                                     <div className="text-[10px] text-slate-400">
+                                     <div className="text-[10px] text-slate-400 dark:text-slate-500">
                                         {u.updated_at?.toDate().toLocaleString()}
                                      </div>
                                 </div>
@@ -331,11 +333,11 @@ export default function SuperAdminMain() {
                         </div>
                         
                         <div className="flex flex-col gap-0.5 pl-12">
-                            <div className="text-xs text-slate-600 flex items-center gap-2">
-                               <span className="w-10 text-slate-400">이메일</span> {u.email}
+                            <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                               <span className="w-10 text-slate-400 dark:text-slate-500">이메일</span> {u.email}
                             </div>
-                             <div className="text-xs text-slate-600 flex items-center gap-2">
-                               <span className="w-10 text-slate-400">연락처</span> {u.phone || '-'}
+                             <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                               <span className="w-10 text-slate-400 dark:text-slate-500">연락처</span> {u.phone || '-'}
                             </div>
                         </div>
                     </div>
@@ -350,49 +352,49 @@ export default function SuperAdminMain() {
 
       {/* Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">성당 정보 {editingParish.code ? '수정' : '추가'}</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full border border-slate-200 dark:border-slate-800">
+            <h2 className="text-xl font-bold mb-4 dark:text-slate-100">성당 정보 {editingParish.code ? '수정' : '추가'}</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">성당코드 (ID)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">성당코드 (ID)</label>
                 <input
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                  className="mt-1 block w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                   value={editingParish.code || ''}
                   onChange={(e) => setEditingParish({...editingParish, code: e.target.value})}
                   disabled={!!editingParish.updated_at} // 수정 시 ID 변경 불가 (간단 처리)
                   placeholder="예: DAEGU-BEOMEO"
                 />
-                <p className="text-xs text-gray-500 mt-1">형식: 교구코드 + &apos;-&apos; + 성당코드 (영문 대문자) (예: DAEGU-BEOMEO)</p>
+                <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">형식: 교구코드 + &apos;-&apos; + 성당코드 (영문 대문자) (예: DAEGU-BEOMEO)</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">이름 (한글)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">이름 (한글)</label>
                 <input
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                  className="mt-1 block w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                   value={editingParish.name_kor || ''}
                   onChange={(e) => setEditingParish({...editingParish, name_kor: e.target.value})}
                   placeholder="예: 대구 범어성당"
                 />
-                 <p className="text-xs text-gray-500 mt-1">형식: 교구명 + &apos;(공백 1자리)&apos; + 성당명 (예: 대구 범어성당)</p>
+                 <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">형식: 교구명 + &apos;(공백 1자리)&apos; + 성당명 (예: 대구 범어성당)</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">이름 (영문)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">이름 (영문)</label>
                 <input
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                  className="mt-1 block w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                   value={editingParish.name_eng || ''}
                   onChange={(e) => setEditingParish({...editingParish, name_eng: e.target.value})}
                   placeholder="예: Daegu Beomeo"
                 />
-                <p className="text-xs text-gray-500 mt-1">(예: Daegu Beomeo)</p>
+                <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">(예: Daegu Beomeo)</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">교구</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">교구</label>
                 <select
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                  className="mt-1 block w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                   value={editingParish.diocese || ''}
                   onChange={(e) => setEditingParish({...editingParish, diocese: e.target.value})}
                 >
@@ -414,7 +416,7 @@ export default function SuperAdminMain() {
                   checked={editingParish.active !== false}
                   onChange={(e) => setEditingParish({...editingParish, active: e.target.checked})}
                 />
-                <label htmlFor="active-check" className="ml-2 block text-sm text-gray-900">
+                <label htmlFor="active-check" className="ml-2 block text-sm text-gray-900 dark:text-slate-300">
                   활성 상태 (Active)
                 </label>
               </div>
@@ -443,6 +445,7 @@ export default function SuperAdminMain() {
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(false)}
+                  className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   취소
                 </Button>
