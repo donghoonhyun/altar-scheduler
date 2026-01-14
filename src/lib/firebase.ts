@@ -28,14 +28,14 @@ const messaging = getMessaging(app);
 // ✅ Emulator 연결
 if (isDev) {
   // Auth
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
 
   // Firestore
   db = getFirestore(app);
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectFirestoreEmulator(db, 'localhost', 8080);
 
   // Functions
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+  connectFunctionsEmulator(functions, 'localhost', 5001);
 
   console.log('🔥 Auth/Firestore/Functions Emulator 연결됨! (firebase.ts)');
 } else {

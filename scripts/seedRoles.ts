@@ -95,6 +95,62 @@ const USERS = [
   },
 ];
 
+const SMS_LOGS = [
+  {
+    created_at: new Date('2025-10-01T10:00:00'),
+    sender_uid: 'pongso-hyun-uid',
+    sender_email: 'pongso.hyun@gmail.com',
+    receiver: '01012345678',
+    message: '테스트 문자 1',
+    status: 'success',
+    result: {
+      groupId: 'GINTALIGO_1',
+      to: '01012345678',
+      from: '01011112222',
+      type: 'SMS',
+      statusMessage: '정상접수',
+      messageId: 'MID_1'
+    },
+    error: null,
+    group_id: 'GINTALIGO_1',
+    parish_code: TEST_PARISH_CODE,
+    server_group_id: TEST_SERVER_GROUP_ID,
+  },
+  {
+    created_at: new Date('2025-10-02T14:30:00'),
+    sender_uid: 'pongso-hyun-uid',
+    sender_email: 'pongso.hyun@gmail.com',
+    receiver: '01098765432',
+    message: '테스트 문자 2 (실패)',
+    status: 'failed',
+    result: null,
+    error: '잔액 부족',
+    group_id: null,
+    parish_code: TEST_PARISH_CODE,
+    server_group_id: TEST_SERVER_GROUP_ID,
+  },
+    {
+    created_at: new Date('2025-10-03T09:15:00'),
+    sender_uid: 'pongso-hyun-uid',
+    sender_email: 'pongso.hyun@gmail.com',
+    receiver: '01055556666',
+    message: '테스트 문자 3',
+    status: 'success',
+    result: {
+      groupId: 'GINTALIGO_2',
+      to: '01055556666',
+      from: '01011112222',
+      type: 'SMS',
+      statusMessage: '정상접수',
+      messageId: 'MID_2'
+    },
+    error: null,
+    group_id: 'GINTALIGO_2',
+    parish_code: TEST_PARISH_CODE,
+    server_group_id: TEST_SERVER_GROUP_ID,
+  },
+];
+
 async function seed() {
   console.log('✅ Firebase Admin 연결됨 (Emulator, altar-scheduler-dev)');
 
@@ -249,6 +305,16 @@ async function seed() {
       updated_at: FieldValue.serverTimestamp(),
     });
   console.log('✅ mass_presets/default 문서 생성');
+
+  // 7️⃣ sms_logs
+  console.log('📌 SMS 로그 시드 시작...');
+  const smsBatch = db.batch();
+  for (const log of SMS_LOGS) {
+    const ref = db.collection('sms_logs').doc();
+    smsBatch.set(ref, log);
+  }
+  await smsBatch.commit();
+  console.log(`✅ ${SMS_LOGS.length}개 SMS 로그 생성 완료`);
 
   console.log('🎉 모든 시드 작업 완료');
 }

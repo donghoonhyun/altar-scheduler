@@ -41,6 +41,9 @@ export { onUserCreated } from './notifications/onUserCreated';
 export { onMemberCreated, onRoleRequestCreated } from './notifications/onMemberEvents';
 export { onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
 
+// 📌 SMS
+export { sendSms } from './sms/sendSms';
+
 // 📌 이후 필요시 Roles, Memberships 등도 여기서 export
 // export { grantPlanner } from "./roles/grantPlanner";
 // export { revokePlanner } from "./roles/revokePlanner";

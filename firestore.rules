@@ -72,6 +72,11 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read, write: if isSignedIn();
     }
+
+    // 3.9 SMS Logs (슈퍼어드민만 읽기 허용)
+    match /sms_logs/{logId} {
+      allow read: if isSuperAdmin();
+    }
     
     // 4️⃣ 나머지: 기본 차단 (명시되지 않은 경로는 접근 불가)
     // 필요 시 추가

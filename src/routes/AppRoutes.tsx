@@ -29,6 +29,7 @@ import PlannerRoleApproval from '../pages/PlannerRoleApproval';
 import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
 import ParishAdminManagement from '../pages/superadmin/ParishAdminManagement';
 import UserManagement from '../pages/superadmin/UserManagement';
+import SmsManagement from '../pages/superadmin/SmsManagement';
 import SurveyManagement from '../pages/SurveyManagement';
 import SurveyCalendar from '@/pages/SurveyCalendar';
 import WelcomeStandby from '../pages/WelcomeStandby';
@@ -152,6 +153,7 @@ export default function AppRoutes() {
         <Route path="/superadmin" element={<SuperAdminMain />} />
         <Route path="/superadmin/parish/:parishCode/admins" element={<ParishAdminManagement />} />
         <Route path="/superadmin/users" element={<UserManagement />} />
+        <Route path="/superadmin/sms" element={<SmsManagement />} />
 
 
         {/* Admin 전용 라우트 */}

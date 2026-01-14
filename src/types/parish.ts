@@ -4,6 +4,7 @@ export interface Parish {
   diocese: string;
   name_eng?: string;
   active?: boolean;
+  sms_service_active?: boolean;
   created_at?: any;
   updated_at?: any;
 }

@@ -4,6 +4,8 @@ import { useSession } from '@/state/session';
 import { useParishes } from '@/hooks/useParishes';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 import { Parish } from '@/types/parish';
 import { toast } from 'sonner';
 
@@ -21,13 +23,15 @@ export default function SuperAdminMain() {
   
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
+
+
   useEffect(() => {
     const fetchRecentUsers = async () => {
         try {
             const q = query(
                 collection(db, 'users'), 
                 orderBy('updated_at', 'desc'), 
-                limit(5)
+                limit(3)
             );
             const snap = await getDocs(q);
             setRecentUsers(snap.docs.map(d => ({uid: d.id, ...d.data()})));
@@ -123,6 +127,8 @@ export default function SuperAdminMain() {
       toast.error('삭제 실패');
     }
   };
+
+
 
   return (
 
@@ -306,44 +312,71 @@ export default function SuperAdminMain() {
           </div>
 
           {/* Mobile List View */}
-          <div className="md:hidden">
+          <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/50">
             {recentUsers.length === 0 ? (
                 <div className="px-6 py-8 text-center text-slate-400 text-sm">
                     최근 활동한 유저가 없습니다.
                 </div>
             ) : (
-                <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                <>
                     {recentUsers.map((u) => (
-                    <div key={u.uid} className="flex flex-col p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors gap-2">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                 <div className="h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
-                                     <User size={18} />
-                                </div>
-                                <div>
-                                     <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                        {u.user_name}
-                                        {u.baptismal_name && <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">({u.baptismal_name})</span>}
-                                     </div>
-                                     <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                                        {u.updated_at?.toDate().toLocaleString()}
-                                     </div>
-                                </div>
-                            </div>
+                    <div key={u.uid} className="bg-white dark:bg-slate-900 shadow-sm rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-start mb-2">
+                             <div className="flex items-center gap-2">
+                                  <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
+                                      <User size={16} />
+                                 </div>
+                                 <div>
+                                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                                         {u.user_name}
+                                         {u.baptismal_name && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({u.baptismal_name})</span>}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                                         {u.updated_at?.toDate().toLocaleString()}
+                                      </div>
+                                 </div>
+                             </div>
                         </div>
                         
-                        <div className="flex flex-col gap-0.5 pl-12">
+                        <div className="flex flex-col gap-1 pl-10">
                             <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                               <span className="w-10 text-slate-400 dark:text-slate-500">이메일</span> {u.email}
+                               <span className="text-slate-400 dark:text-slate-500 w-10">이메일</span> 
+                               <span className="truncate">{u.email}</span>
                             </div>
                              <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                               <span className="w-10 text-slate-400 dark:text-slate-500">연락처</span> {u.phone || '-'}
+                               <span className="text-slate-400 dark:text-slate-500 w-10">연락처</span> 
+                               <span>{u.phone || '-'}</span>
                             </div>
                         </div>
                     </div>
                     ))}
-                </div>
+                </>
             )}
+          </div>
+        </section>
+
+        <section className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden mb-10">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+               알림 관리
+            </h2>
+          </div>
+          <div className="p-6">
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-white">SMS 문자 서비스</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    발송 테스트 및 전체 발송 이력을 조회합니다.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/superadmin/sms')}
+                  className="gap-2"
+                >
+
+                  SMS문자 관리
+                </Button>
+             </div>
           </div>
         </section>
 
@@ -418,6 +451,19 @@ export default function SuperAdminMain() {
                 />
                 <label htmlFor="active-check" className="ml-2 block text-sm text-gray-900 dark:text-slate-300">
                   활성 상태 (Active)
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  id="sms-active-check"
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  checked={editingParish.sms_service_active || false}
+                  onChange={(e) => setEditingParish({...editingParish, sms_service_active: e.target.checked})}
+                />
+                <label htmlFor="sms-active-check" className="ml-2 block text-sm text-gray-900 dark:text-slate-300">
+                  SMS 서비스 활성화 (SMS Service)
                 </label>
               </div>
             </div>

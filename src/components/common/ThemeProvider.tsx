@@ -25,26 +25,42 @@ export function ThemeProvider({
   defaultTheme = "system",
   storageKey = "vite-ui-theme",
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+    const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+    } catch (e) {
+      // Fallback if localStorage is disabled/unavailable
+      return defaultTheme;
+    }
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    
+    // Function to update meta theme-color
+    const updateMetaThemeColor = (isDark: boolean) => {
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', isDark ? '#111827' : '#ffffff');
+      }
+    };
 
     root.classList.remove("light", "dark");
 
     if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light";
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const systemTheme = isDark ? "dark" : "light";
 
       root.classList.add(systemTheme);
+      root.style.colorScheme = systemTheme;
+      updateMetaThemeColor(isDark);
       return;
     }
 
+    const isDark = theme === "dark";
     root.classList.add(theme);
+    root.style.colorScheme = theme;
+    updateMetaThemeColor(isDark);
   }, [theme]);
 
   // Listen for system changes when in system mode
@@ -55,12 +71,18 @@ export function ThemeProvider({
     
     const listener = (e: MediaQueryListEvent) => {
       const root = window.document.documentElement;
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      
       if (e.matches) {
         root.classList.add('dark');
         root.classList.remove('light');
+        root.style.colorScheme = 'dark';
+        if (metaThemeColor) metaThemeColor.setAttribute('content', '#111827');
       } else {
         root.classList.add('light');
         root.classList.remove('dark');
+        root.style.colorScheme = 'light';
+        if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
       }
     };
 
@@ -72,8 +94,12 @@ export function ThemeProvider({
   const value = {
     theme,
     setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
       setTheme(theme);
+      try {
+        localStorage.setItem(storageKey, theme);
+      } catch (e) {
+        console.warn("Failed to persist theme preference:", e);
+      }
     },
   };
 

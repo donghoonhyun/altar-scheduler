@@ -72,15 +72,14 @@ export default function Layout() {
                 <Menu size={32} strokeWidth={2.5} />
               </Button>
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent className="w-[310px] sm:w-[360px] sm:max-w-[360px]">
               <SheetHeader>
-                <SheetTitle>메뉴</SheetTitle>
+                <SheetTitle className="hidden">메뉴</SheetTitle>
               </SheetHeader>
               
-              <div className="flex flex-col gap-4 pt-4">
-                {/* 사용자 정보 */}
-                {/* 사용자 정보 & 설정 버튼 */}
-                <div className="mb-2 px-1 flex justify-between items-start">
+              <div className="flex flex-col gap-2 pt-2">
+                {/* 사용자 정보 & 설정 버튼 - 위로 이동 및 여백 축소 */}
+                <div className="mb-1 px-1 flex justify-between items-start">
                   <div>
                     <p className="text-xl font-extrabold text-gray-900 dark:text-white">
                       {userInfo?.userName}
@@ -95,20 +94,18 @@ export default function Layout() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-0"
+                    className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-0"
                     onClick={() => {
                         setIsSettingsOpen(true);
-                        // Optional: Keep menu open or close it? usually settings is on top, so maybe keep menu underneath or close menu?
-                        // Let's keep menu open for now, drawer will overlay.
                     }}
                   >
-                      <Settings size={22} />
+                      <Settings size={20} />
                   </Button>
                 </div>
 
                 {/* 역할 표시 */}
                 {(rolesInGroup.length > 0 || isSuperAdmin) && (
-                  <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 italic">
+                  <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 italic">
                     * 나의 역할: {[
                       ...(isSuperAdmin ? ['슈퍼어드민'] : []),
                       ...rolesInGroup.map(r => r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사')
@@ -116,10 +113,10 @@ export default function Layout() {
                   </div>
                 )}
 
-                <nav className="flex flex-col gap-2">
+                <nav className="flex flex-col gap-1.5">
                   <Button 
                     variant="ghost" 
-                    className="justify-start gap-3 h-10 text-sm font-medium rounded-xl"
+                    className="justify-start gap-3 h-9 text-sm font-medium rounded-xl"
                     onClick={() => setIsMyInfoOpen(true)}
                   >
                     <UserIcon size={18} className="text-gray-400" />
@@ -127,7 +124,7 @@ export default function Layout() {
                   </Button>
                   <Button 
                     variant="ghost" 
-                    className="justify-start gap-3 h-10 text-sm font-medium rounded-xl"
+                    className="justify-start gap-3 h-9 text-sm font-medium rounded-xl"
                     onClick={() => {
                         navigate('/add-member');
                         setIsMenuOpen(false);
@@ -140,8 +137,8 @@ export default function Layout() {
 
                 {/* 역할별 바로가기 및 앱 설치 */}
                 {((serverGroupId && rolesInGroup.length > 0) || !isInstalled || isSuperAdmin) && (
-                  <div className="mt-2 pt-4 border-t border-gray-100 dark:border-gray-600 flex flex-col gap-2">
-                    <div className="flex items-center justify-between px-1 mb-1">
+                  <div className="mt-2 pt-3 border-t border-gray-100 dark:border-gray-600 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between px-1 mb-0.5">
                         <span className="text-xs font-semibold text-gray-500 dark:text-gray-300">바로가기</span>
                         <div className="relative">
                             <button 
@@ -183,65 +180,67 @@ export default function Layout() {
                         </div>
                     </div>
                     
-                    {isSuperAdmin && (
-                      <Button
-                        variant="ghost"
-                        className="justify-start gap-3 h-10 text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 dark:bg-gray-900 rounded-xl"
-                        onClick={() => {
-                          navigate('/superadmin');
-                          setIsMenuOpen(false);
-                        }}
-                      >
-                        <ShieldCheck size={18} />
-                        Super Admin
-                      </Button>
-                    )}
+                    <div className="grid grid-cols-4 gap-1.5 mb-2">
+                      {isSuperAdmin && (
+                        <Button
+                          variant="ghost"
+                          className="flex flex-col items-center justify-center h-auto py-2.5 px-0 text-[10px] font-medium bg-gray-800 text-white hover:bg-gray-700 dark:bg-gray-900 rounded-xl gap-1"
+                          onClick={() => {
+                            navigate('/superadmin');
+                            setIsMenuOpen(false);
+                          }}
+                        >
+                          <ShieldCheck size={18} />
+                          <span className="leading-tight">Super<br/>Admin</span>
+                        </Button>
+                      )}
 
-                    {serverGroupId && rolesInGroup.length > 0 && (
-                      <>
-                        {rolesInGroup.includes('admin') && (
-                          <Button
-                            variant="ghost" 
-                            className="justify-start gap-3 h-10 text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded-xl"
-                            onClick={() => {
-                              navigate(`/server-groups/${serverGroupId}/admin`);
-                              setIsMenuOpen(false);
-                            }}
-                          >
-                            <ShieldCheck size={18} />
-                            어드민 페이지
-                          </Button>
-                        )}
+                      {serverGroupId && rolesInGroup.length > 0 && (
+                        <>
+                          {rolesInGroup.includes('admin') && (
+                            <Button
+                              variant="ghost" 
+                              className="flex flex-col items-center justify-center h-auto py-2.5 px-0 text-[10px] font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded-xl gap-1"
+                              onClick={() => {
+                                navigate(`/server-groups/${serverGroupId}/admin`);
+                                setIsMenuOpen(false);
+                              }}
+                            >
+                              <ShieldCheck size={18} />
+                              <span className="leading-tight">어드민</span>
+                            </Button>
+                          )}
 
-                        {rolesInGroup.includes('planner') && (
-                          <Button
-                            variant="ghost"
-                            className="justify-start gap-3 h-10 text-sm font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/50 rounded-xl"
-                            onClick={() => {
-                              navigate(`/server-groups/${serverGroupId}/dashboard`);
-                              setIsMenuOpen(false);
-                            }}
-                          >
-                            <LayoutDashboard size={18} />
-                            플래너 대시보드
-                          </Button>
-                        )}
+                          {rolesInGroup.includes('planner') && (
+                            <Button
+                              variant="ghost"
+                              className="flex flex-col items-center justify-center h-auto py-2.5 px-0 text-[10px] font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/50 rounded-xl gap-1"
+                              onClick={() => {
+                                navigate(`/server-groups/${serverGroupId}/dashboard`);
+                                setIsMenuOpen(false);
+                              }}
+                            >
+                              <LayoutDashboard size={18} />
+                              <span className="leading-tight">플래너</span>
+                            </Button>
+                          )}
 
-                        {rolesInGroup.includes('server') && (
-                          <Button
-                            variant="ghost"
-                            className="justify-start gap-3 h-10 text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50 rounded-xl"
-                            onClick={() => {
-                              navigate(`/server-groups/${serverGroupId}/main`);
-                              setIsMenuOpen(false);
-                            }}
-                          >
-                            <Home size={18} />
-                            복사 메인
-                          </Button>
-                        )}
-                      </>
-                    )}
+                          {rolesInGroup.includes('server') && (
+                            <Button
+                              variant="ghost"
+                              className="flex flex-col items-center justify-center h-auto py-2.5 px-0 text-[10px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50 rounded-xl gap-1"
+                              onClick={() => {
+                                navigate(`/server-groups/${serverGroupId}/main`);
+                                setIsMenuOpen(false);
+                              }}
+                            >
+                              <Home size={18} />
+                              <span className="leading-tight">복사홈</span>
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
 
                     {/* 앱 설치 버튼 */}
                     {!isInstalled && (
@@ -265,17 +264,17 @@ export default function Layout() {
                 
                 {/* 이미 설치됨 표시 (선택사항) */}
                 {isInstalled && (
-                  <div className="mt-auto px-4 py-3 bg-gray-50 rounded-xl flex items-center justify-center gap-2 text-gray-500 text-xs font-medium">
+                  <div className="mt-auto px-4 py-2 bg-gray-50 rounded-xl flex items-center justify-center gap-2 text-gray-500 text-xs font-medium">
                     <CheckCircle2 size={16} className="text-green-500" />
                     앱이 설치되어 있습니다
                   </div>
                 )}
 
                 {/* 로그아웃 버튼 (최하단 이동) */}
-                <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-600">
+                <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-600">
                   <Button 
                     variant="ghost" 
-                    className="w-full justify-start gap-3 h-10 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
+                    className="w-full justify-start gap-3 h-9 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
                     onClick={handleLogout}
                   >
                     <LogOut size={18} className="text-red-400" />
