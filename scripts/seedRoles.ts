@@ -19,8 +19,8 @@ const TEST_SERVER_GROUP_ID = 'SG00001';
 
 // 0️⃣ PARISH DATA
 const PARISHES = [
-  { code: "DAEGU-BEOMEO", name_kor: "대구 범어성당", diocese: "대구교구", name_eng: "Beomeo Cathedral" },
-  { code: "SUWON-SINBONG", name_kor: "수지 신봉성당", diocese: "수원교구", name_eng: "Sinbong Cathedral" },
+  { code: "DAEGU-BEOMEO", name_kor: "대구 범어성당", diocese: "대구교구", name_eng: "Beomeo Cathedral", timezone: "Asia/Seoul", locale: "ko-KR" },
+  { code: "SUWON-SINBONG", name_kor: "수지 신봉성당", diocese: "수원교구", name_eng: "Sinbong Cathedral", timezone: "Asia/Seoul", locale: "ko-KR" },
 ];
 
 const USERS = [
@@ -149,6 +149,47 @@ const SMS_LOGS = [
     parish_code: TEST_PARISH_CODE,
     server_group_id: TEST_SERVER_GROUP_ID,
   },
+  // Added for mass event notification tracking test (11/01 Mass)
+  {
+    created_at: new Date('2025-10-31T20:00:05'),
+    sender_uid: 'pongso-hyun-uid',
+    sender_email: 'pongso.hyun@gmail.com',
+    receiver: '01012345678', // Park Beomseo
+    message: '[알림] 내일 미사 복사 배정 안내',
+    status: 'success',
+    result: {
+      groupId: 'G_SMS_001',
+      to: '01012345678',
+      from: '01011112222',
+      type: 'SMS',
+      statusMessage: '정상접수',
+      messageId: 'MID_TEST_1'
+    },
+    error: null,
+    group_id: 'G_SMS_001',
+    parish_code: TEST_PARISH_CODE,
+    server_group_id: TEST_SERVER_GROUP_ID,
+  },
+  {
+    created_at: new Date('2025-10-31T20:00:06'),
+    sender_uid: 'pongso-hyun-uid',
+    sender_email: 'pongso.hyun@gmail.com',
+    receiver: '01056781234', // Lee Jion
+    message: '[알림] 내일 미사 복사 배정 안내',
+    status: 'success',
+    result: {
+      groupId: 'G_SMS_001',
+      to: '01056781234',
+      from: '01011112222',
+      type: 'SMS',
+      statusMessage: '정상접수',
+      messageId: 'MID_TEST_2'
+    },
+    error: null,
+    group_id: 'G_SMS_001',
+    parish_code: TEST_PARISH_CODE,
+    server_group_id: TEST_SERVER_GROUP_ID,
+  },
 ];
 
 async function seed() {
@@ -221,14 +262,16 @@ async function seed() {
   await sgRef.set({
     server_group_id: TEST_SERVER_GROUP_ID,
     parish_code: TEST_PARISH_CODE,
-    name: '범어성당 복사단 1그룹',
-    timezone: 'Asia/Seoul',
-    locale: 'ko-KR',
+    name: '🎒초등부 복사단',
     active: true,
     created_at: new Date(),
     updated_at: new Date(),
   });
   console.log(`✅ server_groups/${TEST_SERVER_GROUP_ID} 문서 생성`);
+
+  // 2.1 Counters
+  await db.collection('counters').doc('server_groups').set({ last_seq: 1 });
+  console.log('✅ counters/server_groups (last_seq: 1) 초기화 완료');
 
   // 3️⃣ members
   const batch = db.batch();

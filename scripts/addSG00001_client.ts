@@ -35,7 +35,7 @@ async function addServerGroup() {
   await setDoc(sgRef, {
     server_group_id: TEST_SERVER_GROUP_ID,
     parish_code: TEST_PARISH_CODE,
-    name: '범어성당 복사단 1그룹',
+    name: '🎒초등부 복사단',
     timezone: 'Asia/Seoul',
     locale: 'ko-KR',
     active: true,

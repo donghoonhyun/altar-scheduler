@@ -26,7 +26,7 @@ import {
 import type { MemberDoc } from '@/types/firestore';
 // Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCallback } from 'react';
 
 interface MassEventDrawerProps {
@@ -37,6 +37,16 @@ interface MassEventDrawerProps {
   monthStatus?: string;
   events?: MassEventCalendar[];
   readOnly?: boolean;
+}
+
+interface NotificationLog {
+    type: 'app_push' | 'sms' | 'kakaotalk';
+    sent_at: any; // Timestamp
+    recipient_count: number;
+    status: 'success' | 'partial' | 'failure';
+    message?: string;
+    group_id?: string;
+    details?: { member_id: string; name: string; phone?: string; result: string }[];
 }
 
 const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
@@ -54,6 +64,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [requiredServers, setRequiredServers] = useState<number | null>(null);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [mainMemberId, setMainMemberId] = useState<string | null>(null);
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean; start_year?: string }[]>([]);
   const [unavailableMembers, setUnavailableMembers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -63,6 +74,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
+  const [showAllLogs, setShowAllLogs] = useState(false);
 
   const GRADE_ORDER = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3', '기타'];
 
@@ -136,6 +148,16 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           const loadedMemberIds = (data.member_ids as string[]) || [];
           setMemberIds(loadedMemberIds);
           setMainMemberId(data.main_member_id || null);
+
+          // Notifications
+          const logs = (data.notifications || []) as NotificationLog[];
+          // Sort by date desc
+          logs.sort((a, b) => {
+              const tA = a.sent_at?.toDate ? a.sent_at.toDate().getTime() : 0;
+              const tB = b.sent_at?.toDate ? b.sent_at.toDate().getTime() : 0;
+              return tB - tA;
+          });
+          setNotificationLogs(logs);
         }
       } catch (err) {
         console.error('❌ 이벤트 불러오기 오류:', err);
@@ -406,7 +428,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           <DialogTitle>
             📝 {readOnly ? '미사 일정 상세' : eventId ? '미사 일정 수정' : '미사 일정 등록'}
             {date && (
-              <span className="ml-2 text-base font-normal text-gray-600">
+              <span className="ml-2 text-base font-bold text-blue-600 dark:text-blue-400">
                 ({dayjs(date).format('M월 D일 (ddd)')})
               </span>
             )}
@@ -668,31 +690,136 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             </div>
           )}
 
+          {/* 알림 발송 이력 (상세보기/수정 모드일 때만) */}
+          {eventId && (
+             <div className="pt-4 mt-2 border-t border-gray-100 dark:border-slate-700">
+                <span className="font-medium text-gray-900 dark:text-gray-200 block mb-3">알림 발송 이력</span>
+                
+                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-100 dark:border-slate-700">
+                   {notificationLogs.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">발송된 이력이 없습니다.</p>
+                   ) : (
+                      <>
+                        <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                           {(showAllLogs ? notificationLogs : notificationLogs.slice(0, 3)).map((log, idx) => {
+                              const sentDate = log.sent_at?.toDate ? dayjs(log.sent_at.toDate()) : dayjs(log.sent_at);
+                              
+                              return (
+                                 <div key={idx} className="p-2.5 hover:bg-white dark:hover:bg-slate-800 transition-colors">
+                                    {/* Line 1: Icon, Type, Name, Result, Time */}
+                                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                                       <div className="flex items-center gap-2 overflow-hidden">
+                                           <div className={`p-1 rounded-full shrink-0 ${
+                                              log.type === 'sms' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 
+                                              log.type === 'kakaotalk' ? 'bg-yellow-300 text-black border border-yellow-400' :
+                                              'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                                           }`}>
+                                              {log.type === 'app_push' ? <Bell size={10} /> : 
+                                               log.type === 'sms' ? <Smartphone size={10} /> :
+                                               <MessageCircle size={10} fill="currentColor" />
+                                              }
+                                           </div>
+                                           <span className="font-bold text-gray-700 dark:text-gray-200 shrink-0">
+                                              {log.type === 'app_push' ? '앱 푸시' : log.type === 'sms' ? '문자' : '알림톡'}
+                                           </span>
+                                           <div className="w-px h-2.5 bg-gray-300 dark:bg-slate-600 shrink-0 mx-0.5" />
+                                           
+                                           <div className="flex items-center gap-1.5 truncate">
+                                              {log.details && log.details.length > 0 ? (
+                                                  log.details.map((detail, dIdx) => (
+                                                      <div key={dIdx} className="flex items-center gap-1 truncate">
+                                                          <span className="text-gray-600 dark:text-gray-300 font-medium truncate">{detail.name}</span>
+                                                          <span className={`text-[10px] shrink-0 font-medium ${detail.result === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                                              {detail.result === 'success' ? '성공' : '실패'}
+                                                          </span>
+                                                          {log.type === 'sms' && detail.phone && (
+                                                              <span className="text-[9px] text-gray-400 font-mono hidden sm:inline ml-0.5">
+                                                                {detail.phone}
+                                                              </span>
+                                                          )}
+                                                      </div>
+                                                  ))
+                                              ) : (
+                                                  <span className="text-gray-400">수신자 정보 없음</span>
+                                              )}
+                                           </div>
+                                       </div>
+                                       <span className="text-[10px] text-gray-400 font-mono shrink-0">
+                                          {sentDate.format('MM.DD HH:mm')}
+                                       </span>
+                                    </div>
+
+                                    {/* Line 2: Message & GroupID */}
+                                    <div className="flex items-center gap-2 pl-7">
+                                        {/* SMS Group ID Badge */}
+                                        {log.type === 'sms' && log.group_id && (
+                                           <span className="shrink-0 text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono tracking-tighter">
+                                               {log.group_id}
+                                           </span>
+                                        )}
+                                        <p className="text-xs text-gray-500 truncate dark:text-gray-400 flex-1">
+                                           {log.message || '내용 없음'}
+                                        </p>
+                                    </div>
+                                 </div>
+                              );
+                           })}
+                        </div>
+                        
+                        {/* 더보기 버튼 */}
+                        {notificationLogs.length > 3 && (
+                            <button 
+                                onClick={() => setShowAllLogs(!showAllLogs)}
+                                className="w-full py-2 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-50/50 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors border-t border-gray-100 dark:border-slate-800 rounded-b-lg"
+                            >
+                                {showAllLogs ? (
+                                    <>접기 <ChevronUp size={12} /></>
+                                ) : (
+                                    <>더보기 ({notificationLogs.length - 3}건) <ChevronDown size={12} /></>
+                                )}
+                            </button>
+                        )}
+                      </>
+                   )}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5 pl-1">
+                   * 미사 하루 전 저녁 8시에 학부모님께 자동으로 발송됩니다. (설정 ON 시)
+                </p>
+             </div>
+          )}
+
           {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
 
           {/* 하단 버튼 */}
           {/* 하단 버튼 */}
-          <div className="flex justify-end gap-2 mt-6">
-            {!readOnly && eventId && (
-              <Button
-                variant="outline"
-                onClick={handleDelete}
-                disabled={loading}
-                className="text-red-600 border-red-400"
-              >
-                삭제
-              </Button>
-            )}
-            <DialogClose asChild>
-              <Button variant="outline" disabled={loading}>
-                {readOnly ? '닫기' : '취소'}
-              </Button>
-            </DialogClose>
-            {!readOnly && (
-              <Button onClick={handleSave} disabled={loading}>
-                {loading ? '저장 중...' : eventId ? '수정' : '저장'}
-              </Button>
-            )}
+          {/* 하단 버튼 */}
+          <div className="flex justify-between items-center mt-6">
+            {/* 좌측: 삭제 버튼 */}
+            <div>
+                {!readOnly && eventId && (
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={loading}
+                  >
+                    삭제
+                  </Button>
+                )}
+            </div>
+
+            {/* 우측: 취소/저장 버튼 */}
+            <div className="flex gap-2">
+                <DialogClose asChild>
+                  <Button variant="outline" disabled={loading}>
+                    {readOnly ? '닫기' : '취소'}
+                  </Button>
+                </DialogClose>
+                {!readOnly && (
+                  <Button onClick={handleSave} disabled={loading}>
+                    {loading ? '저장 중...' : eventId ? '수정' : '저장'}
+                  </Button>
+                )}
+            </div>
           </div>
         </div>
       </DialogContent>

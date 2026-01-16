@@ -5,8 +5,7 @@ import { COMMON_OPTIONS_V2 } from '../config';
 interface CreateServerGroupRequest {
   parishCode: string;
   name: string;
-  timezone: string;
-  locale: string;
+
   active: boolean;
 }
 
@@ -19,7 +18,7 @@ export const createServerGroup = onCall(
   async (
     request: CallableRequest<CreateServerGroupRequest>
   ): Promise<CreateServerGroupResponse> => {
-    const { parishCode, name, timezone, locale, active } = request.data;
+    const { parishCode, name, active } = request.data;
 
     const db = admin.firestore();
     const ref = db.collection('server_groups').doc();
@@ -27,8 +26,7 @@ export const createServerGroup = onCall(
     await ref.set({
       parishCode,
       name,
-      timezone,
-      locale,
+
       active,
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });

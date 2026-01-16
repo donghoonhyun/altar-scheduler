@@ -14,7 +14,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, Pencil } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -73,6 +73,10 @@ export default function ServerList() {
   const [editActive, setEditActive] = useState(false);
   const [editGrade, setEditGrade] = useState('');
   const [editStartYear, setEditStartYear] = useState('');
+  // ✅ 이름/세례명 수정용 state
+  const [editNameKor, setEditNameKor] = useState('');
+  const [editBaptismalName, setEditBaptismalName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false); // 이름 수정 모드 토글
   const [isSaving, setIsSaving] = useState(false);
 
   // ✅ 정렬 상태: 'name' | 'grade'
@@ -84,6 +88,9 @@ export default function ServerList() {
       setEditActive(selectedMember.active);
       setEditGrade(selectedMember.grade || 'M1');
       setEditStartYear(selectedMember.start_year || '');
+      setEditNameKor(selectedMember.name_kor || '');
+      setEditBaptismalName(selectedMember.baptismal_name || '');
+      setIsEditingName(false); // 초기화
       // Drawer 열릴 때 현재 월로 초기화
       setStatsBaseDate(dayjs());
     }
@@ -281,12 +288,22 @@ export default function ServerList() {
         active: editActive, 
         grade: editGrade,
         start_year: editStartYear,
+        name_kor: editNameKor,
+        baptismal_name: editBaptismalName,
         request_confirmed: true, // 수정 시 확정 상태 보장 (비활동 전환 시 필요)
         updated_at: new Date() 
       });
       
       // 로컬 상태 업데이트
-      setSelectedMember(prev => prev ? ({ ...prev, active: editActive, grade: editGrade, start_year: editStartYear, request_confirmed: true }) : null);
+      setSelectedMember(prev => prev ? ({ 
+          ...prev, 
+          active: editActive, 
+          grade: editGrade, 
+          start_year: editStartYear,
+          name_kor: editNameKor,
+          baptismal_name: editBaptismalName,
+          request_confirmed: true 
+      }) : null);
       
       toast.success('정보가 저장되었습니다.');
       setIsDrawerOpen(false);
@@ -335,10 +352,19 @@ export default function ServerList() {
       setEditActive(selectedMember.active);
       setEditGrade(selectedMember.grade || 'M1');
       setEditStartYear(selectedMember.start_year || '');
+      setEditNameKor(selectedMember.name_kor || '');
+      setEditBaptismalName(selectedMember.baptismal_name || '');
+      setIsEditingName(false);
     }
   };
 
-  const hasChanges = selectedMember ? (selectedMember.active !== editActive || selectedMember.grade !== editGrade || selectedMember.start_year !== editStartYear) : false;
+  const hasChanges = selectedMember ? (
+    selectedMember.active !== editActive || 
+    selectedMember.grade !== editGrade || 
+    selectedMember.start_year !== editStartYear ||
+    selectedMember.name_kor !== editNameKor ||
+    selectedMember.baptismal_name !== editBaptismalName
+  ) : false;
 
   // ✅ 정렬된 리스트 계산 (useMemo)
   const sortedActiveMembers = useMemo(() => {
@@ -418,13 +444,14 @@ export default function ServerList() {
                     <div className="flex flex-col gap-1">
                       <Button
                         onClick={() => handleApprove(m.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white text-[11px] h-7 w-[50px] px-0"
+                        className="text-[11px] h-7 w-[50px] px-0"
                       >
                         승인
                       </Button>
                       <Button
                         onClick={() => handleDelete(m.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white text-[11px] h-7 w-[50px] px-0"
+                        variant="destructive"
+                        className="text-[11px] h-7 w-[50px] px-0"
                       >
                         삭제
                       </Button>
@@ -724,10 +751,39 @@ export default function ServerList() {
         <DrawerContent>
           <div className="mx-auto w-full max-w-sm">
             <DrawerHeader className="pb-2">
-              <DrawerTitle className="text-xl font-bold flex items-center gap-2 dark:text-gray-100">
-                 {selectedMember?.name_kor} 
-                 <span className="text-base font-normal text-gray-500 dark:text-gray-400">({selectedMember?.baptismal_name})</span>
+              <DrawerTitle className="text-xl font-bold flex flex-col gap-2 dark:text-gray-100">
 
+                 {isEditingName ? (
+                   <div className="flex items-center gap-3 w-full">
+                      <input 
+                          className="bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none flex-1 min-w-0 text-xl font-bold text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
+                          value={editNameKor}
+                          onChange={(e) => setEditNameKor(e.target.value)}
+                          placeholder="이름"
+                          autoFocus
+                      />
+                      <input 
+                          className="bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none flex-1 min-w-0 text-base font-normal text-gray-500 dark:text-gray-400 placeholder:text-gray-400"
+                          value={editBaptismalName}
+                          onChange={(e) => setEditBaptismalName(e.target.value)}
+                          placeholder="세례명"
+                      />
+                      <button onClick={() => setIsEditingName(false)} className="shrink-0 text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">완료</button>
+                   </div>
+                 ) : (
+                   <div className="flex items-center gap-2">
+                     <span>{selectedMember?.name_kor}</span>
+                     <span className="text-base font-normal text-gray-500 dark:text-gray-400">
+                       ({selectedMember?.baptismal_name})
+                     </span>
+                     <button 
+                       onClick={() => setIsEditingName(true)}
+                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                     >
+                       <Pencil size={14} />
+                     </button>
+                   </div>
+                 )}
               </DrawerTitle>
             </DrawerHeader>
             <div className="p-4 space-y-6 pt-0">

@@ -56,7 +56,11 @@ export default function SuperAdminMain() {
   };
 
   const handleCreate = () => {
-    setEditingParish({ active: true });
+    setEditingParish({ 
+      active: true,
+      timezone: 'Asia/Seoul',
+      locale: 'ko-KR' 
+    });
     setIsEditing(true);
   };
 
@@ -103,6 +107,8 @@ export default function SuperAdminMain() {
         code, // ensure trimmed
         name_kor: nameKor, // ensure trimmed
         name_eng: nameEng,
+        timezone: editingParish.timezone || 'Asia/Seoul',
+        locale: editingParish.locale || 'ko-KR',
         updated_at: serverTimestamp(),
       }, { merge: true });
 
@@ -439,6 +445,28 @@ export default function SuperAdminMain() {
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">시간대 (Timezone)</label>
+                  <input
+                    className="mt-1 block w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={editingParish.timezone || 'Asia/Seoul'}
+                    onChange={(e) => setEditingParish({...editingParish, timezone: e.target.value})}
+                    placeholder="예: Asia/Seoul"
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">언어 (Locale)</label>
+                  <input
+                    className="mt-1 block w-full border border-gray-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={editingParish.locale || 'ko-KR'}
+                    onChange={(e) => setEditingParish({...editingParish, locale: e.target.value})}
+                    placeholder="예: ko-KR"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center">

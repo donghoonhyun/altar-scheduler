@@ -555,6 +555,80 @@
   ├── server_groups { last_seq: 3 }  
   └── notifications { last_seq: 102 }
 
+### 📍2.16 알림 시스템 (Notifications)
+
+- **기술 스택**: Firebase Cloud Messaging (FCM) + Cloud Functions + Solapi (SMS/Kakao)
+- **알림 정책**:
+  - **Soft Opt-out**: 브라우저 권한과 별개로 앱 내 설정에서 알림 수신 여부(ON/OFF) 제어.
+    . OFF: LocalStorage 저장 및 Firestore 토큰 삭제.
+    . ON: 토큰 재발급 및 Firestore 등록.
+
+#### 2.16.1 알림 발송 시점 및 수신자
+1. **상태 변경 시 (즉시 발송)**
+   - 트리거: 설문 시작(MASS-CONFIRMED), 설문 종료(SURVEY-CONFIRMED), 최종 확정(FINAL-CONFIRMED) 상태 변경 시
+   - 수신자: 해당 복사단 전체 인원 (Admin, Planner, Server)
+   - 채널: 앱 푸시 (App Push)
+2. **주기적 미사 알림 (하루 전 발송)**
+   - 트리거: 매일 저녁 8시 (Cron Job), 다음날 미사(MassEvent) 일정 확인 후 발송
+   - 수신자: 해당 미사에 배정된 복사(`member_id`)의 부모(`parent_uid`)
+     . 부모 정보가 없는 경우 학생 본인 번호 고려 (정책 확인 필요)
+   - 채널: 앱 푸시, SMS, 알림톡 (사용자별/복사단별 설정에 따름)
+3. **권한 신청 시**
+   - 트리거: 신규 복사 등록 또는 플래너 권한 신청 발생 시
+   - 수신자: 해당 복사단의 Admin, Planner 그룹
+   - 채널: 앱 푸시
+
+#### 2.16.2 문자 알림 설정 (SMS Service Configuration)
+- **설정 항목 (`sms_service_active`)**:
+  - `parishes/{parishCode}`: 성당 단위 대분류 설정 (Super Admin만 제어 가능)
+  - `server_groups/{sgId}`: 복사단 단위 소분류 설정 (Planner/Admin 제어 가능)
+- **발송 조건 (AND 조건)**:
+  - 성당 설정(`true`) **AND** 복사단 설정(`true`) 인 경우에만 SMS/알림톡 발송
+- **Cascading Logic**:
+  - 성당 설정 OFF: 하위 모든 복사단의 실제 발송이 차단됨 (복사단 설정값 변경 여부는 정책에 따름, 보통 발송 시점에 체크)
+  - 성당 설정 ON: 복사단이 개별적으로 ON 해야 발송됨
+
+#### 2.16.3 복사 미사 미리 알림 및 이력 관리
+- **기능**: 배정된 미사 하루 전 저녁 8시에 부모님에게 알림 발송.
+  - 날짜 기준: 배정일 기준 D-1 저녁 8시 (KST)
+  - 조건: 미사 상태(`status`)가 **'최종 확정(FINAL-CONFIRMED)'** 인 경우에만 발송.
+- **문자 내용 (SMS Template)**:
+  - 복사단 설정(`sms_reminder_template`)에서 문구 커스터마이징 가능.
+  - **기본 문구**: `[알림] 내일({date}) {title} {name} 복사 배정이 있습니다. 늦지 않게 준비바랍니다.`
+  - **사용 가능 변수**:
+    - `{date}`: 미사 날짜 (예: 5/12(주일))
+    - `{title}`: 미사 제목 (예: 교중미사)
+    - `{name}`: 수신 대상 복사 이름 (예: 홍길동)
+- **채널 우선순위**:
+  1. 앱 푸시 (기본, Multicast 방식이므로 `{name}` 변수 미지원, 공통 문구 사용)
+  2. SMS 문자 (성당/복사단 설정 ON 시, 커스텀/기본 템플릿 사용)
+  3. 카카오 알림톡 (향후 예정, 현재 비활성)    
+- **이력 저장 (History Storage)**:
+  - 위치: `server_groups/{sgId}/mass_events/{eventId}` 문서 내 `notifications` 배열 필드
+  - 데이터 구조:
+    ```ts
+    interface NotificationLog {
+      type: 'app_push' | 'sms' | 'kakaotalk';
+      sent_at: Timestamp;
+      recipient_count: number;
+      status: 'success' | 'partial' | 'failure';
+      message: string;
+      group_id?: string; // SMS 발송 그룹 ID (Solapi tracking용)
+      details?: {
+        member_id: string; // 학생 ID
+        name: string;      // 학생 이름
+        phone?: string;    // 수신한 부모님 번호
+        result: string;    // 개별 전송 결과
+      }[];
+    }
+    ```
+- **화면 표시 (UI Display)**:
+  - 위치: Planner - 미사 상세(MassEventDrawer) 하단 '알림 발송 이력' 섹션
+  - 구성:
+    . 최신 3건 노출 (더보기 버튼으로 확장)
+    . 항목: 아이콘(타입), 발송일시, 메시지 내용(말줄임), SMS Group ID(문자인 경우)
+    . 상세: 수신자 이름, 상태(성공/실패), 전화번호(SMS인 경우)
+  - 디자인: 높이를 줄인 2줄 Compact Layout 적용
 ---
 
 ## 🎯3. 비기능 요구사항
@@ -661,24 +735,7 @@
 
 - 캐시/미러는 선택 사항으로 향후 사용자가 많아질 경우 성능을 위해 고려해야함
 
-### 📍2.16 알림 시스템 (Notifications)
 
-- **기술 스택**: Firebase Cloud Messaging (FCM) + Cloud Functions
-- **알림 정책**:
-  - **Soft Opt-out**: 브라우저 권한과 별개로 앱 내 설정에서 알림 수신 여부(ON/OFF) 제어.
-    . OFF: LocalStorage 저장 및 Firestore 토큰 삭제.
-    . ON: 토큰 재발급 및 Firestore 등록.
-- **자동 알림 트리거 (Cloud Functions)**:
-  1. **신규 회원 가입 (`onUserCreated`)**:
-     . 수신: Super Admin
-     . 내용: "새로운 회원이 가입했습니다."
-  2. **입단/권한 신청 (`onMemberEvents`)**:
-     . 수신: 해당 Group Admin
-     . 내용: "신규 복사단원 입단 신청" 또는 "플래너 권한 신청"
-  3. **월간 일정 상태 변경 (`onMonthlyStatusChanged`)**:
-     . 수신: 해당 그룹 전체 멤버
-     . 조건: 상태 'OPEN'(설문시작), 'CLOSED'(설문마감), 'CONFIRMED'(배정완료) 변경 시
-     . 내용: 각 상태별 안내 메시지 발송
 
 ---
 

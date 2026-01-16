@@ -4,6 +4,7 @@ import { COMMON_OPTIONS_V2 } from '../config';
 
 interface SendTestNotificationRequest {
   targetUid: string;
+  iconUrl?: string; // ✅ Receive absolute icon path
 }
 
 export const sendTestNotification = onCall(
@@ -16,7 +17,7 @@ export const sendTestNotification = onCall(
       throw new HttpsError('unauthenticated', 'User must be logged in.');
     }
 
-    const { targetUid } = request.data;
+    const { targetUid, iconUrl } = request.data;
     if (!targetUid) {
       throw new HttpsError('invalid-argument', 'Target UID is required.');
     }
@@ -37,10 +38,29 @@ export const sendTestNotification = onCall(
     }
 
     // 3. Send Message
-    const payload = {
+    // ✅ Switch to Data-Only Payload
+    // This forces the Service Worker to handle the display, fixing the "Chrome Icon" issue on Android.
+    // The Service Worker is now configured to explicitly call showNotification with these data fields.
+    // 3. Send Message
+    // ✅ Revert to Standard Notification Payload (Restores PC functionality)
+    // ✅ Use Absolute Icon URL for both Icon and Badge (Attempt to fix Mobile Icon)
+    const notificationIcon = iconUrl || 'https://altar-scheduler-dev.web.app/pwa-icon.png';
+
+    const payload: admin.messaging.MulticastMessage = {
       notification: {
         title: '🔔[Altar Scheduler] 알림 테스트',
         body: '테스트 메시지(FCM)를 정상적으로 수신하였습니다.',
+      },
+      webpush: {
+        notification: {
+          title: '🔔[Altar Scheduler] 알림 테스트',
+          body: '테스트 메시지(FCM)를 정상적으로 수신하였습니다.',
+          icon: notificationIcon,
+          badge: notificationIcon, // Badge for Android Status Bar
+        },
+        fcmOptions: {
+          link: '/', 
+        },
       },
       tokens: tokens,
     };

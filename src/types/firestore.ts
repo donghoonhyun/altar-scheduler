@@ -21,9 +21,9 @@ export interface ServerGroupDoc {
   id: string;
   parish_code: string;
   name: string;
-  timezone: string;
-  locale: string;
   active: boolean;
+  sms_reminder_template?: string;
+  sms_service_active?: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -144,8 +144,6 @@ export interface MassEventSeed {
 export interface CreateServerGroupRequest {
   parishCode: string;
   name: string;
-  timezone: string;
-  locale: string;
   active: boolean;
 }
 

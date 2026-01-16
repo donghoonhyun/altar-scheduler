@@ -425,9 +425,9 @@ export default function SmsManagement() {
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 border-b pb-2 dark:border-slate-800">
                             결과 상세
-                        </h3>
-                         <div className="bg-slate-900 rounded-lg p-3 overflow-x-auto">
-                            <pre className="text-xs text-green-400 font-mono">
+                         </h3>
+                         <div className="bg-slate-900 rounded-lg p-3">
+                            <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">
                                 {JSON.stringify({
                                     result_code: selectedLog.result_code,
                                     result_message: selectedLog.result_message,

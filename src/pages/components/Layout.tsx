@@ -48,7 +48,13 @@ export default function Layout() {
           {/* 좌측: Church Icon (Purple) */}
           <div 
             className="flex items-center gap-3 cursor-pointer"
-            onClick={() => navigate("/")}
+            onClick={() => {
+              if (serverGroupId) {
+                navigate(`/server-groups/${serverGroupId}`);
+              } else {
+                navigate("/");
+              }
+            }}
           >
             <img 
               src={getAppIconPath()} 

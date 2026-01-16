@@ -20,7 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
     secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm focus:ring-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700', 
     outline: 'border border-gray-500 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-200 dark:text-gray-300 dark:border-gray-500 dark:hover:bg-gray-800',
     ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100',
-    destructive: 'bg-red-600 hover:bg-red-700 text-white shadow-sm focus:ring-red-300',
+    destructive: 'bg-red-600 hover:bg-red-700 text-white shadow-sm focus:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700',
     edit: 'bg-white border text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 focus:ring-blue-100 dark:bg-gray-800 dark:border-blue-900 dark:text-blue-400 dark:hover:bg-blue-900/30',
   };
   const sizes = {

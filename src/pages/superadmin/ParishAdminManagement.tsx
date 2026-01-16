@@ -20,7 +20,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { Container, Card, Heading, Button, Input, Label } from '@/components/ui';
-import { ArrowLeft, User, Plus, X, Search, ShieldAlert, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Plus, X, Search, ShieldAlert, Trash2, MessageSquare, Globe, Clock, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ServerGroup {
@@ -55,6 +55,9 @@ export default function ParishAdminManagement() {
   const [parishName, setParishName] = useState('');
   const [serverGroups, setServerGroups] = useState<ServerGroup[]>([]);
   const [adminsByGroup, setAdminsByGroup] = useState<Record<string, AdminUser[]>>({});
+  const [smsServiceActive, setSmsServiceActive] = useState(false);
+  const [parishTimezone, setParishTimezone] = useState('Asia/Seoul');
+  const [parishLocale, setParishLocale] = useState('ko-KR');
   const [loading, setLoading] = useState(true);
 
   // Modal State
@@ -79,10 +82,14 @@ export default function ParishAdminManagement() {
     if (!parishCode) return;
     setLoading(true);
     try {
-      // 1) Fetch Parish Name
+      // 1) Fetch Parish Name & SMS Setting
       const parishDoc = await getDoc(doc(db, 'parishes', parishCode));
       if (parishDoc.exists()) {
-        setParishName(parishDoc.data().name_kor || parishCode);
+        const pData = parishDoc.data();
+        setParishName(pData.name_kor || parishCode);
+        setSmsServiceActive(pData.sms_service_active === true);
+        setParishTimezone(pData.timezone || 'Asia/Seoul');
+        setParishLocale(pData.locale || 'ko-KR');
       }
 
       // 2) Fetch Server Groups
@@ -139,6 +146,45 @@ export default function ParishAdminManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // SMS Toggle Handler
+  const handleToggleSmsService = async (newState: boolean) => {
+      if (!parishCode) return;
+      
+      if (!newState) {
+          if (!confirm('문자 서비스를 끄시겠습니까?\n이 성당에 속한 모든 복사단의 문자 알림 서비스도 자동으로 비활성화됩니다.')) return;
+      } else {
+          if (!confirm('문자 서비스를 켜시겠습니까?\n이제 각 복사단 설정에서 문자 알림을 개별적으로 켤 수 있게 됩니다.')) return;
+      }
+
+      try {
+          await updateDoc(doc(db, 'parishes', parishCode), {
+              sms_service_active: newState,
+              updated_at: serverTimestamp()
+          });
+          setSmsServiceActive(newState);
+          toast.success(`문자 서비스를 ${newState ? '활성화' : '비활성화'} 했습니다.`);
+      } catch (e) {
+          console.error(e);
+          toast.error('설정 변경 실패');
+      }
+  };
+
+  // Update Parish Settings (Timezone, Locale)
+  const handleUpdateParishSettings = async () => {
+      if (!parishCode) return;
+      try {
+          await updateDoc(doc(db, 'parishes', parishCode), {
+              timezone: parishTimezone,
+              locale: parishLocale,
+              updated_at: serverTimestamp()
+          });
+          toast.success('성당 기본 설정이 저장되었습니다.');
+      } catch (e) {
+          console.error(e);
+          toast.error('설정 저장 실패');
+      }
   };
 
   // 2. Search Users
@@ -303,8 +349,10 @@ export default function ParishAdminManagement() {
                 parish_code: parishCode,
                 name: newGroupName,
                 active: true,
-                timezone: 'Asia/Seoul',
-                locale: 'ko-KR',
+                // Timezone/Locale defaults to Parish settings or hardcoded for now if not present
+                // Ideally, Cloud Function creates this, so client doesn't need to send it if CF fetches from parish.
+                // But here we are using client sdk transaction.
+                // Since we moved timezone/locale to Parish, we don't store it in ServerGroup anymore.
                 created_at: serverTimestamp(),
                 updated_at: serverTimestamp(),
             });
@@ -355,6 +403,90 @@ export default function ParishAdminManagement() {
       </div>
 
       <div className="grid gap-6">
+        {/* SMS Service Setting Card */}
+        <Card className="p-5 border-none shadow-sm bg-white dark:bg-slate-800">
+             <div className="flex items-start gap-4">
+                 <div className={`p-3 rounded-xl shrink-0 ${smsServiceActive ? 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                     <MessageSquare size={24} />
+                 </div>
+                 <div className="flex-1">
+                     <div className="flex items-center justify-between mb-2">
+                         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">문자(SMS) 알림 서비스 (유료)</h3>
+                         <div className="flex items-center gap-2">
+                             <Label htmlFor="parish_sms_active" className="text-sm font-bold text-gray-600 dark:text-gray-400 cursor-pointer">
+                                 {smsServiceActive ? '사용 중' : '사용 안 함'}
+                             </Label>
+                             <input 
+                                 type="checkbox" 
+                                 id="parish_sms_active" 
+                                 className="w-10 h-5 text-purple-600 rounded-full border-gray-300 focus:ring-purple-500 cursor-pointer appearance-none bg-gray-200 checked:bg-green-500 transition-colors relative checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-transform"
+                                 checked={smsServiceActive}
+                                 onChange={(e) => handleToggleSmsService(e.target.checked)}
+                             />
+                         </div>
+                     </div>
+                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                         이 성당의 전체 문자 발송 기능을 제어합니다. <br/>
+                         비활성화 시 모든 하위 복사단의 문자 알림이 강제로 중지됩니다. 비용 관리가 필요한 경우 사용하세요.
+                     </p>
+                 </div>
+             </div>
+        </Card>
+
+        {/* Global Settings Card (Timezone / Locale) */}
+        <Card className="p-5 border-none shadow-sm bg-white dark:bg-slate-800">
+            <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl shrink-0 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                    <Globe size={24} />
+                </div>
+                <div className="flex-1 space-y-4">
+                     <div>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">기본 지역 설정</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                             이 성당에 속한 모든 복사단의 기본 시간대와 언어 설정을 관리합니다.
+                        </p>
+                     </div>
+                     
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <Clock size={14} /> 시간대 (Timezone)
+                            </Label>
+                            <Input 
+                                value={parishTimezone}
+                                onChange={(e) => setParishTimezone(e.target.value)}
+                                placeholder="Asia/Seoul"
+                                className="dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
+                            />
+                            <p className="text-xs text-gray-400">예: Asia/Seoul, America/New_York</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <Globe size={14} /> 언어 (Locale)
+                            </Label>
+                            <Input 
+                                value={parishLocale}
+                                onChange={(e) => setParishLocale(e.target.value)}
+                                placeholder="ko-KR"
+                                className="dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
+                            />
+                             <p className="text-xs text-gray-400">예: ko-KR, en-US</p>
+                        </div>
+                     </div>
+
+                     <div className="flex justify-end pt-2">
+                        <Button
+                            size="sm" 
+                            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleUpdateParishSettings}
+                        >
+                            <Save size={16} /> 설정 저장
+                        </Button>
+                     </div>
+                </div>
+            </div>
+        </Card>
+
         {serverGroups.map(group => (
             <Card key={group.id} className="p-5 border-none shadow-sm space-y-4 bg-white dark:bg-slate-800">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-700 pb-3">

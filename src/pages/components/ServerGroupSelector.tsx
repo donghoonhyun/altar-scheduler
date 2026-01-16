@@ -1,5 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useSession } from "@/state/session";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ServerGroupSelector() {
   const session = useSession();
@@ -18,28 +25,30 @@ export default function ServerGroupSelector() {
 
   return (
     <div className="w-full">
-      <select
-        className="w-full border-none px-2 py-1.5 text-sm bg-transparent text-gray-800 dark:text-gray-100 font-bold focus:outline-none appearance-none cursor-pointer"
-        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0rem center', backgroundSize: '1rem' }}
+      <Select
         value={currentId}
-        onChange={(e) => {
-          const val = e.target.value;
+        onValueChange={(val) => {
           if (val) {
-             navigate(`/server-groups/${val}`);
-             session.setCurrentServerGroupId?.(val);
+            navigate(`/server-groups/${val}`);
+            session.setCurrentServerGroupId?.(val);
           }
         }}
       >
-        {groups.map(([sgId, info]) => {
-          // "그룹" 글자가 우측에 붙어있으면 제거
-          const displayName = `${info.parishName} ${info.groupName}`.replace(/그룹$/, '').trim();
-          return (
-            <option key={sgId} value={sgId}>
-              {displayName}
-            </option>
-          );
-        })}
-      </select>
+        <SelectTrigger className="w-full border-none px-2 py-1.5 h-auto text-sm bg-transparent text-gray-800 dark:text-gray-100 font-bold focus:ring-0 focus:ring-offset-0 shadow-none">
+          <SelectValue placeholder="복사단을 선택하세요" />
+        </SelectTrigger>
+        <SelectContent className="max-h-[300px] bg-white dark:bg-slate-900" position="popper">
+          {groups.map(([sgId, info]) => {
+            // "그룹" 글자가 우측에 붙어있으면 제거
+            const displayName = `${info.parishName} ${info.groupName}`.replace(/그룹$/, '').trim();
+            return (
+              <SelectItem key={sgId} value={sgId} className="cursor-pointer font-medium">
+                {displayName}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

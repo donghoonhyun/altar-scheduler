@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, Timestamp, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Container, Card, Heading, Button, Input, Label, InfoBox } from '@/components/ui';
-import { ArrowLeft, Save, Info, Plus, X } from 'lucide-react';
+import { ArrowLeft, Save, Info, Plus, X, MessageSquare, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/state/session';
 
@@ -14,13 +14,25 @@ const ServerGroupSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
+  const [parishSmsActive, setParishSmsActive] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     parish_code: '',
-    timezone: 'Asia/Seoul',
-    locale: 'ko-KR',
     active: true,
+    sms_service_active: false,
+    sms_reminder_template: '',
   });
+
+  // Calculate bytes for Korean (approx 2 bytes) and others (1 byte)
+  const getByteLength = (s: string) => {
+    let b = 0;
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        b += c >> 11 ? 2 : 1;
+    }
+    return b;
+  };
 
   // 복사단 생성 관련 상태
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,13 +47,23 @@ const ServerGroupSettings: React.FC = () => {
         const sgDoc = await getDoc(doc(db, 'server_groups', serverGroupId));
         if (sgDoc.exists()) {
           const data = sgDoc.data();
+          const pCode = data.parish_code || '';
+          
           setFormData({
             name: data.name || '',
-            parish_code: data.parish_code || '',
-            timezone: data.timezone || 'Asia/Seoul',
-            locale: data.locale || 'ko-KR',
+            parish_code: pCode,
             active: data.active !== false,
+            sms_service_active: data.sms_service_active === true,
+            sms_reminder_template: data.sms_reminder_template || '[알림] 내일({date}) {title} {name} 복사 배정이 있습니다. 늦지 않게 준비바랍니다.',
           });
+
+          // Fetch Parish Settings
+          if (pCode) {
+             const parishDoc = await getDoc(doc(db, 'parishes', pCode));
+             if (parishDoc.exists()) {
+                 setParishSmsActive(parishDoc.data().sms_service_active === true);
+             }
+          }
         }
       } catch (err) {
         console.error('Failed to fetch server group info:', err);
@@ -86,8 +108,7 @@ const ServerGroupSettings: React.FC = () => {
           parish_code: formData.parish_code,
           name: newGroupName,
           active: true,
-          timezone: 'Asia/Seoul',
-          locale: 'ko-KR',
+          sms_service_active: false, // Default OFF
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         });
@@ -138,9 +159,9 @@ const ServerGroupSettings: React.FC = () => {
     try {
       await updateDoc(doc(db, 'server_groups', serverGroupId), {
         name: formData.name,
-        timezone: formData.timezone,
-        locale: formData.locale,
         active: formData.active,
+        sms_service_active: formData.sms_service_active, 
+        sms_reminder_template: formData.sms_reminder_template,
         updated_at: Timestamp.now(),
       });
       
@@ -261,37 +282,12 @@ const ServerGroupSettings: React.FC = () => {
             <Label htmlFor="name" className="text-sm font-bold text-gray-700">복사단 이름</Label>
             <Input 
               id="name" 
-              placeholder="예: 범어성당 복사단 1그룹" 
+              placeholder="예: 초등부복사단" 
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="timezone" className="text-sm font-bold text-gray-700">시간대 (Timezone)</Label>
-              <select 
-                id="timezone"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={formData.timezone}
-                onChange={(e) => setFormData(prev => ({ ...prev, timezone: e.target.value }))}
-              >
-                <option value="Asia/Seoul">Asia/Seoul (한국 표준시)</option>
-                <option value="UTC">UTC (세계 표준시)</option>
-              </select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="locale" className="text-sm font-bold text-gray-700">언어 및 지역 (Locale)</Label>
-              <select 
-                id="locale"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={formData.locale}
-                onChange={(e) => setFormData(prev => ({ ...prev, locale: e.target.value }))}
-              >
-                <option value="ko-KR">ko-KR (대한민국)</option>
-                <option value="en-US">en-US (미국)</option>
-              </select>
-            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-2">
@@ -306,7 +302,91 @@ const ServerGroupSettings: React.FC = () => {
               복사단 활성화 상태
             </Label>
           </div>
-        </div>
+
+          <hr className="border-gray-50 my-2" />
+
+          {/* SMS Notification Settings */}
+          <div className="space-y-3">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="bg-amber-100 text-amber-700 p-1.5 rounded-lg">
+                        <MessageSquare size={16} />
+                    </span>
+                    <Label className="text-sm font-bold text-gray-800">문자(SMS) 알림 발송 설정</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded border ${parishSmsActive ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-500 border-red-100'}`}>
+                        성당 설정: {parishSmsActive ? 'ON' : 'OFF'}
+                    </span>
+                </div>
+             </div>
+             
+             <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-100 dark:border-slate-700 space-y-4">
+                <div className="flex items-start gap-3">
+                    <input 
+                      type="checkbox" 
+                      id="sms_active" 
+                      className="mt-1 w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500 disabled:opacity-50"
+                      checked={formData.sms_service_active}
+                      onChange={(e) => setFormData(prev => ({ ...prev, sms_service_active: e.target.checked }))}
+                      disabled={!parishSmsActive} 
+                    />
+                    <div className="flex-1">
+                        <Label htmlFor="sms_active" className={`text-sm font-bold block mb-1 cursor-pointer ${!parishSmsActive && 'opacity-50'}`}>
+                           문자 알림 서비스 켜기
+                        </Label>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                           중요 알림(미사 배정, 변경사항 등)을 학부모님께 문자로 발송합니다.<br/>
+                           <span className="text-amber-600 font-medium">* 비용이 발생하므로 성당 설정이 ON 상태여야 활성화할 수 있습니다.</span>
+                        </p>
+                    </div>
+                </div>
+
+                {!parishSmsActive && (
+                    <div className="flex items-center gap-2 text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 dark:bg-red-900/20 dark:border-red-900/50 dark:text-red-400">
+                        <ShieldAlert size={14} />
+                        성당의 SMS 설정이 꺼져 있어 활성화할 수 없습니다. 관리자에게 문의하세요.
+                    </div>
+                )}
+
+                {/* SMS Template Setting */}
+                {parishSmsActive && formData.sms_service_active && (
+                    <div className="pt-2 border-t border-gray-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2">
+                        <Label htmlFor="sms_template" className="text-sm font-bold block mb-1.5">
+                            미사 SMS 리마인더 문구 
+                            <span className="text-xs font-normal text-gray-500 ml-2">
+                                * 최대 50자(한글 기준 약 90Byte)
+                            </span>
+                        </Label>
+                        <textarea
+                            id="sms_template"
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:text-gray-100 dark:border-slate-700"
+                            value={formData.sms_reminder_template}
+                            onChange={(e) => {
+                                const newVal = e.target.value;
+                                // Simple Byte Limit Check (90 bytes usually, safe 80 bytes)
+                                // Let's enforce soft limit UI but hard limit somewhat?
+                                // User requested "limit". I'll just warn or stop input.
+                                // Let's stop input if length > 80 chars for now to be safe, but actually check bytes.
+                                if (getByteLength(newVal) <= 90) {
+                                    setFormData(prev => ({ ...prev, sms_reminder_template: newVal }));
+                                }
+                            }}
+                            placeholder="[알림] 내일({date}) {title} {name} 복사 배정이 있습니다."
+                        />
+                        <div className="flex justify-between items-start mt-1.5">
+                            <p className="text-[11px] text-gray-400">
+                                사용 가능 변수: <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">{`{date}`}</code>(날짜), <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">{`{title}`}</code>(미사명), <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">{`{name}`}</code>(복사명)
+                            </p>
+                            <span className={`text-[11px] font-mono ${getByteLength(formData.sms_reminder_template) > 80 ? 'text-amber-500 font-bold' : 'text-gray-400'}`}>
+                                {getByteLength(formData.sms_reminder_template)} / 90 bytes
+                            </span>
+                        </div>
+                    </div>
+                )}
+             </div>
+          </div>
+
 
         <div className="pt-4 border-t border-gray-50 flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate(-1)} disabled={saving}>

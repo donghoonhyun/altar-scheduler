@@ -52,8 +52,6 @@ export default function ServerGroupWizard() {
           parish_code: parishCode,
           name: name,
           active: true,
-          timezone: 'Asia/Seoul',
-          locale: 'ko-KR',
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         });

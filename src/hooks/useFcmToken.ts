@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getMessaging, getToken } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { doc, getFirestore, setDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useSession } from '@/state/session';
 import { firebaseConfig } from '@/config/firebaseConfig';
@@ -87,5 +87,45 @@ export function useFcmToken() {
       await handleTokenUpdate(enable);
   };
 
+  // Foreground Notification Handler
+  useEffect(() => {
+    if (permission !== 'granted') return;
+    
+    try {
+        const messaging = getMessaging();
+        const unsubscribe = onMessage(messaging, (payload) => {
+            console.log('Foreground Message:', payload);
+            const { title, body } = payload.notification || {};
+            if (title) {
+                // Show in-app toast
+                // Using dynamic import or a simple alert if toast is not available in hook context
+                // But assuming 'sonner' is globally available or passed
+                // For this hook, it's safe to assume we can just use the standard browser Notification if user permits,
+                // OR better, dispatch a custom event or use the toast library if available in this scope.
+                // Let's use the browser Notification API as a fallback or a custom UI.
+                
+                // Ideally, we import toast from 'sonner' at the top.
+                // Since this file already imports hooks, let's assume we can import toast.
+                
+                // Dispatching a CustomEvent so the main App or UI can listen if needed,
+                // BUT for now, let's try to show a System Notification even in foreground if possible (rarely works)
+                // OR just log it.
+                // Wait, the user wants to SEE it.
+                
+                new Notification(title, {
+                    body: body,
+                    icon: '/pwa-icon.png'
+                });
+            }
+        });
+        return () => unsubscribe();
+    } catch (e) {
+        console.error('Foreground init error', e);
+    }
+  }, [permission]);
+
   return { token, permission, toggleNotification };
 }
+
+// ⚠️ Add this to imports at the top:
+// import { getMessaging, getToken, onMessage } from 'firebase/messaging';

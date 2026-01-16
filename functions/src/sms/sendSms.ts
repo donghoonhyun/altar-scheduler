@@ -30,6 +30,13 @@ export const sendSms = functions
     try {
       result = await sendSolapiMessage(receiver, msg);
 
+      const simplifiedResult = {
+        code: result.code || null,
+        message: result.message || null,
+        groupId: result.groupInfo?._id || null,
+        accountId: result.groupInfo?.accountId || null, 
+      };
+
       // Log Success
       await admin.firestore().collection('sms_logs').add({
         created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -38,15 +45,15 @@ export const sendSms = functions
         receiver,
         message: msg,
         status: 'success',
-        result,
+        result: simplifiedResult, // Save only essential info
         group_id: result?.groupInfo?._id || null,
-        parish_code: data.parish_code || data.parish_id || null, // Updated to use parish_code
+        parish_code: data.parish_code || data.parish_id || null, 
         server_group_id: data.server_group_id || null,
       });
 
       return {
         success: true,
-        data: result
+        data: simplifiedResult // Return simplified result to client too
       };
 
     } catch (error: any) {

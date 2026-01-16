@@ -16,6 +16,7 @@ export interface MassEventSeed {
   status?: string;
   member_ids?: string[];
   names?: string[]; // 로그 참고용
+  notifications?: any[]; // ✅ 알림 로그 (선택)
 }
 
 /**
@@ -76,6 +77,7 @@ export async function seedMassEvents(
         required_servers: ev.required_servers,
         status: ev.status || 'MASS-NOTCONFIRMED',
         member_ids: Array.isArray(ev.member_ids) ? ev.member_ids : [],
+        notifications: ev.notifications || [],
         created_at: new Date(),
         updated_at: new Date(),
       });

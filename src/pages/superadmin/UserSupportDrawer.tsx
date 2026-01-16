@@ -70,7 +70,9 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
       setSending(true);
       const sendTest = httpsCallable(functions, 'sendTestNotification');
       
-      const result = await sendTest({ targetUid: uid });
+      // ✅ Pass absolute icon URL to ensure it renders correctly in background
+      const iconUrl = new URL('/pwa-icon.png', window.location.origin).href;
+      const result = await sendTest({ targetUid: uid, iconUrl });
       
       if ((result.data as any).success) {
           toast.success('테스트 메세지를 발송했습니다.');

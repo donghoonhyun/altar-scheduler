@@ -127,16 +127,16 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-[400px] p-8 shadow-xl bg-white border-none">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-950 px-4">
+      <Card className="w-full max-w-[400px] p-8 shadow-xl bg-white dark:bg-slate-900 border-none">
         <div className="text-center mb-8 flex flex-col items-center">
           <img 
             src={getAppIconPath()} 
             alt="App Logo" 
-            className="w-20 h-20 mb-4 rounded-xl shadow-md border-2 border-white"
+            className="w-20 h-20 mb-4 rounded-xl shadow-md border-2 border-white dark:border-slate-800"
           />
-          <h1 className="text-3xl font-extrabold text-[#4f46e5] mb-2 tracking-tight">{getAppTitleWithEnv()}</h1>
-          <Heading size="md" className="mb-2 text-gray-800">반갑습니다!</Heading>
+          <h1 className="text-3xl font-extrabold text-[#4f46e5] dark:text-indigo-400 mb-2 tracking-tight">{getAppTitleWithEnv()}</h1>
+          <Heading size="md" className="mb-2 text-gray-800 dark:text-slate-200">반갑습니다!</Heading>
         </div>
 
         <form
@@ -148,25 +148,25 @@ const Login: React.FC = () => {
         >
           <div className="space-y-4">
             <div className="relative">
-              <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <User className="absolute left-3 top-3 h-5 w-5 text-gray-400 dark:text-slate-500" />
               <Input
                 type="email"
                 placeholder="이메일 주소"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 h-11 bg-white"
+                className="pl-10 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder:text-slate-500"
                 autoComplete="email"
                 disabled={processing}
               />
             </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400 dark:text-slate-500" />
               <Input
                 type="password"
                 placeholder="비밀번호"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 h-11 bg-white"
+                className="pl-10 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder:text-slate-500"
                 autoComplete="current-password"
                 disabled={processing}
               />
@@ -175,8 +175,8 @@ const Login: React.FC = () => {
 
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center space-x-2">
-              <Checkbox id="keep-login" defaultChecked />
-              <Label htmlFor="keep-login" className="text-sm text-gray-600 cursor-pointer">
+              <Checkbox id="keep-login" defaultChecked className="dark:border-slate-600 dark:data-[state=checked]:bg-indigo-600 dark:data-[state=checked]:text-white" />
+              <Label htmlFor="keep-login" className="text-sm text-gray-600 dark:text-slate-400 cursor-pointer">
                 로그인 상태 유지
               </Label>
             </div>
@@ -186,7 +186,7 @@ const Login: React.FC = () => {
                 setResetEmail(email); // 입력한 이메일이 있으면 자동으로 채워줌
                 setShowResetDialog(true);
               }}
-              className="text-sm text-primary font-semibold hover:underline"
+              className="text-sm text-primary dark:text-indigo-400 font-semibold hover:underline"
             >
               비밀번호찾기
             </button>
@@ -194,7 +194,7 @@ const Login: React.FC = () => {
 
           <Button
             type="submit"
-            className="w-full h-11 text-base font-bold bg-[#8b5cf6] hover:bg-[#7c3aed]"
+            className="w-full h-11 text-base font-bold bg-[#8b5cf6] hover:bg-[#7c3aed] dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white"
             disabled={processing}
           >
             로그인
@@ -203,10 +203,10 @@ const Login: React.FC = () => {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-200" />
+            <span className="w-full border-t border-gray-200 dark:border-slate-700" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-400">또는</span>
+            <span className="bg-white dark:bg-slate-900 px-2 text-gray-400 dark:text-slate-500">또는</span>
           </div>
         </div>
 
@@ -215,7 +215,7 @@ const Login: React.FC = () => {
           type="button"
           onClick={handleGoogleLogin}
           disabled={processing}
-          className="w-full h-11 border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-700 font-medium bg-white"
+          className="w-full h-11 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center justify-center gap-2 text-gray-700 dark:text-slate-200 font-medium bg-white dark:bg-slate-800 transition-colors"
         >
           <img
             src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -227,18 +227,17 @@ const Login: React.FC = () => {
 
 
 
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-8 text-center text-sm text-gray-500 dark:text-slate-400">
           아직 계정이 없나요?{' '}
           <button
             onClick={() => navigate('/signup')}
-            className="text-[#8b5cf6] font-semibold hover:underline ml-1"
+            className="text-[#8b5cf6] dark:text-indigo-400 font-semibold hover:underline ml-1"
           >
             회원가입
           </button>
         </div>
 
-        {/* 앱 설치 버튼 (Login 화면용 - 항상 표시) */}
-        <div className="mt-6 pt-4 border-t border-gray-100/50">
+        <div className="mt-8">
           <Button
             variant="ghost"
             type="button"
@@ -249,10 +248,10 @@ const Login: React.FC = () => {
                     alert('이미 앱이 설치되어 있거나, 현재 브라우저 환경에서는 자동 설치를 지원하지 않습니다.\n브라우저 메뉴(⋮)에서 [앱 설치]를 확인해주세요.');
                 }
             }}
-            className="w-full text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-auto py-2 flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 h-12 flex items-center justify-center gap-2 transition-all rounded-xl font-medium shadow-sm hover:shadow-md"
           >
-            <Download size={14} />
-            앱으로 설치하고 간편하게 접속하세요
+            <Download size={18} />
+            <span className="text-sm">앱으로 설치하고 간편하게 접속하세요</span>
           </Button>
         </div>
       </Card>

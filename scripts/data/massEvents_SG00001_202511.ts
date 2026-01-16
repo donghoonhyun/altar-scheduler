@@ -11,6 +11,58 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
     status: 'MASS-NOTCONFIRMED',
     member_ids: ['MB00003', 'MB00014'],
     names: ['박범서 미카엘', '이지온 스테파노'],
+    notifications: [
+      {
+        type: 'app_push',
+        sent_at: new Date('2025-10-31T20:00:00'),
+        recipient_count: 1,
+        status: 'success',
+        message: '내일(11/01) 미사 배정이 있습니다. 확인해주세요.',
+        details: [{ member_id: 'MB00003', name: '박범서', result: 'success' }]
+      },
+      {
+        type: 'app_push',
+        sent_at: new Date('2025-10-31T20:00:01'),
+        recipient_count: 1,
+        status: 'success',
+        message: '내일(11/01) 미사 배정이 있습니다. 확인해주세요.',
+        details: [{ member_id: 'MB00014', name: '이지온', result: 'success' }]
+      },
+      {
+        type: 'sms',
+        sent_at: new Date('2025-10-31T20:00:05'),
+        recipient_count: 1,
+        status: 'success',
+        message: '[알림] 내일 미사 복사 배정 안내',
+        group_id: 'G_SMS_001',
+        details: [{ member_id: 'MB00003', name: '박범서', phone: '010-1234-5678', result: 'success' }]
+      },
+      {
+        type: 'sms',
+        sent_at: new Date('2025-10-31T20:00:06'),
+        recipient_count: 1,
+        status: 'success',
+        message: '[알림] 내일 미사 복사 배정 안내',
+        group_id: 'G_SMS_001',
+        details: [{ member_id: 'MB00014', name: '이지온', phone: '010-5678-1234', result: 'success' }]
+      },
+      {
+        type: 'kakaotalk',
+        sent_at: new Date('2025-10-31T20:00:10'),
+        recipient_count: 1,
+        status: 'success',
+        message: '알림톡 발송 완료',
+        details: [{ member_id: 'MB00003', name: '박범서', result: 'success' }]
+      },
+      {
+        type: 'kakaotalk',
+        sent_at: new Date('2025-10-31T20:00:11'),
+        recipient_count: 1,
+        status: 'success',
+        message: '알림톡 발송 완료',
+        details: [{ member_id: 'MB00014', name: '이지온', result: 'success' }]
+      },
+    ],
   },
   {
     server_group_id: 'SG00001',

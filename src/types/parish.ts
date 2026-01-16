@@ -5,6 +5,8 @@ export interface Parish {
   name_eng?: string;
   active?: boolean;
   sms_service_active?: boolean;
+  timezone?: string;
+  locale?: string;
   created_at?: any;
   updated_at?: any;
 }
