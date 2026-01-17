@@ -247,7 +247,7 @@
 - 동작:
   . ID생성방식 : Firestore auto ID
   . Firestore mass_events/{id} 문서 생성 : server_groups/{server_group_id}/mass_events/{event_id}
-  . 생성 필드: server_group_id, title, date, required_servers, status, created_at, updated_at
+  . 생성 필드: server_group_id, title, date, required_servers, member_ids, created_at, updated_at
   {
     server_group_id: string;       // FK (복사단 구분용)
     title: string;
@@ -255,7 +255,7 @@
     required_servers: number;
     member_ids: string[];          // 배정된 복사 ID 목록
     main_member_id?: string;       // 주복사 ID (Optional)
-    status: "MASS-NOTCONFIRMED";   // 초기 상태
+    // status: "MASS-NOTCONFIRMED"; // [DEPRECATED] 개별 status는 더 이상 사용하지 않음 (month_status로 통합 관리)
     created_at: timestamp;
     updated_at: timestamp;
   }
@@ -300,6 +300,9 @@
 #### 2.4.7 MassEvent Calendar UI
 
 - 세부 정책 : 'PRD-2.4.7-MassEvent Calendar UI.md' 파일 내용을 참고함.
+- UI 개선 (2025.01):
+  . 배정 충족(Fulfilled) 상태의 미사 카드는 **연한 녹색(Pastel Green)** 배경으로 표시하여 가시성 향상.
+  . 다크 모드에서도 명확히 식별되도록 채도/명도 조정됨.
 
 #### 2.4.8 MassEvent Planner UI
 
@@ -507,6 +510,13 @@
         - 소속 정보: 성당명, 복사단명, Group ID
         - 메세지 내용: 전체 전문 표시
         - 결과 상세: 성공/실패에 따른 상세 JSON 로그 표시 (오류 디버깅용)
+    . **알림 스케쥴링 테스트 (Notification Scheduling Test)**:
+      - 위치: SMS 관리 페이지 내 별도 카드 영역
+      - 목적: Daily/Weekly 등 스케줄러(Crontab)에 의해 자동 실행되는 알림 로직을 관리자가 수동으로 즉시 호출하여 동작 검증 및 누락 건 처리.
+      - 기능: [🔊 미사 리마인드 (Daily)] 카드 제공
+        - 매일 20시에 실행되는 '내일 미사 배정 알림' 로직을 즉시 실행.
+        - `manualDailyMassReminder` Callable Function 호출.
+        - 실행 중 로딩 표시 및 중복 발송 주의 문구 표시.
 
 ---
 
@@ -570,8 +580,9 @@
    - 채널: 앱 푸시 (App Push)
 2. **주기적 미사 알림 (하루 전 발송)**
    - 트리거: 매일 저녁 8시 (Cron Job), 다음날 미사(MassEvent) 일정 확인 후 발송
-   - 수신자: 해당 미사에 배정된 복사(`member_id`)의 부모(`parent_uid`)
-     . 부모 정보가 없는 경우 학생 본인 번호 고려 (정책 확인 필요)
+   - 수신자: 해당 미사에 배정된 복사(`member_id`)의 **부모(`parent_uid`)**
+     . **엄격한 부모 우선 정책**: `users` 컬렉션에서 `parent_uid`로 조회된 부모의 전화번호(`phone`)와 이름(`user_name`)을 사용한다.
+     . 복사 정보(`members`)에 저장된 본인 전화번호는 사용하지 않는다. (미성년자 직접 수신 배제)
    - 채널: 앱 푸시, SMS, 알림톡 (사용자별/복사단별 설정에 따름)
 3. **권한 신청 시**
    - 트리거: 신규 복사 등록 또는 플래너 권한 신청 발생 시
@@ -615,8 +626,8 @@
       message: string;
       group_id?: string; // SMS 발송 그룹 ID (Solapi tracking용)
       details?: {
-        member_id: string; // 학생 ID
-        name: string;      // 학생 이름
+        member_id: string; // 학생 ID (참조용)
+        name: string;      // **수신자(학부모) 이름** (없으면 'OOO 보호자')
         phone?: string;    // 수신한 부모님 번호
         result: string;    // 개별 전송 결과
       }[];
@@ -625,10 +636,19 @@
 - **화면 표시 (UI Display)**:
   - 위치: Planner - 미사 상세(MassEventDrawer) 하단 '알림 발송 이력' 섹션
   - 구성:
-    . 최신 3건 노출 (더보기 버튼으로 확장)
+    . **헤더**: '알림 발송 이력' 타이틀 + **우측 새로고침 아이콘 버튼** (수동 이력 갱신)
+    . 리스트: 최신 3건 노출 (더보기 버튼으로 확장)
     . 항목: 아이콘(타입), 발송일시, 메시지 내용(말줄임), SMS Group ID(문자인 경우)
-    . 상세: 수신자 이름, 상태(성공/실패), 전화번호(SMS인 경우)
+    . 상세(펼침): **수신자 이름(학부모)**, 전화번호, 상태(성공/실패)
   - 디자인: 높이를 줄인 2줄 Compact Layout 적용
+
+#### 2.16.4 수동 리마인더 실행 (Manual Reminder Trigger)
+- **개요**: 스케줄러 오류나 긴급 상황 시, 관리자(Super Admin)가 직접 데일리 리마인더를 실행할 수 있는 기능.
+- **경로**: `/superadmin/sms` > [알림 스케쥴링 테스트] 섹션
+- **구조**:
+  - `manualDailyMassReminder` (Callable Function)를 호출.
+  - 내부적으로 `scheduled` 트리거와 동일한 `executeDailyMassReminder` 핵심 로직을 공유하여 동작의 일관성 보장.
+  - **Month Status 체크**: 수동 실행 시에도 해당 월이 'FINAL-CONFIRMED' 상태인지 확인하고 발송함.
 ---
 
 ## 🎯3. 비기능 요구사항

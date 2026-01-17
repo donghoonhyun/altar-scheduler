@@ -75,7 +75,7 @@ export async function seedMassEvents(
         title,
         event_date, // ✅ Firestore에는 문자열로 저장
         required_servers: ev.required_servers,
-        status: ev.status || 'MASS-NOTCONFIRMED',
+        // status: ev.status || 'MASS-NOTCONFIRMED', // ❌ DEPRECATED
         member_ids: Array.isArray(ev.member_ids) ? ev.member_ids : [],
         notifications: ev.notifications || [],
         created_at: new Date(),

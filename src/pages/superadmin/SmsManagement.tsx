@@ -33,6 +33,7 @@ export default function SmsManagement() {
   const [smsReceiver, setSmsReceiver] = useState('01020879969');
   const [smsMessage, setSmsMessage] = useState('[알림] 미사일정 알림 테스트입니다.');
   const [isSendingSms, setIsSendingSms] = useState(false);
+  const [isRunningReminder, setIsRunningReminder] = useState(false);
 
   // History Log State
   const [logs, setLogs] = useState<SmsLog[]>([]);
@@ -124,6 +125,31 @@ export default function SmsManagement() {
       toast.error(`발송 에러: ${e.message}`);
     } finally {
       setIsSendingSms(false);
+    }
+  };
+
+  const handleManualReminder = async () => {
+    if (!window.confirm('🔔 내일 미사 대상자에게 리마인더를 즉시 발송하시겠습니까?\n(이미 자동 실행된 경우 중복 발송될 수 있으니 주의하세요)')) {
+        return;
+    }
+    
+    try {
+        setIsRunningReminder(true);
+        const manualReminder = httpsCallable(functions, 'manualDailyMassReminder');
+        const res = await manualReminder();
+        const data = res.data as any;
+        
+        if (data.success) {
+            toast.success(data.message || '리마인더 실행 완료');
+            // refresh logs
+            setTimeout(fetchLogs, 2000);
+        } else {
+            toast.error('실행 실패');
+        }
+    } catch (e: any) {
+        toast.error(`에러: ${e.message}`);
+    } finally {
+        setIsRunningReminder(false);
     }
   };
 
@@ -238,6 +264,45 @@ export default function SmsManagement() {
                 <p className="mt-1">현재 설정된 서비스: Solapi</p>
             </div>
           </div>
+        </section>
+
+        {/* 2. 알림 스케쥴링 테스트 (Compact) */}
+        <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-indigo-50/50 dark:bg-indigo-900/10">
+                <h2 className="text-lg font-bold text-indigo-800 dark:text-indigo-400 flex items-center gap-2">
+                   알림 스케쥴링 테스트
+                </h2>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                 {/* 기능 1: 미사 리마인드 */}
+                 <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-800/50 flex flex-col justify-between">
+                     <div className="mb-4">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                             🔊 미사 리마인드 (Daily)
+                             <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">20:00</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                            매일 20시 실행되는 '내일 미사 배정 알림' 로직을 즉시 실행합니다. (App Push + SMS)
+                        </p>
+                     </div>
+                     <div className="space-y-2">
+                        <div className="bg-white dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800 text-[11px] text-red-400 flex items-center gap-1">
+                             <span className="font-bold">⚠️</span> 실제 발송 수행 (중복 주의)
+                        </div>
+                        <Button 
+                            onClick={handleManualReminder}
+                            disabled={isRunningReminder}
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 dark:border-indigo-900 dark:text-indigo-400 dark:hover:bg-indigo-900/40"
+                        >
+                            {isRunningReminder ? '실행 중...' : '🔔 지금 실행'}
+                        </Button>
+                     </div>
+                 </div>
+
+                 {/* 향후 추가될 기능들을 위한 빈 공간 */}
+            </div>
         </section>
 
         {/* 2. 발송 이력 조회 카드 */}

@@ -85,13 +85,22 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
               event_date: dateStr,
               required_servers: p.required_servers || 2,
               member_ids: [],
-              status: 'MASS-NOTCONFIRMED', 
+              // status: 'MASS-NOTCONFIRMED', // ❌ DEPRECATED: Status managed by month_status
               created_at: serverTimestamp(),
               updated_at: serverTimestamp()
             });
           });
         }
       }
+
+      // 4. Update Month Status -> RESET to 'MASS-NOTCONFIRMED'
+      const monthKey = currentMonth.format('YYYYMM');
+      const monthStatusRef = doc(db, 'server_groups', serverGroupId, 'month_status', monthKey);
+      batch.set(monthStatusRef, {
+          status: 'MASS-NOTCONFIRMED',
+          lock: false, // Unlock if it was locked
+          updated_at: serverTimestamp()
+      }, { merge: true });
 
       await batch.commit();
       console.log("Batch commit successful");

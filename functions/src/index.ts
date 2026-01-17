@@ -40,7 +40,7 @@ export { sendTestNotification } from './notifications/sendTestNotification';
 export { onUserCreated } from './notifications/onUserCreated';
 export { onMemberCreated, onRoleRequestCreated } from './notifications/onMemberEvents';
 export { onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
-export { onDailyMassReminder } from './notifications/onDailyMassReminder';
+export { onDailyMassReminder, manualDailyMassReminder } from './notifications/onDailyMassReminder';
 
 // 📌 SMS
 export { sendSms } from './sms/sendSms';

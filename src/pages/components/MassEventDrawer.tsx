@@ -134,37 +134,39 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   }, [fetchMembers]);
 
   // ✅ 기존 이벤트 불러오기
-  useEffect(() => {
-    const fetchEvent = async () => {
-      if (!eventId) return;
-      try {
-        const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const data = snap.data() as DocumentData;
-          
-          setTitle(data.title || '');
-          setRequiredServers(data.required_servers || null);
-          const loadedMemberIds = (data.member_ids as string[]) || [];
-          setMemberIds(loadedMemberIds);
-          setMainMemberId(data.main_member_id || null);
+  // ✅ 기존 이벤트 불러오기
+  const fetchEvent = useCallback(async () => {
+    if (!eventId) return;
+    try {
+      const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data() as DocumentData;
+        
+        setTitle(data.title || '');
+        setRequiredServers(data.required_servers || null);
+        const loadedMemberIds = (data.member_ids as string[]) || [];
+        setMemberIds(loadedMemberIds);
+        setMainMemberId(data.main_member_id || null);
 
-          // Notifications
-          const logs = (data.notifications || []) as NotificationLog[];
-          // Sort by date desc
-          logs.sort((a, b) => {
-              const tA = a.sent_at?.toDate ? a.sent_at.toDate().getTime() : 0;
-              const tB = b.sent_at?.toDate ? b.sent_at.toDate().getTime() : 0;
-              return tB - tA;
-          });
-          setNotificationLogs(logs);
-        }
-      } catch (err) {
-        console.error('❌ 이벤트 불러오기 오류:', err);
+        // Notifications
+        const logs = (data.notifications || []) as NotificationLog[];
+        // Sort by date desc
+        logs.sort((a, b) => {
+            const tA = a.sent_at?.toDate ? a.sent_at.toDate().getTime() : 0;
+            const tB = b.sent_at?.toDate ? b.sent_at.toDate().getTime() : 0;
+            return tB - tA;
+        });
+        setNotificationLogs(logs);
       }
-    };
-    fetchEvent();
+    } catch (err) {
+      console.error('❌ 이벤트 불러오기 오류:', err);
+    }
   }, [eventId, serverGroupId, db]);
+
+  useEffect(() => {
+    fetchEvent();
+  }, [fetchEvent]);
 
   // ✅ Fetch survey responses to identify unavailable members
   const fetchSurveyData = useCallback(async () => {
@@ -216,7 +218,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   // Handle manual refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchMembers(), fetchSurveyData()]);
+    await Promise.all([fetchMembers(), fetchSurveyData(), fetchEvent()]);
     setIsRefreshing(false);
   };
 
@@ -346,7 +348,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
              event_date: eventDateStr,
              required_servers: requiredServers,
              member_ids: [], // Initial empty
-             status: 'MASS-NOTCONFIRMED',
+             // status: 'MASS-NOTCONFIRMED', // ❌ DEPRECATED: Status managed by month_status
              created_at: serverTimestamp(),
              updated_at: serverTimestamp(),
            });
@@ -693,7 +695,49 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           {/* 알림 발송 이력 (상세보기/수정 모드일 때만) */}
           {eventId && (
              <div className="pt-4 mt-2 border-t border-gray-100 dark:border-slate-700">
-                <span className="font-medium text-gray-900 dark:text-gray-200 block mb-3">알림 발송 이력</span>
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900 dark:text-gray-200">
+                            알림 발송 이력
+                        </span>
+                        {/* 🔔 오늘 발송 예정 알림 */}
+                        {(() => {
+                            if (!date) return null;
+                            
+                            const today = dayjs(); 
+                            const eventDate = dayjs(date);
+                            
+                            // Condition 1: Date is Tomorrow (D-1)
+                            const isTomorrow = today.add(1, 'day').isSame(eventDate, 'day');
+
+                            // Condition 2: Status is 'FINAL-CONFIRMED' (Month Status only)
+                            // Backend now checks month_status for the given date.
+                            const isConfirmed = monthStatus === 'FINAL-CONFIRMED';
+                            
+                            // Condition 3: Has Assigned Members
+                            const hasMembers = memberIds.length > 0;
+
+                            if (isTomorrow && isConfirmed && hasMembers) {
+                                return (
+                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold animate-pulse flex items-center gap-1">
+                                        <Bell size={10} className="fill-current" />
+                                        오늘 20시 알림예정
+                                    </span>
+                                );
+                            }
+                            return null;
+                        })()}
+                    </div>
+                    
+                    <button 
+                        onClick={handleRefresh}
+                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                        title="이력 새로고침"
+                        disabled={isRefreshing}
+                    >
+                        <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                    </button>
+                </div>
                 
                 <div className="bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-100 dark:border-slate-700">
                    {notificationLogs.length === 0 ? (
@@ -704,64 +748,12 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                            {(showAllLogs ? notificationLogs : notificationLogs.slice(0, 3)).map((log, idx) => {
                               const sentDate = log.sent_at?.toDate ? dayjs(log.sent_at.toDate()) : dayjs(log.sent_at);
                               
+                              // Local state for expansion could be tricky in map, simpler to use a state tracking expanded IDs or just use <details> tag style or a simple toggler component.
+                              // Since we can't easily add state inside this map without a sub-component, let's create a small inline component logic or just make the content structure better.
+                              // Let's use a simpler approach: Render Message FIRST.
+                              
                               return (
-                                 <div key={idx} className="p-2.5 hover:bg-white dark:hover:bg-slate-800 transition-colors">
-                                    {/* Line 1: Icon, Type, Name, Result, Time */}
-                                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                                       <div className="flex items-center gap-2 overflow-hidden">
-                                           <div className={`p-1 rounded-full shrink-0 ${
-                                              log.type === 'sms' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 
-                                              log.type === 'kakaotalk' ? 'bg-yellow-300 text-black border border-yellow-400' :
-                                              'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
-                                           }`}>
-                                              {log.type === 'app_push' ? <Bell size={10} /> : 
-                                               log.type === 'sms' ? <Smartphone size={10} /> :
-                                               <MessageCircle size={10} fill="currentColor" />
-                                              }
-                                           </div>
-                                           <span className="font-bold text-gray-700 dark:text-gray-200 shrink-0">
-                                              {log.type === 'app_push' ? '앱 푸시' : log.type === 'sms' ? '문자' : '알림톡'}
-                                           </span>
-                                           <div className="w-px h-2.5 bg-gray-300 dark:bg-slate-600 shrink-0 mx-0.5" />
-                                           
-                                           <div className="flex items-center gap-1.5 truncate">
-                                              {log.details && log.details.length > 0 ? (
-                                                  log.details.map((detail, dIdx) => (
-                                                      <div key={dIdx} className="flex items-center gap-1 truncate">
-                                                          <span className="text-gray-600 dark:text-gray-300 font-medium truncate">{detail.name}</span>
-                                                          <span className={`text-[10px] shrink-0 font-medium ${detail.result === 'success' ? 'text-green-600' : 'text-red-500'}`}>
-                                                              {detail.result === 'success' ? '성공' : '실패'}
-                                                          </span>
-                                                          {log.type === 'sms' && detail.phone && (
-                                                              <span className="text-[9px] text-gray-400 font-mono hidden sm:inline ml-0.5">
-                                                                {detail.phone}
-                                                              </span>
-                                                          )}
-                                                      </div>
-                                                  ))
-                                              ) : (
-                                                  <span className="text-gray-400">수신자 정보 없음</span>
-                                              )}
-                                           </div>
-                                       </div>
-                                       <span className="text-[10px] text-gray-400 font-mono shrink-0">
-                                          {sentDate.format('MM.DD HH:mm')}
-                                       </span>
-                                    </div>
-
-                                    {/* Line 2: Message & GroupID */}
-                                    <div className="flex items-center gap-2 pl-7">
-                                        {/* SMS Group ID Badge */}
-                                        {log.type === 'sms' && log.group_id && (
-                                           <span className="shrink-0 text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono tracking-tighter">
-                                               {log.group_id}
-                                           </span>
-                                        )}
-                                        <p className="text-xs text-gray-500 truncate dark:text-gray-400 flex-1">
-                                           {log.message || '내용 없음'}
-                                        </p>
-                                    </div>
-                                 </div>
+                                 <LogItem key={idx} log={log} sentDate={sentDate} serverMembers={members} />
                               );
                            })}
                         </div>
@@ -770,7 +762,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                         {notificationLogs.length > 3 && (
                             <button 
                                 onClick={() => setShowAllLogs(!showAllLogs)}
-                                className="w-full py-2 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-50/50 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors border-t border-gray-100 dark:border-slate-800 rounded-b-lg"
+                                className="w-full py-2 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 bg-gray-50/50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors border-t border-gray-100 dark:border-slate-700 rounded-b-lg"
                             >
                                 {showAllLogs ? (
                                     <>접기 <ChevronUp size={12} /></>
@@ -827,4 +819,109 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   );
 };
 
+const LogItem: React.FC<{ log: NotificationLog; sentDate: dayjs.Dayjs; serverMembers: any[] }> = ({ log, sentDate, serverMembers }) => {
+    const [expanded, setExpanded] = useState(false);
+  
+    return (
+       <div 
+         className="p-2.5 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+         onClick={() => setExpanded(!expanded)}
+       >
+          {/* Top Row: Icon, Type, Message Preview, Time */}
+          <div className="flex items-start gap-2.5">
+              <div className={`mt-0.5 p-1 rounded-full shrink-0 ${
+                 log.type === 'sms' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 
+                 log.type === 'kakaotalk' ? 'bg-yellow-300 text-black border border-yellow-400' :
+                 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+              }`}>
+                 {log.type === 'app_push' ? <Bell size={10} /> : 
+                  log.type === 'sms' ? <Smartphone size={10} /> :
+                  <MessageCircle size={10} fill="currentColor" />
+                 }
+              </div>
+  
+              <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
+                             {log.type === 'app_push' ? '앱 푸시' : log.type === 'sms' ? '문자' : '알림톡'}
+                          </span>
+                          
+                           {/* Summary: Display SERVER Names (looked up from members list) */}
+                           {log.details && log.details.length > 0 && (
+                               <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 border-l border-gray-300 dark:border-slate-600 pl-2 ml-1">
+                                    <span className="truncate max-w-[100px]">
+                                        {log.details.map(d => {
+                                            const server = serverMembers.find(m => m.id === d.member_id);
+                                            // 괄호 뒤(세례명) 제거하고 이름만 깔끔하게 표시 (선택사항)
+                                            // const simpleName = server ? server.name.split(' ')[0] : d.name;
+                                            return server ? server.name : d.name;
+                                        }).join(', ')}
+                                    </span>
+                               </div>
+                           )}
+
+                           {/* Result Summary Badge */}
+                           {log.status === 'success' ? (
+                               <span className="text-[10px] text-green-600 dark:text-green-400 font-medium whitespace-nowrap">성공</span>
+                           ) : log.status === 'partial' ? (
+                               <span className="text-[10px] text-orange-500 font-medium whitespace-nowrap">일부 성공</span>
+                           ) : (
+                               <span className="text-[10px] text-red-500 font-medium whitespace-nowrap">실패</span>
+                           )}
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-mono ml-2 shrink-0">
+                         {sentDate.format('MM.DD HH:mm')}
+                      </span>
+                  </div>
+                  
+                  {/* Message Content (Primary) */}
+                  <p className={`text-xs text-gray-600 dark:text-gray-300 leading-snug ${expanded ? 'whitespace-pre-wrap' : 'truncate'}`}>
+                      {log.message || '내용 없음'}
+                  </p>
+  
+                  {/* Details (Expanded View) - Shows Recipient (Parent) Info */}
+                  {expanded && (
+                     <div className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-800 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                        
+                        {/* Recipients List */}
+                         {log.details && log.details.length > 0 && (
+                             <div className="grid gap-2">
+                                 {log.details.map((detail, dIdx) => (
+                                      <div key={dIdx} className="flex items-center justify-between text-xs bg-gray-50 dark:bg-slate-800/50 p-2 rounded">
+                                          <div className="flex items-center gap-2">
+                                             <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                                {detail.name}
+                                             </span>
+                                             {detail.phone && (
+                                                <span className="text-gray-400 font-mono text-[10px] tracking-wide">
+                                                    {detail.phone}
+                                                </span>
+                                             )}
+                                          </div>
+                                          <span className={`shrink-0 text-[10px] font-medium ${detail.result === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                                              {detail.result === 'success' ? '발송 완료' : '실패'}
+                                          </span>
+                                      </div>
+                                 ))}
+                             </div>
+                         )}
+
+                        {/* Group ID (Moved Below) */}
+                        {log.group_id && (
+                             <div className="flex items-center justify-end gap-2">
+                                 <span className="text-[9px] text-gray-400">Group ID</span>
+                                 <span className="text-[9px] font-mono bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-1 py-0.5 rounded border border-gray-200 dark:border-slate-700">
+                                     {log.group_id}
+                                 </span>
+                             </div>
+                        )}
+                     </div>
+                  )}
+              </div>
+          </div>
+       </div>
+    );
+  };
+  
 export default MassEventDrawer;

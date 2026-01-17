@@ -134,7 +134,6 @@ export async function getMassEvents(serverGroupId: string): Promise<MassEventCal
         title: d.title,
         required_servers: d.required_servers,
         servers,
-        status: d.status || 'MASS-NOTCONFIRMED',
       });
     }
   );
@@ -165,6 +164,5 @@ export async function getMassEventById(
     title: d.title,
     required_servers: d.required_servers,
     servers,
-    status: d.status || 'MASS-NOTCONFIRMED',
   };
 }

@@ -6,7 +6,6 @@ export interface MassEventDB {
   date: string;
   title: string;
   required_servers: number;
-  status?: MassStatus;
 }
 
 export interface MassEvent {
@@ -26,7 +25,6 @@ export interface MassEventCalendar {
   member_ids?: string[];
   main_member_id?: string; // ✅ 추가: 주복사 ID
   servers?: string[];
-  status?: MassStatus;
   created_at?: Date;
   updated_at?: Date;
 

@@ -19,7 +19,7 @@ const TEST_SERVER_GROUP_ID = 'SG00001';
 
 // 0️⃣ PARISH DATA
 const PARISHES = [
-  { code: "DAEGU-BEOMEO", name_kor: "대구 범어성당", diocese: "대구교구", name_eng: "Beomeo Cathedral", timezone: "Asia/Seoul", locale: "ko-KR" },
+  { code: "DAEGU-BEOMEO", name_kor: "대구 범어성당", diocese: "대구교구", name_eng: "Beomeo Cathedral", timezone: "Asia/Seoul", locale: "ko-KR", sms_service_active: true },
   { code: "SUWON-SINBONG", name_kor: "수지 신봉성당", diocese: "수원교구", name_eng: "Sinbong Cathedral", timezone: "Asia/Seoul", locale: "ko-KR" },
 ];
 
@@ -264,6 +264,7 @@ async function seed() {
     parish_code: TEST_PARISH_CODE,
     name: '🎒초등부 복사단',
     active: true,
+    sms_service_active: true,
     created_at: new Date(),
     updated_at: new Date(),
   });

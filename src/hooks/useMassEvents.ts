@@ -67,7 +67,6 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
               const servers =
                 memberIds.length > 0 ? await getMemberNamesByIds(serverGroupId, memberIds) : [];
 
-              const status: MassStatus = (d.status as MassStatus) || 'MASS-NOTCONFIRMED';
               const eventDateStr = d.event_date as string;
 
               // 🔹 timezone 적용 표시용 변환 (UI label 계산용)
@@ -82,7 +81,6 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
                 member_ids: memberIds,
                 main_member_id: d.main_member_id, // ✅ 주복사 ID 매핑
                 servers,
-                status,
                 // 🔹 UI에서 바로 날짜 정렬/표시용으로도 사용 가능
                 formatted_date: formattedLabel,
               } satisfies MassEventCalendar;
