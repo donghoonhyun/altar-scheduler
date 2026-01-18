@@ -5,7 +5,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000007',
-    title: '1-혼배미사',
+    title: '혼배미사',
     event_date: '20251101',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -67,7 +67,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000008',
-    title: '1-어린이미사',
+    title: '어린이미사',
     event_date: '20251101',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -77,7 +77,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000011',
-    title: '2-주일미사',
+    title: '주일미사',
     event_date: '20251102',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -87,7 +87,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000010',
-    title: '2-교중미사',
+    title: '교중미사',
     event_date: '20251102',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -97,7 +97,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000011',
-    title: '3-평일 월 미사',
+    title: '평일 월 미사',
     event_date: '20251103',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -107,7 +107,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000012',
-    title: '4-평일 화 미사',
+    title: '평일 화 미사',
     event_date: '20251104',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -117,7 +117,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000013',
-    title: '4-평일 화 미사2',
+    title: '평일 화 미사2',
     event_date: '20251104',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -127,7 +127,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000014',
-    title: '5-평일 수 미사',
+    title: '평일 수 미사',
     event_date: '20251105',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -137,7 +137,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000015',
-    title: '5-평일 수 미사2',
+    title: '평일 수 미사2',
     event_date: '20251105',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -147,7 +147,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000016',
-    title: '6-평일 목 미사',
+    title: '평일 목 미사',
     event_date: '20251106',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -157,7 +157,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000017',
-    title: '6-평일 목 미사2',
+    title: '평일 목 미사2',
     event_date: '20251106',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -167,7 +167,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000018',
-    title: '7-평일 금 미사',
+    title: '평일 금 미사',
     event_date: '20251107',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -177,7 +177,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000019',
-    title: '7-평일 금 미사2',
+    title: '평일 금 미사2',
     event_date: '20251107',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -187,7 +187,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000020',
-    title: '8-혼배미사',
+    title: '혼배미사',
     event_date: '20251108',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -197,7 +197,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000021',
-    title: '8-어린이미사',
+    title: '어린이미사',
     event_date: '20251108',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -207,7 +207,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000022',
-    title: '9-주일미사',
+    title: '주일미사',
     event_date: '20251109',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -217,7 +217,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000023',
-    title: '9-교중미사',
+    title: '교중미사',
     event_date: '20251109',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -227,7 +227,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000024',
-    title: '10-평일 월 미사',
+    title: '평일 월 미사',
     event_date: '20251110',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -237,7 +237,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000025',
-    title: '11-평일 화 미사',
+    title: '평일 화 미사',
     event_date: '20251111',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -247,7 +247,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000026',
-    title: '11-평일 화 미사2',
+    title: '평일 화 미사2',
     event_date: '20251111',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -257,7 +257,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000027',
-    title: '12-평일 수 미사',
+    title: '평일 수 미사',
     event_date: '20251112',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -267,7 +267,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000028',
-    title: '12-평일 수 미사2',
+    title: '평일 수 미사2',
     event_date: '20251112',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -277,7 +277,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000029',
-    title: '13-평일 목 미사',
+    title: '평일 목 미사',
     event_date: '20251113',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -287,7 +287,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000030',
-    title: '13-평일 목 미사2',
+    title: '평일 목 미사2',
     event_date: '20251113',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -297,7 +297,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000031',
-    title: '14-평일 금 미사',
+    title: '평일 금 미사',
     event_date: '20251114',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -307,7 +307,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000032',
-    title: '14-평일 금 미사2',
+    title: '평일 금 미사2',
     event_date: '20251114',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -317,7 +317,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000033',
-    title: '15-혼배미사',
+    title: '혼배미사',
     event_date: '20251115',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -327,7 +327,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000034',
-    title: '15-혼배미사2',
+    title: '혼배미사2',
     event_date: '20251115',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -337,7 +337,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000035',
-    title: '15-어린이미사',
+    title: '어린이미사',
     event_date: '20251115',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -347,7 +347,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000036',
-    title: '16-주일미사',
+    title: '주일미사',
     event_date: '20251116',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -357,7 +357,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000037',
-    title: '16-교중미사',
+    title: '교중미사',
     event_date: '20251116',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -367,7 +367,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000038',
-    title: '17-평일 월 미사',
+    title: '평일 월 미사',
     event_date: '20251117',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -377,7 +377,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000039',
-    title: '18-평일 화 미사',
+    title: '평일 화 미사',
     event_date: '20251118',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -387,7 +387,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000040',
-    title: '18-평일 화 미사2',
+    title: '평일 화 미사2',
     event_date: '20251118',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -397,7 +397,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000041',
-    title: '19-평일 수 미사',
+    title: '평일 수 미사',
     event_date: '20251119',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -407,7 +407,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000042',
-    title: '19-평일 수 미사2',
+    title: '평일 수 미사2',
     event_date: '20251119',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -417,7 +417,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000043',
-    title: '20-평일 목 미사',
+    title: '평일 목 미사',
     event_date: '20251120',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -427,7 +427,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000044',
-    title: '20-평일 목 미사2',
+    title: '평일 목 미사2',
     event_date: '20251120',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -437,7 +437,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000045',
-    title: '21-평일 금 미사',
+    title: '평일 금 미사',
     event_date: '20251121',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -447,7 +447,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000046',
-    title: '21-평일 금 미사2',
+    title: '평일 금 미사2',
     event_date: '20251121',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -457,7 +457,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000047',
-    title: '22-혼배미사',
+    title: '혼배미사',
     event_date: '20251122',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -467,7 +467,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000048',
-    title: '22-혼배미사2',
+    title: '혼배미사2',
     event_date: '20251122',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -477,7 +477,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000049',
-    title: '22-어린이미사',
+    title: '어린이미사',
     event_date: '20251122',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -487,7 +487,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000050',
-    title: '23-주일미사',
+    title: '주일미사',
     event_date: '20251123',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -497,7 +497,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000051',
-    title: '23-교중미사',
+    title: '교중미사',
     event_date: '20251123',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -507,7 +507,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000052',
-    title: '24-평일 월 미사',
+    title: '평일 월 미사',
     event_date: '20251124',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -517,7 +517,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000053',
-    title: '25-평일 화 미사',
+    title: '평일 화 미사',
     event_date: '20250925',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -527,7 +527,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000054',
-    title: '25-평일 화 미사2',
+    title: '평일 화 미사2',
     event_date: '20250925',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -537,7 +537,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000004',
-    title: '26-평일 수 미사',
+    title: '평일 수 미사',
     event_date: '20251126',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -547,7 +547,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000005',
-    title: '27-평일 목 미사',
+    title: '평일 목 미사',
     event_date: '20251127',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -557,7 +557,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000006',
-    title: '28-평일 금 미사',
+    title: '평일 금 미사',
     event_date: '20251128',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -567,7 +567,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000001',
-    title: '29-토 미사',
+    title: '토 미사',
     event_date: '20251129',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -577,7 +577,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000002',
-    title: '30-주일미사',
+    title: '주일미사',
     event_date: '20251130',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',
@@ -587,7 +587,7 @@ export const EXTRA_EVENTS: MassEventSeed[] = [
   {
     server_group_id: 'SG00001',
     id: 'ME000003',
-    title: '30-주일 교중미사',
+    title: '주일 교중미사',
     event_date: '20251130',
     required_servers: 2,
     status: 'MASS-NOTCONFIRMED',

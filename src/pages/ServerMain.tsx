@@ -224,7 +224,7 @@ export default function ServerMain() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-emerald-200 dark:from-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
-      <div className="max-w-lg mx-auto px-4">
+      <div className="max-w-lg md:max-w-6xl mx-auto px-4">
         {/* 👋 상단 인사말 */}
         <div className="mb-4 mt-1 px-1">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
@@ -374,7 +374,7 @@ export default function ServerMain() {
                     key={idx}
                     onClick={() => handleDayClick(day)}
                     className={cn(
-                      "h-14 flex flex-col items-center justify-start pt-1 rounded transition border relative",
+                      "h-14 md:h-36 flex flex-col items-center md:items-stretch justify-start pt-1 md:p-2 rounded transition border relative",
                       // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
                       !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/30",
                       isToday ? "border-emerald-500 ring-1 ring-emerald-500 z-10 dark:border-emerald-500" : "border-transparent",
@@ -394,25 +394,49 @@ export default function ServerMain() {
                     )}
                   >
                     <span className={cn(
-                      "text-sm", 
+                      "text-sm mb-1", 
                       isToday && "font-bold text-emerald-600 dark:text-emerald-400",
                       !showDots && mine && "text-white"
                     )}>{day}</span>
                   
                   {showDots && (
-                    <div className="flex gap-0.5 flex-wrap justify-center px-1 mt-1">
-                      {evts.map((ev) => (
-                        <div
-                          key={ev.id}
-                          className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            isMyEvent(ev) 
-                              ? "bg-rose-500" // Assigned -> Red
-                              : "bg-gray-300"
-                          )}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      {/* Mobile: Dots */}
+                      <div className="flex gap-0.5 flex-wrap justify-center px-1 mt-1 md:hidden">
+                        {evts.map((ev) => (
+                          <div
+                            key={ev.id}
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              isMyEvent(ev) 
+                                ? "bg-rose-500" // Assigned -> Red
+                                : "bg-gray-300"
+                            )}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Desktop: Event Names */}
+                      <div className="hidden md:flex flex-col gap-1 w-full mt-1 overflow-y-auto custom-scrollbar">
+                        {[...evts].sort((a, b) => a.title.localeCompare(b.title, 'ko')).map((ev) => {
+                           const myEvent = isMyEvent(ev);
+                           return (
+                             <div 
+                                key={ev.id} 
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-1",
+                                  myEvent 
+                                    ? "bg-rose-500/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200 border border-rose-200 dark:border-rose-900/50" 
+                                    : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400 border border-transparent"
+                                )}
+                             >
+                               <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", myEvent ? "bg-rose-500" : "bg-gray-300")}></span>
+                               {ev.title}
+                             </div>
+                           );
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               );

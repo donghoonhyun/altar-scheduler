@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import type { MassStatus } from '@/types/firestore';
 import { APP_BASE_URL } from '@/lib/env';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +38,7 @@ interface MemberDoc {
   baptismal_name?: string;
   grade?: string;
   active: boolean;
+  created_at?: any;
 }
 
 interface AvailabilitySurveyDoc {
@@ -93,22 +94,33 @@ export function SendSurveyDrawer({
   const [sortOrder, setSortOrder] = useState<'name' | 'grade'>('name');
   const [isEditingMembers, setIsEditingMembers] = useState(false);
   const [isEditingDates, setIsEditingDates] = useState(false);
+  const [isTargetExpanded, setIsTargetExpanded] = useState(false);
+  const [showExcludedOnly, setShowExcludedOnly] = useState(false);
+  const [showUncheckedOnly, setShowUncheckedOnly] = useState(false);
+  const [showUnsubmittedOnly, setShowUnsubmittedOnly] = useState(false);
+
+  const [allServerMembers, setAllServerMembers] = useState<MemberDoc[]>([]);
 
   // ---------- 🔹 Load Members & Events (Manual Refresh) ---------- 
   const fetchBasics = useCallback(async () => {
       try {
         setIsRefreshing(true);
-        // Load active members
+        // Load ALL members (active & inactive)
         const membersRef = collection(db, `server_groups/${serverGroupId}/members`);
-        const q = query(membersRef, where('active', '==', true));
-        const snap = await getDocs(q);
+        // const q = query(membersRef, where('active', '==', true)); // Fetch all now
+        const snap = await getDocs(membersRef);
         const mList: MemberDoc[] = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<MemberDoc, 'id'>),
         }));
-        setMembers(mList);
+        setAllServerMembers(mList);
+        
+        // Default view: only active members
+        const activeMembers = mList.filter(m => m.active);
+        setMembers(activeMembers);
+
         // Only set default selection if empty
-        setSelectedMembers(prev => prev.length === 0 ? mList.map((m) => m.id) : prev);
+        setSelectedMembers(prev => prev.length === 0 ? activeMembers.map((m) => m.id) : prev);
 
         // Fetch Mass Events for details
         const startStr = dayjs(currentMonth + '01').startOf('month').format('YYYYMMDD');
@@ -128,6 +140,22 @@ export function SendSurveyDrawer({
         setIsRefreshing(false);
       }
   }, [db, serverGroupId, currentMonth]);
+
+  // Sync members view to include any selected members (even if inactive/hidden)
+  useEffect(() => {
+    if (selectedMembers.length > 0 && allServerMembers.length > 0) {
+        setMembers(prev => {
+            const missingIds = selectedMembers.filter(id => !prev.find(m => m.id === id));
+            if (missingIds.length === 0) return prev;
+            
+            const missingDocs = allServerMembers.filter(m => missingIds.includes(m.id));
+            if (missingDocs.length === 0) return prev;
+
+            // Add missing docs to view
+            return [...prev, ...missingDocs].sort((a, b) => a.name_kor.localeCompare(b.name_kor, 'ko'));
+        });
+    }
+  }, [selectedMembers, allServerMembers]);
 
   // ---------- 🔹 Real-time Survey Listener ----------
   useEffect(() => {
@@ -262,8 +290,9 @@ export function SendSurveyDrawer({
 
   // ---------- 🔹 Render ----------
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md space-y-4">
+      <DialogContent className="max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="space-y-1">
           <DialogTitle>📩 복사 일정 설문 ({dayjs(currentMonth).format('YYYY년 MM월')})</DialogTitle>
           <DialogDescription>
@@ -275,7 +304,7 @@ export function SendSurveyDrawer({
         {existingSurvey && (
           <div className="space-y-4">
               <div className={`border rounded-xl p-4 shadow-sm flex flex-col gap-4 transition-colors ${
-                existingSurvey.status === 'OPEN' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'
+                existingSurvey.status === 'OPEN' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
               }`}>
                   {/* Date Range */}
                   {/* Date Range or Edit Form */}
@@ -288,7 +317,7 @@ export function SendSurveyDrawer({
                                onChange={(e) => setStartDate(new Date(e.target.value))}
                                className="h-8 text-xs"
                              />
-                             <span className="self-center">~</span>
+                             <span className="self-center date-range-separator">~</span>
                              <Input
                                type="date"
                                value={dayjs(endDate).format('YYYY-MM-DD')}
@@ -321,13 +350,13 @@ export function SendSurveyDrawer({
                       </div>
                   ) : (
                       <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-gray-800">설문 기간</span>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">설문 기간</span>
                           <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-gray-900">
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
                                 {dayjs(existingSurvey.start_date?.toDate()).format('M/D')} ~ {dayjs(existingSurvey.end_date?.toDate()).format('M/D')}
                               </span>
                               {existingSurvey.status === 'OPEN' && (
-                                  <button onClick={() => setIsEditingDates(true)} className="text-gray-400 hover:text-gray-600">
+                                  <button onClick={() => setIsEditingDates(true)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                                   </button>
                               )}
@@ -337,9 +366,9 @@ export function SendSurveyDrawer({
 
                   {/* Toggle */}
                   <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-800">설문 상태</span>
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">설문 상태</span>
                       <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold ${existingSurvey.status === 'OPEN' ? 'text-blue-600' : 'text-red-500'}`}>
+                          <span className={`text-xs font-bold ${existingSurvey.status === 'OPEN' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
                                {existingSurvey.status === 'OPEN' ? 'OPEN (진행중)' : 'CLOSED (마감됨)'}
                           </span>
                           <Switch
@@ -363,10 +392,12 @@ export function SendSurveyDrawer({
 
               {/* Edit Members Mode or View Mode */}
               {isEditingMembers ? (
-                  <div className="space-y-4 border rounded-xl p-4 bg-white shadow-sm">
+                  <div className="space-y-4 border rounded-xl p-4 bg-white dark:bg-slate-900/50 shadow-sm dark:border-slate-700">
                       <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-gray-800">설문 대상자 수정</h3>
+                          <h3 className="font-bold text-gray-800 dark:text-gray-200">설문 대상자 수정</h3>
                           <div className="flex gap-2">
+                             {/* ✅ Add Member Button */}
+
                              <Button size="sm" variant="outline" onClick={() => { setIsEditingMembers(false); if(existingSurvey.member_ids) setSelectedMembers(existingSurvey.member_ids); }}>
                                  취소
                              </Button>
@@ -376,33 +407,49 @@ export function SendSurveyDrawer({
                           </div>
                       </div>
                       
-                      {/* Reuse Member List Logic */}
+                      {/* Reuse Member List Logic (Sort Toggle for New Survey Mode - Editing Members) */}
                       <div className="flex items-center justify-between mb-2">
-                         <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
-                             <button
-                               onClick={() => setSortOrder('name')} 
-                               className={cn(
-                                 "px-2.5 py-1 rounded-md transition-all",
-                                 sortOrder === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                               )}
-                             >
-                               이름
-                             </button>
-                             <button
-                               onClick={() => setSortOrder('grade')} 
-                               className={cn(
-                                 "px-2.5 py-1 rounded-md transition-all",
-                                 sortOrder === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                               )}
-                             >
-                               학년
-                             </button>
-                          </div>
+                         <div className="flex items-center gap-3">
+                             <div className="flex items-center bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-0.5 rounded-lg text-xs font-medium">
+                                 <button
+                                   onClick={() => setSortOrder('name')} 
+                                   className={cn(
+                                     "px-2.5 py-1 rounded-md transition-all",
+                                     sortOrder === 'name' 
+                                       ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white font-semibold" 
+                                       : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                                   )}
+                                 >
+                                   이름
+                                 </button>
+                                 <button
+                                   onClick={() => setSortOrder('grade')} 
+                                   className={cn(
+                                     "px-2.5 py-1 rounded-md transition-all",
+                                     sortOrder === 'grade' 
+                                       ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white font-semibold" 
+                                       : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                                   )}
+                                 >
+                                   학년
+                                 </button>
+                              </div>
+                              <div className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+                                <input
+                                    type="checkbox"
+                                    id="show-unchecked-edit"
+                                    checked={showUncheckedOnly}
+                                    onChange={(e) => setShowUncheckedOnly(e.target.checked)}
+                                    className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                                 <label htmlFor="show-unchecked-edit" className="text-xs text-gray-500 cursor-pointer select-none font-normal">비대상</label>
+                              </div>
+                         </div>
                       </div>
 
-                      <div className="border rounded-md max-h-[300px] overflow-y-auto p-2 text-sm">
+                      <div className="border rounded-md max-h-[300px] overflow-y-auto p-2 text-sm dark:border-slate-700">
                         {(() => {
-                          const sortedMembers = [...members].sort((a, b) => {
+                          let sortedMembers = [...members].sort((a, b) => {
                               if (sortOrder === 'grade') {
                                   const idxA = ALL_GRADES.indexOf(a.grade || '');
                                   const idxB = ALL_GRADES.indexOf(b.grade || '');
@@ -415,6 +462,11 @@ export function SendSurveyDrawer({
                               return a.name_kor.localeCompare(b.name_kor, 'ko');
                           });
 
+                          if (showUncheckedOnly) {
+                              sortedMembers = sortedMembers.filter(m => !selectedMembers.includes(m.id));
+                          }
+
+
                           return sortedMembers.map((m, idx) => {
                             const prev = sortedMembers[idx - 1];
                             const showSeparator = sortOrder === 'grade' && (!prev || prev.grade !== m.grade) && m.grade;
@@ -422,13 +474,13 @@ export function SendSurveyDrawer({
                             return (
                               <div key={m.id}>
                                 {showSeparator && (
-                                  <div className="border-t border-dashed border-gray-300 my-2 relative h-4">
-                                    <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white px-2 text-[10px] text-gray-400 font-medium">
+                                  <div className="border-t border-dashed border-gray-300 dark:border-slate-700 my-3 relative h-4">
+                                    <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded-full border border-gray-200 dark:border-slate-700 text-[10px] text-gray-400 dark:text-slate-400 font-bold shadow-sm">
                                         {m.grade}
                                     </span>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                                <div className="flex items-center gap-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-800 rounded px-1 transition-colors">
                                   <input
                                     type="checkbox"
                                     className="cursor-pointer"
@@ -438,12 +490,19 @@ export function SendSurveyDrawer({
                                   />
                                   <label htmlFor={`edit-check-${m.id}`} className="flex-1 cursor-pointer flex items-center justify-between">
                                       <div className="flex items-center gap-1">
-                                          <span>{m.name_kor}</span>
+                                          <span className="dark:text-gray-200">{m.name_kor}</span>
                                           {m.baptismal_name && (
-                                            <span className="text-gray-500 text-xs">({m.baptismal_name})</span>
+                                            <span className="text-gray-500 dark:text-gray-400 text-xs">({m.baptismal_name})</span>
                                           )}
+                                          {m.grade && <span className="text-gray-400 dark:text-gray-500 text-xs ml-1">{m.grade}</span>}
                                       </div>
-                                      {m.grade && <span className="text-gray-400 text-xs ml-2">{m.grade}</span>}
+                                      <div className="flex items-center gap-2">
+                                         {m.created_at && (
+                                            <span className="text-[10px] text-gray-300 dark:text-slate-600">
+                                                {dayjs(m.created_at?.toDate ? m.created_at.toDate() : m.created_at).format('YY.MM.DD HH:mm')}
+                                            </span>
+                                         )}
+                                      </div>
                                   </label>
                                 </div>
                               </div>
@@ -464,12 +523,12 @@ export function SendSurveyDrawer({
                           <div className="flex items-center justify-between text-sm">
                               <div className="flex gap-4">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium">제출:</span>
-                                    <span className="text-green-600 font-bold">{submittedCount}명</span>
+                                    <span className="font-medium dark:text-gray-200">제출:</span>
+                                    <span className="text-green-600 dark:text-green-400 font-bold">{submittedCount}명</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium">미제출:</span>
-                                    <span className="text-gray-500 font-bold">{notSubmittedCount}명</span>
+                                    <span className="font-medium dark:text-gray-200">미제출:</span>
+                                    <span className="text-gray-500 dark:text-gray-400 font-bold">{notSubmittedCount}명</span>
                                 </div>
                               </div>
                               <div className="flex gap-2">
@@ -491,7 +550,7 @@ export function SendSurveyDrawer({
                                     className="h-6 w-6 p-0 rounded-full hover:bg-gray-100"
                                     title="데이터 새로고침"
                                 >
-                                    <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                                    <RefreshCw size={14} className={cn(isRefreshing ? "animate-spin" : "", "text-gray-500 dark:text-gray-400")} />
                                 </Button>
                               </div>
                           </div>
@@ -500,32 +559,54 @@ export function SendSurveyDrawer({
 
                   {/* 정렬 탭 (Segmented Control) - Added here for existing survey view */}
                   <div className="flex justify-start mb-2">
-                     <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
-                         <button
-                           onClick={() => setSortOrder('name')} 
-                           className={cn(
-                             "px-2.5 py-1 rounded-md transition-all",
-                             sortOrder === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                           )}
-                         >
-                           이름
-                         </button>
-                         <button
-                           onClick={() => setSortOrder('grade')} 
-                           className={cn(
-                             "px-2.5 py-1 rounded-md transition-all",
-                             sortOrder === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                           )}
-                         >
-                           학년
-                         </button>
-                      </div>
+                     <div className="flex items-center gap-3">
+                         <div className="flex items-center bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-0.5 rounded-lg text-xs font-medium">
+                             <button
+                               onClick={() => setSortOrder('name')} 
+                               className={cn(
+                                 "px-2.5 py-1 rounded-md transition-all",
+                                 sortOrder === 'name' 
+                                   ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white font-semibold" 
+                                   : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                               )}
+                             >
+                               이름
+                             </button>
+                             <button
+                               onClick={() => setSortOrder('grade')} 
+                               className={cn(
+                                 "px-2.5 py-1 rounded-md transition-all",
+                                 sortOrder === 'grade' 
+                                   ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white font-semibold" 
+                                   : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                               )}
+                             >
+                               학년
+                             </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+                            <input
+                                type="checkbox"
+                                id="show-unsubmitted"
+                                checked={showUnsubmittedOnly}
+                                onChange={(e) => setShowUnsubmittedOnly(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                             <label htmlFor="show-unsubmitted" className="text-xs text-gray-500 cursor-pointer select-none font-normal">미제출만 보기</label>
+                          </div>
+                     </div>
                   </div>
 
                   {/* Members Status List */}
-                  <div className="border rounded-md max-h-[450px] overflow-y-auto">
+                  <div className="border rounded-md max-h-[450px] overflow-y-auto dark:border-slate-700">
                      {(() => {
-                       const filteredMembers = members.filter(m => existingSurvey.member_ids?.includes(m.id));
+                       let filteredMembers = members.filter(m => existingSurvey.member_ids?.includes(m.id));
+                       
+                       if (showUnsubmittedOnly) {
+                           filteredMembers = filteredMembers.filter(m => !existingSurvey.responses?.[m.id]);
+                       }
+
                        const sorted = filteredMembers.sort((a, b) => {
                            if (sortOrder === 'grade') {
                                const idxA = ALL_GRADES.indexOf(a.grade || '');
@@ -573,18 +654,18 @@ export function SendSurveyDrawer({
                                   </div>
                                  )}
                                  <div 
-                                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 h-10"
+                                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors h-11"
                                     onClick={() => isSubmitted && setExpandedMemberId(isExpanded ? null : m.id)}
                                  >
                                       <div className="flex items-center gap-2 overflow-hidden">
                                           <div className="flex items-center gap-1 shrink-0">
-                                              <span className="font-medium text-sm">{m.name_kor}</span>
-                                              {m.baptismal_name && <span className="text-gray-500 text-xs truncate">({m.baptismal_name})</span>}
-                                              {m.grade && <span className="text-gray-400 text-xs">{m.grade}</span>}
+                                              <span className="font-semibold text-[15px] dark:text-gray-100">{m.name_kor}</span>
+                                              {m.baptismal_name && <span className="text-gray-500 dark:text-gray-400 text-xs truncate">({m.baptismal_name})</span>}
+                                              {m.grade && <span className="text-gray-400 dark:text-gray-500 text-[11px] font-medium">{m.grade}</span>}
                                           </div>
                                           
                                           {assignedCount > 0 && (
-                                              <span className="shrink-0 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
+                                              <span className="shrink-0 text-[10px] bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium border border-indigo-100 dark:border-indigo-800/50">
                                                   배정 {assignedCount}
                                               </span>
                                           )}
@@ -592,11 +673,11 @@ export function SendSurveyDrawer({
 
                                      <div className="shrink-0 ml-2">
                                          {isSubmitted ? (
-                                             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                                                 제출 {unavailableCount > 0 && `(불참 ${unavailableCount})`}
+                                             <span className={cn("text-xs px-2.5 py-1 rounded-md font-medium border transition-colors", unavailableCount > 0 ? "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/50" : "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50")}>
+                                                 {unavailableCount > 0 ? `불참 ${unavailableCount}` : '제출완료'}
                                              </span>
                                          ) : (
-                                             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                             <span className="text-xs bg-gray-50 text-gray-400 border border-gray-100 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50 px-2.5 py-1 rounded-md">
                                                  미제출
                                              </span>
                                          )}
@@ -606,15 +687,15 @@ export function SendSurveyDrawer({
                                  {/* Detail Expansion */}
                                  {isExpanded && isSubmitted && (
                                      <div className="bg-slate-50 p-3 text-sm border-t">
-                                         <p className="font-semibold mb-2 text-gray-700">참석 불가능한 일정:</p>
+                                         <p className="font-semibold mb-2 text-gray-700 dark:text-gray-300">참석 불가능한 일정:</p>
                                          {unavailableIds.length === 0 ? (
-                                             <p className="text-gray-500">없음 (모두 참석 가능)</p>
+                                             <p className="text-gray-500 dark:text-gray-400">없음 (모두 참석 가능)</p>
                                          ) : (
                                              <ul className="space-y-1">
                                                  {unavailableIds.map(eid => {
                                                      const ev = massEvents[eid];
                                                      return (
-                                                         <li key={eid} className="flex gap-2 text-gray-600">
+                                                         <li key={eid} className="flex gap-2 text-gray-600 dark:text-gray-400">
                                                              <span>• {ev ? `${dayjs(ev.event_date).format('M/D(ddd)')} ${ev.title}` : '알 수 없는 일정'}</span>
                                                          </li>
                                                      )
@@ -658,87 +739,134 @@ export function SendSurveyDrawer({
 
             {/* 설문 대상자 목록 */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                 <label className="text-sm font-medium">설문 대상자</label>
-                 
-                 {/* 정렬 탭 (Segmented Control) */}
-                 <div className="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
-                     <button
-                       onClick={() => setSortOrder('name')} 
-                       className={cn(
-                         "px-2.5 py-1 rounded-md transition-all",
-                         sortOrder === 'name' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                       )}
-                     >
-                       이름
-                     </button>
-                     <button
-                       onClick={() => setSortOrder('grade')} 
-                       className={cn(
-                         "px-2.5 py-1 rounded-md transition-all",
-                         sortOrder === 'grade' ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-900"
-                       )}
-                     >
-                       학년
-                     </button>
+               <div className="mb-2">
+                  {/* Row 1: Title & Toggle */}
+                  <div className="flex items-center gap-2 mb-1">
+                      <label className="text-sm font-medium">설문 대상자</label>
+                      <button 
+                        onClick={() => setIsTargetExpanded(!isTargetExpanded)}
+                        className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                          {isTargetExpanded ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+                      </button>
                   </div>
-              </div>
-              
-              <div className="border rounded-md max-h-[560px] overflow-y-auto p-2 text-sm">
-                {(() => {
-                  const sortedMembers = [...members].sort((a, b) => {
-                      if (sortOrder === 'grade') {
-                          // 학년 정렬 우선: ALL_GRADES 인덱스 비교
-                          const idxA = ALL_GRADES.indexOf(a.grade || '');
-                          const idxB = ALL_GRADES.indexOf(b.grade || '');
-                          
-                          if (idxA !== idxB) {
-                            // 없는 학년(-1)은 뒤로 보냄
-                            if (idxA === -1) return 1;
-                            if (idxB === -1) return -1;
-                            return idxA - idxB;
-                          }
-                      }
-                      // 이름 정렬 (기본 혹은 학년 같을 때)
-                      return a.name_kor.localeCompare(b.name_kor, 'ko');
-                  });
 
-                  return sortedMembers.map((m, idx) => {
-                    const prev = sortedMembers[idx - 1];
-                    const showSeparator = sortOrder === 'grade' && (!prev || prev.grade !== m.grade) && m.grade;
-
-                    return (
-                      <div key={m.id}>
-                        {showSeparator && (
-                          <div className="border-t border-dashed border-gray-300 my-2 relative h-4">
-                            <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white px-2 text-[10px] text-gray-400 font-medium">
-                                {m.grade}
-                            </span>
+                  {/* Row 2: Controls */}
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                      <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 font-normal whitespace-nowrap">
+                            (전체 {members.length} / 제외 {members.length - selectedMembers.length})
+                          </span>
+                          <div className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 rounded px-1 -ml-1">
+                            <input
+                                type="checkbox"
+                                id="show-excluded"
+                                checked={showExcludedOnly}
+                                onChange={(e) => setShowExcludedOnly(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                             <label htmlFor="show-excluded" className="text-xs text-gray-500 cursor-pointer select-none font-normal">제외만</label>
                           </div>
-                        )}
-                        <div className="flex items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                          <input
-                            type="checkbox"
-                            className="cursor-pointer"
-                            id={`check-${m.id}`}
-                            checked={selectedMembers.includes(m.id)}
-                            onChange={() => handleToggleMember(m.id)}
-                          />
-                          <label htmlFor={`check-${m.id}`} className="flex-1 cursor-pointer flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                  <span>{m.name_kor}</span>
-                                  {m.baptismal_name && (
-                                    <span className="text-gray-500 text-xs">({m.baptismal_name})</span>
-                                  )}
-                              </div>
-                              {m.grade && <span className="text-gray-400 text-xs ml-2">{m.grade}</span>}
-                          </label>
-                        </div>
                       </div>
-                    );
-                  });
-                })()}
-              </div>
+                      
+                      {/* 정렬 탭 (Segmented Control) */}
+                      <div className="flex items-center bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-0.5 rounded-lg text-xs font-medium shrink-0">
+                          <button
+                            onClick={() => setSortOrder('name')} 
+                            className={cn(
+                              "px-2 py-0.5 rounded-md transition-all text-[11px]",
+                              sortOrder === 'name' 
+                                ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white font-semibold" 
+                                : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                            )}
+                          >
+                            이름
+                          </button>
+                          <button
+                            onClick={() => setSortOrder('grade')} 
+                            className={cn(
+                              "px-2 py-0.5 rounded-md transition-all text-[11px]",
+                              sortOrder === 'grade' 
+                                ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white font-semibold" 
+                                : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                            )}
+                          >
+                            학년
+                          </button>
+                       </div>
+                   </div>
+               </div>
+              
+              <div className={cn(
+                  "border rounded-md overflow-y-auto p-2 text-sm transition-all duration-300 ease-in-out dark:border-slate-700",
+                  isTargetExpanded ? "max-h-[50vh]" : "max-h-[110px]"
+                )}>
+                  {(() => {
+                    let processedMembers = [...members].sort((a, b) => {
+                        if (sortOrder === 'grade') {
+                            // 학년 정렬 우선: ALL_GRADES 인덱스 비교
+                            const idxA = ALL_GRADES.indexOf(a.grade || '');
+                            const idxB = ALL_GRADES.indexOf(b.grade || '');
+                            
+                            if (idxA !== idxB) {
+                              // 없는 학년(-1)은 뒤로 보냄
+                              if (idxA === -1) return 1;
+                              if (idxB === -1) return -1;
+                              return idxA - idxB;
+                            }
+                        }
+                        // 이름 정렬 (기본 혹은 학년 같을 때)
+                        return a.name_kor.localeCompare(b.name_kor, 'ko');
+                    });
+
+                    // 제외만 보기 필터링
+                    if (showExcludedOnly) {
+                        processedMembers = processedMembers.filter(m => !selectedMembers.includes(m.id));
+                    }
+  
+                    return processedMembers.map((m, idx) => {
+                      const prev = processedMembers[idx - 1];
+                      const showSeparator = sortOrder === 'grade' && (!prev || prev.grade !== m.grade) && m.grade;
+  
+                      return (
+                        <div key={m.id}>
+                          {showSeparator && (
+                            <div className="border-t border-dashed border-gray-300 dark:border-slate-700 my-3 relative h-4">
+                              <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded-full border border-gray-200 dark:border-slate-700 text-[10px] text-gray-500 dark:text-slate-400 font-bold shadow-sm">
+                                  {m.grade}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-800 rounded px-1 transition-colors">
+                            <input
+                              type="checkbox"
+                              className="cursor-pointer"
+                              id={`check-${m.id}`}
+                              checked={selectedMembers.includes(m.id)}
+                              onChange={() => handleToggleMember(m.id)}
+                            />
+                            <label htmlFor={`check-${m.id}`} className="flex-1 cursor-pointer flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <span className="dark:text-gray-200">{m.name_kor}</span>
+                                    {m.baptismal_name && (
+                                      <span className="text-gray-500 dark:text-gray-400 text-xs">({m.baptismal_name})</span>
+                                    )}
+                                    {m.grade && <span className="text-gray-400 dark:text-gray-500 text-xs ml-1">{m.grade}</span>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                     {(m.created_at || m.create_dt) && (
+                                        <span className="text-[10px] text-gray-300 dark:text-slate-600">
+                                            {dayjs((m.created_at || m.create_dt)?.toDate ? (m.created_at || m.create_dt).toDate() : (m.created_at || m.create_dt)).format('YY.MM.DD HH:mm')}
+                                        </span>
+                                     )}
+                                </div>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
             </div>
 
             {/* 하단 버튼 (가로 배치) */}
@@ -759,8 +887,8 @@ export function SendSurveyDrawer({
 
         {/* ✅ URL 표시 영역 (기존 or 신규) */}
         {surveyUrl && (
-          <div className="flex items-center justify-between mt-2 border rounded-md px-3 py-1 bg-gray-50">
-            <span className="text-sm truncate text-gray-600">{surveyUrl}</span>
+          <div className="flex items-center justify-between mt-2 border rounded-md px-3 py-1 bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800">
+            <span className="text-sm truncate text-gray-600 dark:text-gray-400">{surveyUrl}</span>
             <Button
               size="sm"
               variant="outline"
@@ -784,5 +912,8 @@ export function SendSurveyDrawer({
         {/* 기존 닫기 버튼 제거 (위로 이동됨) */}
       </DialogContent>
     </Dialog>
+
+
+    </>
   );
 }

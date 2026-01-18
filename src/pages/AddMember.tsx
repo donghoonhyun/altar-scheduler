@@ -11,11 +11,21 @@ import {
   query,
   where,
   doc,
+  collectionGroup,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { toast } from 'sonner';
 import UpdateUserProfileDialog from './components/UpdateUserProfileDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import dayjs from 'dayjs';
 
 import { Parish } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
@@ -44,7 +54,12 @@ export default function AddMember() {
   const [nameKor, setNameKor] = useState<string>('');
   const [baptismalName, setBaptismalName] = useState<string>('');
   const [grade, setGrade] = useState<string>('');
+
   const [startYear, setStartYear] = useState<string>('');
+
+  // 중복 확인 관련 상태
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
+  const [duplicateMembers, setDuplicateMembers] = useState<any[]>([]);
 
   // ✅ [수정] URL 파라미터(sg) 또는 현재 세션 그룹(session.currentServerGroupId)로 초기값 세팅 - 1단계: 성당 선택
   useEffect(() => {
@@ -131,7 +146,7 @@ export default function AddMember() {
   /**
    * 복사 등록
    */
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.MouseEvent, force: boolean = false) => {
     if (!user) {
       toast.error('로그인이 필요합니다.');
       return;
@@ -145,6 +160,52 @@ export default function AddMember() {
     if (!nameKor || !baptismalName || !grade || !startYear) {
       toast.error('이름, 세례명, 학년, 시작년도를 모두 입력해주세요.');
       return;
+    }
+
+    // [중복 체크] 강제 진행(force)이 아니고, 이름/세례명이 입력된 경우
+    if (!force) {
+        try {
+            // 1. [변경] 현재 선택된 복사단 내에서만 중복 체크
+            const q = query(
+                collection(db, `server_groups/${selectedGroup}/members`), 
+                where('parent_uid', '==', user.uid)
+            );
+            const snap = await getDocs(q);
+            
+            // 2. 이름이 같은 멤버 중 'active' 상태이거나 '승인 대기(request_confirmed=false)' 상태인 멤버만 필터링
+            // (Firestore '==' 쿼리는 인덱스 필요 가능성이 있어 client-side 필터링 활용)
+            const sameNameMembers = snap.docs.filter(d => {
+                const data = d.data();
+                // 활동 중이거나, 아직 승인 대기중인(신청 상태) 경우 중복 체크
+                return data.name_kor === nameKor && (data.active === true || data.request_confirmed === false);
+            });
+
+            if (sameNameMembers.length > 0) {
+                // 3. 중복된 멤버 정보 구성
+                // 현재 선택된 복사단과 성당 정보를 사용 (같은 복사단 내 중복이므로)
+                const currentParishName = parishes?.find(p => p.code === selectedParish)?.name_kor || '알 수 없음';
+                const currentGroupName = serverGroups.find(g => g.id === selectedGroup)?.name || '알 수 없음';
+
+                const detailedMembers = sameNameMembers.map((mDoc) => {
+                    const mData = mDoc.data();
+                    return {
+                        id: mDoc.id,
+                        name: mData.name_kor,
+                        baptismalName: mData.baptismal_name,
+                        createdAt: mData.created_at?.toDate(),
+                        active: mData.active,
+                        requestConfirmed: mData.request_confirmed,
+                    };
+                });
+
+                setDuplicateMembers(detailedMembers);
+                setDuplicateConfirmOpen(true);
+                return; // 확인창 띄우고 중단
+            }
+        } catch (error) {
+            console.error("Duplicate check failed:", error);
+            // 에러 나면 그냥 진행? 아니면 에러 표시? 일단 진행 시도가 안전.
+        }
     }
 
     try {
@@ -176,6 +237,7 @@ export default function AddMember() {
       // 3) 현재 선택된 groupId 변경 → ServerMain이 올바른 group으로 렌더링됨
       session.setCurrentServerGroupId?.(selectedGroup);
 
+      setDuplicateConfirmOpen(false); // 닫기
       toast.success('복사 등록 요청이 완료되었습니다! (승인 대기중)');
 
       // 4) ServerMain 으로 이동 (세션 갱신을 위해 새로고침)
@@ -346,7 +408,7 @@ export default function AddMember() {
         </div>
       </div>
 
-      <button className="w-full bg-blue-600 text-white py-2 rounded text-lg" onClick={handleSubmit}>
+      <button className="w-full bg-blue-600 text-white py-2 rounded text-lg" onClick={(e) => handleSubmit(e, false)}>
         등록하기
       </button>
 
@@ -359,6 +421,65 @@ export default function AddMember() {
           플래너 권한 신청하기
         </button>
       </div>
+
+      {/* 중복 확인 다이얼로그 */}
+      <Dialog open={duplicateConfirmOpen} onOpenChange={setDuplicateConfirmOpen}>
+        <DialogContent className="fixed left-[50%] top-[50%] z-50 w-[90%] max-w-2xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-lg rounded-xl h-auto">
+            <DialogHeader>
+                <DialogTitle>🚨 동일한 이름의 복사가 있습니다</DialogTitle>
+                <DialogDescription>
+                    이미 등록하신 정보와 동일한 이름의 복사가 발견되었습니다.<br/>
+                    정보를 확인하시고 계속 진행할지 결정해주세요.
+                </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 my-2">
+                {duplicateMembers.map((m) => {
+                    let statusLabel = '상태미상';
+                    let statusColor = 'bg-gray-100 text-gray-600';
+
+                    if (m.active) {
+                        statusLabel = '기등록';
+                        statusColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+                    } else if (!m.requestConfirmed) {
+                        statusLabel = '신청중';
+                        statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                    }
+
+                    return (
+                    <div key={m.id} className="border rounded-lg p-3 bg-gray-50 dark:bg-slate-800 text-sm">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${statusColor}`}>
+                                {statusLabel}
+                            </span>
+                            <span className="text-gray-500 text-xs font-normal">
+                                {m.createdAt ? dayjs(m.createdAt).format('YYYY-MM-DD') : '날짜없음'} 등록됨
+                            </span>
+                        </div>
+                        <div className="font-bold text-base mt-1">
+                            {m.name} ({m.baptismalName})
+                        </div>
+                    </div>
+                    );
+                })}
+            </div>
+
+            <div className="flex gap-3 justify-end mt-4">
+                <button
+                    className="flex-1 sm:flex-none px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800 dark:border-slate-600 transition-colors"
+                    onClick={() => setDuplicateConfirmOpen(false)}
+                >
+                    취소
+                </button>
+                <button
+                    className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors"
+                    onClick={(e) => handleSubmit(e as unknown as React.MouseEvent, true)}
+                >
+                    그래도 신청하기
+                </button>
+            </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

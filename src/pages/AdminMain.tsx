@@ -255,6 +255,72 @@ const AdminMain: React.FC = () => {
       setIsSG00002ScheduleMigrating(false);
     }
   };
+
+
+  const [isSG00001JanScheduleMigrating, setIsSG00001JanScheduleMigrating] = React.useState(false);
+
+  const handleSG00001JanScheduleMigration = async () => {
+    if (!confirm('SG00001(초등부) 2026년 1월 스케줄 데이터를 업로드하시겠습니까?')) return;
+
+    setIsSG00001JanScheduleMigrating(true);
+    try {
+      const { JANUARY_2026_SCHEDULE } = await import('@/data/schedule2026Jan');
+      const targetGroupId = 'SG00001';
+      
+      const membersRef = collection(db, 'server_groups', targetGroupId, 'members');
+      const memberSnap = await getDocs(membersRef);
+      const memberMap = new Map<string, string>();
+      
+      memberSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.name_kor && data.baptismal_name) {
+             const key = `${data.name_kor}${data.baptismal_name}`.replace(/\s/g, '');
+             memberMap.set(key, d.id);
+        }
+      });
+      console.log(`[SG00001 Migration] Loaded ${memberMap.size} members for matching.`);
+
+      const batch = writeBatch(db);
+      let matchCount = 0;
+
+      JANUARY_2026_SCHEDULE.forEach((item) => {
+        const docId = `ME_${item.date}_${item.title}`;
+        const ref = doc(db, 'server_groups', targetGroupId, 'mass_events', docId);
+        
+        const matchedServerIds = item.servers.map(name => {
+           const cleanName = name.replace(/\s/g, ''); 
+           const uid = memberMap.get(cleanName);
+           if (!uid) {
+             console.warn(`[SG00001 Migration] Unmatched server: ${name}`);
+           }
+           return uid;
+        }).filter(Boolean) as string[];
+
+        matchCount += matchedServerIds.length;
+
+        batch.set(ref, {
+          id: docId,
+          title: item.title,
+          event_date: item.date,
+          required_servers: item.servers.length > 0 ? item.servers.length : 2, 
+          status: 'MASS-CONFIRMED', 
+          member_ids: matchedServerIds,
+          main_member_id: matchedServerIds.length > 0 ? matchedServerIds[0] : null,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      });
+
+      await batch.commit();
+      alert(`✅ SG00001 2026년 1월 스케줄 업로드 완료! (총 ${JANUARY_2026_SCHEDULE.length}개 미사, ${matchCount}명 배정)`);
+
+    } catch (e) {
+      console.error(e);
+      alert('❌ 업로드 실패: ' + e);
+    } finally {
+      setIsSG00001JanScheduleMigrating(false);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
@@ -392,6 +458,18 @@ const AdminMain: React.FC = () => {
                       <>
                         <Upload size={14} />
                         SG00002 12월 배정
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSG00001JanScheduleMigration}
+                    disabled={isSG00001JanScheduleMigrating}
+                    className="flex items-center gap-2 px-3 py-2 bg-cyan-600 text-white text-xs font-bold rounded-md hover:bg-cyan-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSG00001JanScheduleMigrating ? '배정 중...' : (
+                      <>
+                        <Upload size={14} />
+                        SG00001 1월배정
                       </>
                     )}
                   </button>

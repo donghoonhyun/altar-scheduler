@@ -1,8 +1,13 @@
-// src/pages/components/MyMembersPanel.tsx
 import { useNavigate } from 'react-router-dom';
 import type { MemberDoc } from '@/types/firestore';
 import { cn } from '@/lib/utils';
-import { Check, Plus } from 'lucide-react';
+import { Check, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { getFirestore, doc, deleteDoc } from 'firebase/firestore';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import dayjs from 'dayjs';
 
 interface Props {
   members: (MemberDoc & { memberId: string })[];
@@ -12,8 +17,28 @@ interface Props {
   onToggle: (id: string) => void;
 }
 
-export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: Props) {
+export default function MyMembersPanel({ members, checkedMemberIds, onToggle, serverGroupId }: Props) {
   const navigate = useNavigate();
+  const [selectedPendingMember, setSelectedPendingMember] = useState<(MemberDoc & { memberId: string }) | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteParams = async () => {
+    if (!selectedPendingMember) return;
+    if (!confirm(`'${selectedPendingMember.name_kor}'님의 신청 정보를 삭제하시겠습니까?`)) return;
+
+    setIsDeleting(true);
+    try {
+      const db = getFirestore();
+      await deleteDoc(doc(db, 'server_groups', serverGroupId, 'members', selectedPendingMember.memberId));
+      toast.success('신청이 취소되었습니다.');
+      setSelectedPendingMember(null);
+    } catch (error) {
+      console.error(error);
+      toast.error('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // members 컬렉션의 active 필드 및 request_confirmed 필드 기준 분리
   const approved = members.filter((m) => m.active === true);
@@ -62,13 +87,14 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
 
             {/* 승인 대기 중 복사 */}
             {pending.map((m) => (
-              <div
+              <button
                 key={m.memberId}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-400 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-500 cursor-not-allowed"
-                title="관리자 승인 대기 중"
+                onClick={() => setSelectedPendingMember(m)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer"
+                title="클릭하여 신청 정보 확인/취소"
               >
                 ⏳ {m.name_kor} (승인대기)
-              </div>
+              </button>
             ))}
 
             {/* 비활성 복사 (Inactive) */}
@@ -84,6 +110,65 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle }: 
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedPendingMember} onOpenChange={(open) => !open && setSelectedPendingMember(null)}>
+        <DialogContent className="max-w-xs rounded-xl bg-white dark:bg-slate-900 border dark:border-slate-800 p-6">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 dark:text-white">
+              <span className="text-xl">⏳</span> 승인 대기 중
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500 dark:text-gray-400">
+              관리자의 승인을 기다리고 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPendingMember && (
+            <div className="py-2 space-y-3">
+              <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg border dark:border-slate-700 text-sm">
+                <div className="grid grid-cols-3 gap-2 py-1">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">이름</span>
+                    <span className="col-span-2 font-bold dark:text-gray-200">{selectedPendingMember.name_kor}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 py-1">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">세례명</span>
+                    <span className="col-span-2 font-bold dark:text-gray-200">{selectedPendingMember.baptismal_name}</span>
+                </div>
+                {selectedPendingMember.created_at && (
+                    <div className="grid grid-cols-3 gap-2 py-1">
+                        <span className="text-gray-500 dark:text-gray-400 font-medium">신청일</span>
+                        <span className="col-span-2 dark:text-gray-200">
+                            {dayjs(selectedPendingMember.created_at.toDate()).format('YYYY-MM-DD')}
+                        </span>
+                    </div>
+                )}
+              </div>
+              
+              <div className="text-xs text-center text-gray-400 dark:text-gray-500 px-2 break-keep">
+                 잘못 신청하셨거나 신청을 취소하려면 아래 삭제 버튼을 눌러주세요.
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+             <Button 
+                variant="destructive" 
+                onClick={handleDeleteParams} 
+                disabled={isDeleting}
+                className="w-full flex items-center justify-center gap-2"
+            >
+                <Trash2 size={16} />
+                {isDeleting ? '삭제 중...' : '신청 취소'}
+            </Button>
+            <Button 
+                variant="outline" 
+                onClick={() => setSelectedPendingMember(null)}
+                className="w-full"
+            >
+                닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

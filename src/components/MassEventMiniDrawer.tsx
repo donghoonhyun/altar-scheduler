@@ -115,7 +115,7 @@ export default function MassEventMiniDrawer({
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {events.map((ev) => {
+                  {[...events].sort((a, b) => a.title.localeCompare(b.title, 'ko')).map((ev) => {
                     const members = namesMap[ev.id] ?? [];
                     const hasMembers = members.length > 0;
 

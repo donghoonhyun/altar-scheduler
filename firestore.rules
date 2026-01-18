@@ -15,7 +15,7 @@ service cloud.firestore {
     }
     function isGroupAdmin(groupId) {
       let membershipPath = /databases/$(database)/documents/memberships/$(request.auth.uid + '_' + groupId);
-      return isSignedIn() && exists(membershipPath) && 'admin' in get(membershipPath).data.role;
+      return isSignedIn() && exists(membershipPath) && get(membershipPath).data.role.hasAny(['admin']);
     }
 
     // 1️⃣ Users: 프로필은 누구나 읽기 가능, 수정은 본인 또는 슈퍼어드민
@@ -53,6 +53,8 @@ service cloud.firestore {
       // 복사단원(members) 등록은 로그인한 사용자면 누구나 가능 (승인 대기 상태로 생성)
       match /members/{memberId} {
         allow create: if isSignedIn() && request.resource.data.parent_uid == request.auth.uid;
+        // 본인(parent)이 신청한 건은 삭제(취소) 가능
+        allow delete: if isSignedIn() && resource.data.parent_uid == request.auth.uid;
       }
     }
     
