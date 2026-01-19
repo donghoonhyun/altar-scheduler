@@ -2,7 +2,7 @@ import { useSession } from "../../state/session";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Church, Menu, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus, Settings, Mail, X } from "lucide-react";
+import { Church, Menu, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus, Settings, Mail, X, HelpCircle } from "lucide-react";
 import ServerGroupSelector from "./ServerGroupSelector";
 import AppSettingsDrawer from "../../components/common/AppSettingsDrawer";
 import {
@@ -44,10 +44,10 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-blue-100 dark:from-slate-900 dark:to-slate-800 transition-colors">
       {/* 🔹공통 상단 바 (Header) */}
       <header className="sticky top-0 z-40 w-full border-b border-purple-200/50 dark:border-purple-900 bg-gradient-to-r from-purple-200/90 via-violet-100/90 to-indigo-200/90 dark:from-purple-950 dark:via-indigo-950 dark:to-violet-950 backdrop-blur-md shadow-sm">
-        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+        <div className="flex h-16 items-center justify-between pl-3 pr-1 sm:px-6 relative">
           {/* 좌측: Church Icon (Purple) */}
           <div 
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer shrink-0 z-10"
             onClick={() => {
               if (serverGroupId) {
                 navigate(`/server-groups/${serverGroupId}`);
@@ -66,18 +66,28 @@ export default function Layout() {
             </span>
           </div>
 
-          {/* 가운데: 복사단 선택 드롭다운 */}
-          <div className="flex-1 flex justify-center max-w-[280px] px-2">
+          {/* 가운데: 복사단 선택 드롭다운 (모바일: 절대위치 중앙정렬, xs이상: Flex 중앙정렬) */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] flex justify-center xs:static xs:transform-none xs:w-auto xs:max-w-none xs:flex-1 xs:justify-center min-w-0 px-1 z-0">
             <ServerGroupSelector />
           </div>
 
-          {/* 우측: 메뉴 버튼 (Hamburger) */}
-          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-gray-800 dark:text-gray-100">
-                <Menu size={32} strokeWidth={2.5} />
-              </Button>
-            </SheetTrigger>
+          {/* 우측: Support Icon & 메뉴 버튼 (Hamburger) */}
+          <div className="flex items-center gap-0 sm:gap-2 z-10">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="w-8 h-8 text-indigo-700 dark:text-indigo-300 transition-transform duration-300 hover:rotate-12 hover:scale-110 active:scale-90 dark:hover:bg-purple-800/50"
+                onClick={() => navigate('/support')}
+            >
+                <HelpCircle size={20} strokeWidth={2} />
+            </Button>
+
+            <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-800 dark:text-gray-100 transition-transform duration-300 hover:rotate-12 hover:scale-110 active:scale-90 dark:hover:bg-purple-800/50">
+                    <Menu size={35} strokeWidth={2.5} />
+                </Button>
+                </SheetTrigger>
             <SheetContent className="w-[310px] sm:w-[360px] sm:max-w-[360px]">
               <SheetHeader>
                 <SheetTitle className="hidden">메뉴</SheetTitle>
@@ -290,6 +300,7 @@ export default function Layout() {
               </div>
             </SheetContent>
           </Sheet>
+          </div>
         </div>
       </header>
 

@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useFcmToken } from '@/hooks/useFcmToken';
-import { useInstallPrompt } from '@/hooks/useInstallPrompt';
-import { Bell, CheckCircle2, XCircle, AlertCircle, Download, Share, Monitor, Sun, Moon, Laptop } from 'lucide-react';
+import { Bell, CheckCircle2, XCircle, AlertCircle, Monitor, Sun, Moon, Laptop } from 'lucide-react';
 import { useTheme } from '@/components/common/ThemeProvider';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +16,6 @@ interface AppSettingsDrawerProps {
 export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDrawerProps) {
   const { theme, setTheme } = useTheme();
   const { permission, toggleNotification } = useFcmToken();
-  const { isInstallable, promptInstall } = useInstallPrompt();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
 
   useEffect(() => {
@@ -208,64 +206,7 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
             </div>
           </section>
 
-          {/* PWA Install Guide */}
-          <section className="space-y-3">
-             <div className="px-1">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <Download size={16} className="text-blue-500" />
-                    앱 설치 (PWA)
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                    앱을 홈 화면에 추가하여 더 편리하게 이용하세요.
-                </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 space-y-3 shadow-sm">
-                {isInstallable && (
-                    <>
-                        <Button 
-                            variant="outline"
-                            className="w-full justify-center gap-2 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                            onClick={promptInstall}
-                        >
-                            <Download size={16} />
-                            앱설치
-                        </Button>
-                        <div className="h-px bg-gray-100 dark:bg-gray-700" />
-                    </>
-                )}
 
-                <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                        <div className="bg-gray-100 dark:bg-gray-700 p-1.5 rounded text-gray-600 dark:text-gray-300 mt-0.5">
-                            <Share size={16} />
-                        </div>
-                        <div>
-                            <span className="text-xs font-bold text-gray-900 dark:text-gray-200 block mb-0.5">iOS (iPhone/iPad)</span>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 leading-snug">
-                                Safari 브라우저 하단 <strong>공유</strong> 버튼 <Share size={10} className="inline mx-0.5" /> 클릭 후 <br/>
-                                <strong>'홈 화면에 추가'</strong>를 선택하세요.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="h-px bg-gray-100 dark:bg-gray-700" />
-
-                    <div className="flex items-start gap-3">
-                        <div className="bg-gray-100 dark:bg-gray-700 p-1.5 rounded text-gray-600 dark:text-gray-300 mt-0.5">
-                            <Download size={16} />
-                        </div>
-                        <div>
-                            <span className="text-xs font-bold text-gray-900 dark:text-gray-200 block mb-0.5">Android</span>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 leading-snug">
-                                Chrome 브라우저 메뉴에서 <strong>'앱 설치'</strong> 또는 <br/>
-                                <strong>'홈 화면에 추가'</strong>를 선택하세요.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          </section>
         </div>
       </SheetContent>
     </Sheet>

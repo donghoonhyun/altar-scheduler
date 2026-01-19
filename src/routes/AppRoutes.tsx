@@ -32,7 +32,9 @@ import UserManagement from '../pages/superadmin/UserManagement';
 import SmsManagement from '../pages/superadmin/SmsManagement';
 import SurveyManagement from '../pages/SurveyManagement';
 import SurveyCalendar from '@/pages/SurveyCalendar';
+import SurveyByServer from '@/pages/SurveyByServer';
 import WelcomeStandby from '../pages/WelcomeStandby';
+import Support from '@/pages/Support';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -134,6 +136,9 @@ export default function AppRoutes() {
       
       {/* 로그인 상태에서도 회원가입 페이지 접근 허용 (Google 미가입자 리다이렉트용) */}
       <Route path="/signup" element={<SignUp />} />
+      
+      {/* 2-1) Support 페이지 (공용) */}
+      <Route path="/support" element={<Support />} />
 
       {/* 3) Forbidden 페이지 */}
       <Route path="/forbidden" element={<Forbidden />} />
@@ -258,6 +263,15 @@ export default function AppRoutes() {
           element={
             <RoleGuard require="planner">
               <SurveyCalendar />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/server-groups/:serverGroupId/surveys/:surveyId/by-server"
+          element={
+            <RoleGuard require="planner">
+              <SurveyByServer />
             </RoleGuard>
           }
         />

@@ -215,17 +215,17 @@ export default function SurveyCalendar() {
   if (!survey) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-gray-50/50 dark:bg-slate-900 transition-colors">
        <Container className="py-6">
           <div className="flex flex-col gap-2 mb-6">
               <div className="flex items-center gap-2">
-                 <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8">
-                    <ArrowLeft size={24} />
+                 <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:hover:bg-slate-800">
+                    <ArrowLeft size={24} className="text-gray-900 dark:text-gray-100" />
                  </Button>
-                 <h1 className="text-2xl font-bold text-gray-900 leading-none">
+                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
                      {`${parseInt(survey.id.slice(4))}월 불참 설문`}
                  </h1>
-                 <Badge variant={survey.status === 'OPEN' ? 'default' : 'secondary'} className={`shrink-0 ${survey.status === 'OPEN' ? 'bg-green-600 hover:bg-green-700' : ''}`}>
+                 <Badge variant={survey.status === 'OPEN' ? 'default' : 'secondary'} className={`shrink-0 ${survey.status === 'OPEN' ? 'bg-green-600 hover:bg-green-700' : 'dark:bg-gray-700 dark:text-gray-300'}`}>
                     {survey.status === 'OPEN' ? '진행중' : '마감됨'}
                  </Badge>
               </div>
@@ -233,11 +233,11 @@ export default function SurveyCalendar() {
                <div className="flex justify-between items-center mt-2 pl-10">
                   <StatusBadge status={monthlyStatus} />
                   <div className="flex gap-1">
-                    <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex" title="엑셀로 저장">
+                    <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200" title="엑셀로 저장">
                         <Download size={16} className="mr-2" />
                         엑셀
                     </Button>
-                    <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden" title="엑셀로 저장">
+                    <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200" title="엑셀로 저장">
                         <Download size={16} />
                     </Button>
                   </div>
@@ -246,12 +246,12 @@ export default function SurveyCalendar() {
 
 
           {/* View Controls */}
-          <div className="flex flex-row gap-2 justify-between items-center bg-white p-3 rounded-lg border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md">
+          <div className="flex flex-row gap-2 justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-slate-700 shadow-sm mb-4 transition-colors">
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 p-1 rounded-md">
                   <button
                     onClick={() => setViewMode('available')}
                     className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
-                        viewMode === 'available' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                        viewMode === 'available' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                   >
                     가능보기
@@ -259,7 +259,7 @@ export default function SurveyCalendar() {
                   <button
                     onClick={() => setViewMode('unavailable')}
                     className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
-                        viewMode === 'unavailable' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                        viewMode === 'unavailable' ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                   >
                     불가보기
@@ -268,11 +268,11 @@ export default function SurveyCalendar() {
 
               <div className="flex items-center gap-2">
                  <span className="text-xs text-gray-400 font-medium hidden sm:inline">|</span>
-                 <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md">
+                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 p-1 rounded-md">
                     <button
                         onClick={() => setDisplayMode('count')}
                         className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
-                            displayMode === 'count' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                            displayMode === 'count' ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                     >
                         인원수
@@ -280,7 +280,7 @@ export default function SurveyCalendar() {
                     <button
                         onClick={() => setDisplayMode('name')}
                         className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
-                            displayMode === 'name' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                            displayMode === 'name' ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                     >
                         이름
@@ -324,15 +324,15 @@ export default function SurveyCalendar() {
                    
                    return (
 
-                       <div className="bg-white rounded-lg border border-gray-200 p-2 sm:p-4">
-                           <div className="grid grid-cols-7 mb-2 sm:mb-4 text-center text-xs sm:text-sm text-gray-500 font-bold">
-                               <div className="text-red-500">일</div>
+                       <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-2 sm:p-4 transition-colors">
+                           <div className="grid grid-cols-7 mb-2 sm:mb-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-bold">
+                               <div className="text-red-500 dark:text-red-400">일</div>
                                <div>월</div>
                                <div>화</div>
                                <div>수</div>
                                <div>목</div>
                                <div>금</div>
-                               <div className="text-blue-500">토</div>
+                               <div className="text-blue-500 dark:text-blue-400">토</div>
                            </div>
                            <div className="space-y-1 sm:space-y-2">
                                {weeks.map((week, wIdx) => (
@@ -350,9 +350,10 @@ export default function SurveyCalendar() {
                                                    key={dIdx}
                                                    className={`min-h-[80px] sm:min-h-[120px] flex flex-col items-start justify-start p-1 rounded-lg transition-all border
                                                       bg-white border-gray-100 hover:bg-gray-50
+                                                      dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700/50
                                                    `}
                                                >
-                                                   <span className={`text-[10px] sm:text-xs w-full text-center mb-1 font-medium ${(date.day() === 0 ? 'text-red-500' : date.day() === 6 ? 'text-blue-500' : 'text-gray-700')}`}>
+                                                   <span className={`text-[10px] sm:text-xs w-full text-center mb-1 font-medium ${(date.day() === 0 ? 'text-red-500 dark:text-red-400' : date.day() === 6 ? 'text-blue-500 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300')}`}>
                                                       {date.date()}
                                                    </span>
                                                    
@@ -375,9 +376,9 @@ export default function SurveyCalendar() {
                                                             const isEventSelected = selectedEvent?.id === ev.id;
                                                             
                                                             // Styles
-                                                            const bgColor = viewMode === 'available' ? 'bg-blue-50' : 'bg-red-50';
-                                                            const borderColor = viewMode === 'available' ? 'border-blue-100' : 'border-red-100';
-                                                            const textColor = viewMode === 'available' ? 'text-blue-700' : 'text-red-700';
+                                                            const bgColor = viewMode === 'available' ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-red-50 dark:bg-red-900/30';
+                                                            const borderColor = viewMode === 'available' ? 'border-blue-100 dark:border-blue-800' : 'border-red-100 dark:border-red-800';
+                                                            const textColor = viewMode === 'available' ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300';
                                                             const badgeColor = viewMode === 'available' ? 'bg-blue-500' : 'bg-red-500';
 
                                                            return (
@@ -389,9 +390,9 @@ export default function SurveyCalendar() {
                                                                     }}
                                                                     className={`
                                                                         w-full rounded border flex flex-col justify-start items-start cursor-pointer transition-all overflow-hidden
-                                                                        ${isEventSelected ? 'ring-2 ring-gray-900 border-gray-900 z-10 shadow-sm' : ''}
-                                                                        ${count > 0 ? `${bgColor} ${borderColor} ${textColor}` : 'bg-gray-50 border-gray-100 text-gray-400'}
-                                                                        hover:brightness-95
+                                                                        ${isEventSelected ? 'ring-2 ring-gray-900 dark:ring-gray-100 border-gray-900 dark:border-gray-100 z-10 shadow-sm' : ''}
+                                                                        ${count > 0 ? `${bgColor} ${borderColor} ${textColor}` : 'bg-gray-50 border-gray-100 text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-500'}
+                                                                        hover:brightness-95 dark:hover:brightness-110
                                                                     `}
                                                                >
                                                                    {/* Header: Title + Count */}
@@ -442,7 +443,7 @@ export default function SurveyCalendar() {
                                    <>
                                        <span className={`w-1.5 h-6 rounded-full ${viewMode === 'available' ? 'bg-blue-500' : 'bg-red-500'}`}></span>
                                        {selectedEvent.title}
-                                       <span className="text-base font-normal text-gray-500 ml-2">
+                                       <span className="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">
                                             {dayjs(selectedEvent.event_date).format('M월 D일')}
                                        </span>
                                    </>
@@ -454,10 +455,10 @@ export default function SurveyCalendar() {
                            {selectedEvent && (
                                <div className="space-y-4">
                                     <div className="flex items-center gap-2">
-                                       <span className="text-sm font-bold text-gray-700">
+                                       <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                                            {viewMode === 'available' ? '참석 가능 인원' : '불참 인원'}
                                        </span>
-                                       <Badge variant="secondary" className={`${viewMode === 'available' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                                       <Badge variant="secondary" className={`${viewMode === 'available' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-100 dark:border-blue-800' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-100 dark:border-red-800'}`}>
                                             {(() => {
                                                 const unavailableUids: string[] = [];
                                                 Object.values(survey.responses || {}).forEach(r => {
@@ -473,7 +474,7 @@ export default function SurveyCalendar() {
                                        </Badge>
                                    </div>
 
-                                   <div className="flex flex-wrap gap-2 min-h-[100px] content-start">
+                                    <div className="flex flex-wrap gap-2 min-h-[100px] content-start">
                                        {(() => {
                                           const unavailableUids: string[] = [];
                                           Object.values(survey.responses || {}).forEach(r => {
@@ -485,7 +486,7 @@ export default function SurveyCalendar() {
                                           
                                           const targetUids = viewMode === 'available' ? availableUids : unavailableUids;
 
-                                          if (targetUids.length === 0) return <div className="text-sm text-gray-400 w-full py-4 text-center bg-gray-50 rounded-lg">해당 인원이 없습니다.</div>;
+                                          if (targetUids.length === 0) return <div className="text-sm text-gray-400 w-full py-4 text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg">해당 인원이 없습니다.</div>;
 
                                           // Sort: Grade -> Name
                                           const userList = targetUids.map(uid => memberMap[uid] || { id: uid, name: '...', grade: '' });
@@ -496,9 +497,9 @@ export default function SurveyCalendar() {
 
                                           return userList.map(info => {
                                               return (
-                                                  <div key={info.id} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 shadow-sm">
-                                                      <span className="font-bold text-gray-900">{info.name}</span>
-                                                      <span className="text-xs text-gray-500">{info.grade}</span>
+                                                  <div key={info.id} className="flex items-center gap-2 bg-gray-50 dark:bg-slate-600 px-3 py-2 rounded-lg border border-gray-100 dark:border-slate-500 shadow-sm">
+                                                      <span className="font-bold text-gray-900 dark:text-gray-100">{info.name}</span>
+                                                      <span className="text-xs text-gray-500 dark:text-gray-300">{info.grade}</span>
                                                   </div>
                                               );
                                           });

@@ -854,9 +854,9 @@ export function SendSurveyDrawer({
                                     {m.grade && <span className="text-gray-400 dark:text-gray-500 text-xs ml-1">{m.grade}</span>}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                     {(m.created_at || m.create_dt) && (
+                                     {m.created_at && (
                                         <span className="text-[10px] text-gray-300 dark:text-slate-600">
-                                            {dayjs((m.created_at || m.create_dt)?.toDate ? (m.created_at || m.create_dt).toDate() : (m.created_at || m.create_dt)).format('YY.MM.DD HH:mm')}
+                                            {dayjs(m.created_at?.toDate ? m.created_at.toDate() : m.created_at).format('YY.MM.DD HH:mm')}
                                         </span>
                                      )}
                                 </div>

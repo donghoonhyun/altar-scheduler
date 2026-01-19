@@ -34,8 +34,10 @@ export default function ServerGroupSelector() {
           }
         }}
       >
-        <SelectTrigger className="w-full border-none px-2 py-1.5 h-auto text-sm bg-transparent text-gray-800 dark:text-gray-100 font-bold focus:ring-0 focus:ring-offset-0 shadow-none">
-          <SelectValue placeholder="복사단을 선택하세요" />
+        <SelectTrigger className="w-full border-none px-2 py-1.5 h-auto text-sm bg-transparent text-gray-800 dark:text-gray-100 font-bold focus:ring-0 focus:ring-offset-0 shadow-none justify-center">
+          <span className="block w-full truncate text-center">
+             <SelectValue placeholder="복사단을 선택하세요" />
+          </span>
         </SelectTrigger>
         <SelectContent className="max-h-[300px] bg-white dark:bg-slate-900" position="popper">
           {groups.map(([sgId, info]) => {

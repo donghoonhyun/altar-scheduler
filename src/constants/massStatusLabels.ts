@@ -24,24 +24,24 @@ export const MASS_STATUS_LABELS: Record<MassStatus, string> = {
 export const MASS_STATUS_COLORS: Record<MassStatus, { bg: string; text: string; border: string }> =
   {
     'MASS-NOTCONFIRMED': {
-      bg: 'bg-gray-200',
-      text: 'text-gray-600',
-      border: 'border-gray-400',
+      bg: 'bg-gray-200 dark:bg-gray-700',
+      text: 'text-gray-600 dark:text-gray-300',
+      border: 'border-gray-400 dark:border-gray-500',
     },
     'MASS-CONFIRMED': {
-      bg: 'bg-blue-100',
-      text: 'text-blue-700',
-      border: 'border-blue-300',
+      bg: 'bg-blue-100 dark:bg-blue-900/40',
+      text: 'text-blue-700 dark:text-blue-300',
+      border: 'border-blue-300 dark:border-blue-700',
     },
     'SURVEY-CONFIRMED': {
-      bg: 'bg-amber-100',
-      text: 'text-amber-700',
-      border: 'border-amber-300',
+      bg: 'bg-amber-100 dark:bg-amber-900/40',
+      text: 'text-amber-700 dark:text-amber-300',
+      border: 'border-amber-300 dark:border-amber-700',
     },
     'FINAL-CONFIRMED': {
-      bg: 'bg-green-100',
-      text: 'text-green-700',
-      border: 'border-green-300',
+      bg: 'bg-green-100 dark:bg-green-900/40',
+      text: 'text-green-700 dark:text-green-300',
+      border: 'border-green-300 dark:border-green-700',
     },
   };
 

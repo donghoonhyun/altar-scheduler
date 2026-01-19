@@ -184,9 +184,12 @@ export default function SurveyManagement() {
                                   <div className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${rate}%` }} />
                                </div>
                                
-                               <div className="grid grid-cols-2 gap-2">
+                               <div className="grid grid-cols-3 gap-2">
                                     <Button size="sm" variant="outline" onClick={() => handleOpenDetail(survey)} className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200">
                                         설문 명단
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => navigate(`/server-groups/${serverGroupId}/surveys/${survey.id}/by-server`)} className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200">
+                                        복사별 보기
                                     </Button>
                                     <Button size="sm" variant="outline" onClick={() => navigate(`/server-groups/${serverGroupId}/surveys/${survey.id}/calendar`)} className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200">
                                         달력 보기
