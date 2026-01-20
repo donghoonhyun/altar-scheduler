@@ -681,6 +681,27 @@ export function SendSurveyDrawer({
                                                  미제출
                                              </span>
                                          )}
+                                          <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 ml-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                              title="설문 수정/제출"
+                                              onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  // Open survey page for this member
+                                                  // Using window.open to keep drawer context, or useNavigate if inside router context
+                                                  // Since this is a drawer, navigating away might be okay or prefer new tab.
+                                                  // User request: "화면을 열어서 ... 직접 수정제출 할 수 있도록 하자" -> Navigation seems appropriate.
+                                                  // However, SendSurveyDrawer is likely used inside a page. Let's start with window.open or navigate.
+                                                  // Given it's an admin action, opening in new tab or same tab is fine. 
+                                                  // Let's use window.open for now to preserve the planner's context in the background, 
+                                                  // OR just direct navigation if preferred. 
+                                                  // Let's use direct navigation.
+                                                    window.open(`/survey/${serverGroupId}/${currentMonth}?uid=${m.id}`, '_blank');
+                                              }}
+                                          >
+                                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                          </Button>
                                      </div>
                                  </div>
                                  

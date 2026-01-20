@@ -390,6 +390,7 @@
 ### 2.6.2 복사 설문 진행 (ServerSurvey)
 
 - 전달받은 설문URL로 진입하는 화면에서 복사가 설문 진행.
+- **플래너 대리 제출**: 플래너는 `SendSurveyDrawer` 의 설문 명단에서 [수정] 버튼을 통해 복사를 대신하여 설문을 제출/수정할 수 있음 (새 창 열림).
 
 ### 2.6.3 복사별 불참 현황 (Survey By Server)
 
@@ -769,6 +770,21 @@
   - 빈번한 업데이트가 발생하는 카운터나 집계 데이터는 Cloud Functions 트리거를 통해 비동기로 처리하거나, 분산 카운터 방식을 고려한다.
 - **모니터링:**
   - Firebase Emulator를 적극 활용하여 로컬에서 읽기/쓰기 발생량을 주기적으로 모니터링한다.  
+
+### 3.6 개발 및 데이터 동기화 도구 (Dev Tools)
+
+로컬 개발 환경(Emulator)과 클라우드(Production/Dev) 데이터 간의 동기화를 위한 스크립트를 제공한다.
+(위치: `scripts/`)
+
+#### 3.6.1 데이터 동기화 스크립트
+- **목적**: 클라우드(`altar-scheduler-dev`)의 실제 데이터를 로컬 에뮬레이터로 가져와 리얼한 테스트 환경 구축.
+- **명령어**:
+  - `npm run sync:cloud`: 클라우드 데이터 추출(`fetchCloudData`) 후 에뮬레이터로 임포트(`importToEmulator`) (Full Process).
+  - `npm run import:cloud`: 이미 다운로드된 데이터(`scripts/data/*.json`)를 에뮬레이터로 임포트.
+- **주요 기능**:
+  - **Firestore & Auth Export**: 클라우드의 Firestore 컬렉션(recursive) 및 Auth 사용자 정보를 JSON으로 저장.
+  - **Service Account 인증**: `gcloud auth` 없이 `service-account.json` 키 파일을 통한 인증 지원.
+  - **Critical User 보정**: 데이터 임포트 후, 개발용 핵심 계정(예: `pongso.hyun@gmail.com`)의 UID와 권한(Admin/Planner)을 강제로 복구하여 로그인 불가 현상 방지.
 
 ### 3.4.2 Firestore doc modeling (서브컬렉션로 단위 격리)
 

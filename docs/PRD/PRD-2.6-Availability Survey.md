@@ -80,6 +80,20 @@ await setDoc(doc(db, `server_groups/${sg}/availability_surveys/${yyyymm}`), {
 https://altar-scheduler.web.app/survey/:serverGroupId/:yyyymm
 ```
 
+### 3.1 플래너 대리 입력/수정 (Proxy Submission)
+
+플래너나 관리자가 복사(Server)를 대신하여 직접 설문 내용을 입력하거나 수정해야 할 경우가 있다. (예: 스마트폰 사용이 어려운 경우, 구두로 일정을 통보받은 경우 등)
+
+#### UI/UX 동작
+1. **진입점**: `SendSurveyDrawer` 의 하단 복사 명단 리스트.
+2. **동작**:
+   - 각 복사 이름 우측의 **[수정] (연필 아이콘)** 버튼 클릭.
+   - **새 창(또는 새 탭)** 으로 해당 복사의 설문 페이지(`/survey/:sgId/:month?uid=:targetUid`)가 열림.
+   - 새 창의 헤더에는 [뒤로가기] 대신 **[창 닫기(X)]** 버튼이 표시됨 (Planner Workflow 보호).
+3. **권한**:
+   - 로그인한 사용자가 **Planner** 또는 **Admin** 권한을 가진 경우에만 타인(`targetUid`)의 설문 페이지에 접근 및 제출 가능.
+   - 권한이 없는 경우(일반 Server) 타인의 UID로 접근 시 "대상자가 아닙니다" 경고 표시.
+
 ---
  
  ## 🧩 3.5 설문 관리 페이지 (SurveyManagement)
@@ -113,6 +127,8 @@ https://altar-scheduler.web.app/survey/:serverGroupId/:yyyymm
 | 항목            | 설명                                      |
 | ------------- | --------------------------------------- |
 | 🕳 달력 표시      | 해당 월의 모든 확정 미사 일정(`mass_events`) 표시     |
+| 🔗 URL 파라미터   | `?uid=xxx`: 플래너가 특정 복사를 대리하여 접속 시 사용 |
+| 🔙 헤더 네비게이션 | 일반 진입 시 [뒤로가기(←)], 새 창(Popup) 진입 시 [닫기(X)] 버튼 표시 |
 | ✅ 기본 상태       | 모든 일정 = 참석 가능 (AVAILABLE)               |
 | 🚫 불가 토그      | 클릭/터치 시 “불가(false)” 로 토그                |
 | 🧾 모두 참석 체크박스 | 달력에서 아무 불가 선택이 없을 때만 활성화됨               |

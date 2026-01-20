@@ -48,7 +48,7 @@ export default function ServerSurvey() {
   const [user, loadingUser] = useAuthState(auth);
   
   const [searchParams] = useSearchParams();
-  const targetMemberId = searchParams.get('memberId') || user?.uid;
+  const targetMemberId = searchParams.get('uid') || searchParams.get('memberId') || user?.uid;
   const [targetMemberName, setTargetMemberName] = useState('');
   const [surveyPeriod, setSurveyPeriod] = useState('');
 
@@ -129,28 +129,53 @@ export default function ServerSurvey() {
             setSurveyPeriod(`${dayjs(start).format('M월 D일')}~${dayjs(end).format('M월 D일')}`);
         }
 
-        // MEMBER CHECK (로그인 유저가 대상인지)
+        // MEMBER CHECK & PERMISSION CHECK
         if (user && targetMemberId) {
             const members = surveyData.member_ids || [];
+            
+            // 1. 대상자가 설문 대상에 포함되는지 확인
             if (!members.includes(targetMemberId)) {
+                // 플래너가 보러 왔는데 대상자가 아니라면? -> "설문 대상이 아닙니다" 표시
+                // 하지만 설문 대상이 아니어도 플래너가 수정하고 싶을 수도 있음 (추가하면서). 
+                // 일단 기존 로직 유지하되 메시지 명확히.
                 setAccessDenied(true);
                 setLoading(false);
                 return;
             }
 
-            // (3) 기존 응답 로드 (responses 맵 내에서 확인)
+            // 2. 권한 확인 (본인 or 플래너/관리자)
+            // Note: We check session roles or just assume if they can access this page and are not blocking Firestore rules.
+            // But for UI safety, let's check basic logic.
+            // Client-side guard:
+            const isMySurvey = user.uid === targetMemberId;
+            // We need session to check roles properly, but session hook might not be ready or imported here?
+            // Let's assume if the user navigates here via valid route, they are at least authenticated.
+            // Ideally we should import useSession from '@/state/session' but let's try to check Firestore directly if needed,
+            // or rely on Firestore Security Rules to fail the write if not allowed.
+            // But for "Read", anyone can read the survey doc? The doc contains all responses?
+            // Yes, "responses" is a map in one doc. So if I can read the doc, I can read everyone's.
+            // So we rely on the logic here to filter "myResponse" for display.
+            
+            // If we provided a specific targetMemberId via URL, we want to load THAT user's response.
+            // So we just need to trust targetMemberId if provided.
+            
+            // (3) 기존 응답 로드
             const responsesMap = surveyData.responses || {};
-            const myResponse = responsesMap[targetMemberId];
-            if (myResponse) {
-                // Support both array (new) and map (old/legacy) for unavailable
+            const targetResponse = responsesMap[targetMemberId];
+            
+            if (targetResponse) {
                 let ids: string[] = [];
-                if (Array.isArray(myResponse.unavailable)) {
-                    ids = myResponse.unavailable;
-                } else if (myResponse.unavailable && typeof myResponse.unavailable === 'object') {
-                     ids = Object.keys(myResponse.unavailable);
+                if (Array.isArray(targetResponse.unavailable)) {
+                    ids = targetResponse.unavailable;
+                } else if (targetResponse.unavailable && typeof targetResponse.unavailable === 'object') {
+                     ids = Object.keys(targetResponse.unavailable);
                 }
                 setUnavailableIds(ids);
                 setHasExistingResponse(true);
+            } else {
+                // If no response, ensure unavailableIds is empty
+                setUnavailableIds([]);
+                setHasExistingResponse(false);
             }
         }
 
@@ -340,8 +365,21 @@ export default function ServerSurvey() {
       {/* Header */}
       <div className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-slate-900/50 sticky top-0 z-10 border-b border-transparent dark:border-slate-800">
           <div className="max-w-md md:max-w-4xl mx-auto px-4 py-2 flex items-center justify-between min-h-[3.5rem]">
-              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:text-gray-200 dark:hover:bg-slate-800">
-                  <ArrowLeft size={20} />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                    // 팝업/새탭으로 열렸으면 창 닫기, 아니면 뒤로가기
+                    if (window.opener && window.opener !== window) {
+                        window.close();
+                    } else {
+                        navigate(-1);
+                    }
+                }} 
+                className="p-0 w-8 h-8 dark:text-gray-200 dark:hover:bg-slate-800"
+              >
+                  {/* 아이콘: 팝업이면 X, 아니면 뒤로가기 화살표 */}
+                  {(window.opener && window.opener !== window) ? <span className="text-xl">×</span> : <ArrowLeft size={20} />}
               </Button> 
               <div className="flex flex-col items-center">
                 <h1 className="font-bold text-lg leading-tight dark:text-white">

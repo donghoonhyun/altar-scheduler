@@ -1,5 +1,7 @@
 # 로컬/IDE 관련, Logs
 logs
+scripts/service-account.json
+scripts/data/
 *.log
 *.local
 npm-debug.log*
