@@ -50,6 +50,7 @@ export default function ServerSurvey() {
   const [searchParams] = useSearchParams();
   const targetMemberId = searchParams.get('uid') || searchParams.get('memberId') || user?.uid;
   const [targetMemberName, setTargetMemberName] = useState('');
+  const [baptismalName, setBaptismalName] = useState('');
   const [surveyPeriod, setSurveyPeriod] = useState('');
 
   const [currentDate, setCurrentDate] = useState(dayjs(yyyymm)); // 달력 표시용 (기본은 설문 월)
@@ -79,7 +80,11 @@ export default function ServerSurvey() {
         if (targetMemberId) {
              const mRef = doc(db, `server_groups/${serverGroupId}/members/${targetMemberId}`);
              getDoc(mRef).then(snap => {
-                 if(snap.exists()) setTargetMemberName(snap.data().name_kor);
+                 if(snap.exists()) {
+                     const data = snap.data();
+                     setTargetMemberName(data.name_kor);
+                     if (data.baptismal_name) setBaptismalName(data.baptismal_name);
+                 }
              }).catch(console.error);
         }
 
@@ -383,7 +388,7 @@ export default function ServerSurvey() {
               </Button> 
               <div className="flex flex-col items-center">
                 <h1 className="font-bold text-lg leading-tight dark:text-white">
-                    {dayjs(yyyymm).format('YYYY년 M월')} 설문 {targetMemberName && `(${targetMemberName})`}
+                    {dayjs(yyyymm).format('YYYY년 M월')} 설문 {targetMemberName && `(${targetMemberName}${baptismalName ? ' ' + baptismalName : ''})`}
                 </h1>
                 {surveyPeriod && (
                     <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

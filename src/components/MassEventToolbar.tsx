@@ -8,6 +8,7 @@ interface MassEventToolbarProps {
   monthStatus: string;
   isLocked: boolean;
   isCopyEnabled: boolean;
+  isSurveyOpen: boolean; // ✅ Added prop
   onApplyPreset: () => void;
   onConfirmMass: () => void;
   onOpenSurvey: () => void;
@@ -21,6 +22,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
   monthStatus,
   isLocked,
   isCopyEnabled,
+  isSurveyOpen,
   onApplyPreset,
   onConfirmMass,
   onOpenSurvey,
@@ -75,7 +77,7 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         onClick={onOpenSurvey}
       >
         <Send className="w-3.5 h-3.5 mr-1" /> 
-        {monthStatus === 'SURVEY-CONFIRMED' || monthStatus === 'FINAL-CONFIRMED' ? '설문보기' : '설문발송'}
+        {monthStatus === 'SURVEY-CONFIRMED' || monthStatus === 'FINAL-CONFIRMED' || isSurveyOpen ? '설문보기' : '설문발송'}
       </Button>
 
       <Button

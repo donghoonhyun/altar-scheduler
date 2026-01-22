@@ -39,11 +39,12 @@ const DialogContent = React.forwardRef<
     >
       {children}
       <DialogPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background 
-                   transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 
-                   focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+        className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background 
+                   transition-all hover:opacity-100 focus:outline-none focus:ring-2 
+                   focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none
+                   p-1 hover:bg-slate-100 dark:hover:bg-slate-800"
       >
-        <X className="h-4 w-4" />
+        <X className="h-5 w-5" />
         <span className="sr-only">닫기</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -69,7 +70,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-gray-500 mb-2 dark:text-gray-400', className)}
+    className={cn('text-[12px] text-gray-500 mb-2 dark:text-gray-400', className)}
     {...props}
   />
 ));

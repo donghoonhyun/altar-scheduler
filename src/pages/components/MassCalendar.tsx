@@ -183,28 +183,46 @@ export default function MassCalendar({
               {/* 복사명 */}
               {ev.servers && ev.servers.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {ev.servers.slice(0, 3).map((s, i) => {
-                    const memberId = ev.member_ids?.[i];
-                    const isMain = memberId && memberId === ev.main_member_id;
+                  {(() => {
+                    // ✅ [수정] 주복사(main_member_id)를 맨 앞으로 정렬
+                    const memberIds = ev.member_ids || [];
+                    const memberNames = ev.servers || [];
+
+                    const participants = memberIds.map((id, idx) => ({
+                      id,
+                      name: memberNames[idx] || '?',
+                      isMain: id === ev.main_member_id,
+                    }));
+
+                    // isMain=true가 맨 앞으로 오도록 정렬
+                    participants.sort((a, b) => {
+                      if (a.isMain && !b.isMain) return -1;
+                      if (!a.isMain && b.isMain) return 1;
+                      return 0;
+                    });
 
                     return (
-                      <span
-                        key={i}
-                        className={cn(
-                          "px-2 py-[1px] text-[11px] rounded-md truncate max-w-[80px]",
-                          isMain 
-                            ? "bg-blue-500 text-white dark:bg-blue-600" 
-                            : "bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-100"
+                      <>
+                        {participants.slice(0, 3).map((p, i) => (
+                          <span
+                            key={`${p.id}-${i}`}
+                            className={cn(
+                              "px-2 py-[1px] text-[11px] rounded-md truncate max-w-[80px]",
+                              p.isMain 
+                                ? "bg-blue-500 text-white dark:bg-blue-600" 
+                                : "bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-100"
+                            )}
+                            title={p.name}
+                          >
+                            {p.name}
+                          </span>
+                        ))}
+                        {participants.length > 3 && (
+                          <span className="text-[10px] text-gray-500">+{participants.length - 3}</span>
                         )}
-                        title={s}
-                      >
-                        {s}
-                      </span>
+                      </>
                     );
-                  })}
-                  {ev.servers.length > 3 && (
-                    <span className="text-[10px] text-gray-500">+{ev.servers.length - 3}</span>
-                  )}
+                  })()}
                 </div>
               )}
             </div>
@@ -254,9 +272,9 @@ export default function MassCalendar({
             </Button>
           </div>
 
-          {/* 오른쪽: 상태배지 + 범례 */}
+            {/* 오른쪽: 상태배지 + 범례 */}
           <div className="flex items-center gap-3">
-            <div onClick={onOpenMonthStatusDrawer} className="cursor-pointer whitespace-nowrap">
+            <div className="whitespace-nowrap">
               <StatusBadge status={monthStatus} size="md" />
             </div>
 

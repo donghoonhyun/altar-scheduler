@@ -278,3 +278,40 @@ for each event_id in mass_events:
     *   Title: "✅ 미사 배정 확정"
     *   Body: "{N}월 복사 배정표가 확정되었습니다. 확인해주세요!"
     *   Action: 메인 페이지로 이동 (`/server-groups/{sgId}`)
+
+---
+
+## 🧩 12. UI/Logic Refinements & Member Filtering (2025.01)
+
+복사 관리 및 설문 현황 조회 시 사용자 경험을 개선하고 데이터 정합성을 높이기 위해 다음 규칙을 적용한다.
+
+### 12.1 멤버 필터링 및 정렬 (Member Filtering)
+모든 설문 관련 화면(설문 관리, 달력 보기, 복사별 보기 등)에서 멤버 목록은 다음 규칙에 따라 필터링된다.
+
+1.  **Active Members (정상 목록)**:
+    *   Firestore `members` 컬렉션의 `active` 필드가 `true`인 멤버만 메인 목록 및 통계(대상자/응답자 수)에 포함한다.
+    *   기존 `status` 필드보다 `active` boolean 필드를 우선하여 판단한다.
+
+2.  **Inactive / Deleted with History (하단 분리 목록)**:
+    *   `active`가 `false`(또는 undefined)이거나 문서가 삭제된(`정보없음`) 멤버는 메인 목록에서 제외한다.
+    *   단, **설문 제출 이력(Response)이 존재하는 경우**에는 목록 최하단에 별도 그룹("제외된 명단 / 활동종료")으로 분리하여 표시한다.
+    *   설문 이력이 없는 비활동 멤버는 화면에 표시하지 않는다.
+
+3.  **Deleted Members Handling**:
+    *   멤버 문서가 물리적으로 삭제되어 참조할 수 없는 경우, 이름을 "정보없음(삭제됨?)"으로 표시하고 하단 분리 목록에 포함시킨다.
+
+### 12.2 세례명 표시 (Baptismal Name Display)
+동명이인 구분 및 신자 친화적인 UI를 위해 이름 표시 시 세례명을 병기한다.
+
+*   **Format**: `이름 (세례명)` 또는 별도 행에 표시.
+*   **적용 화면**:
+    *   설문 진행 페이지 상단 헤더
+    *   설문 현황 Drawer (응답자 목록)
+    *   복사별 설문 현황 테이블 (`/by-server`)
+    *   달력 보기 명단 카드 (Drawer)
+
+### 12.3 통계 집계 (Stats Calculation)
+*   **총 대상자 수**: `active: true` 인 멤버 수.
+*   **응답자 수**: 응답을 제출한 멤버 중 `active: true` 인 멤버 수.
+*   **응답률**: (Active 응답자 / Active 대상자) * 100.
+*   *비활동 멤버의 응답은 통계 수치에는 포함하지 않으나, 하단 목록에서 데이터 확인은 가능하다.*

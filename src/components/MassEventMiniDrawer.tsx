@@ -117,14 +117,17 @@ export default function MassEventMiniDrawer({
                 <div className="flex flex-col gap-3">
                   {[...events].sort((a, b) => a.title.localeCompare(b.title, 'ko')).map((ev) => {
                     const members = namesMap[ev.id] ?? [];
-                    const hasMembers = members.length > 0;
+                    // 🔥 [수정] 최종확정(FINAL-CONFIRMED) 상태일 때만 배정 명단을 노출
+                    const isFinalized = monthStatus === 'FINAL-CONFIRMED';
+                    const visibleMembers = isFinalized ? members : [];
+                    const hasVisibleMembers = visibleMembers.length > 0;
 
                     return (
                       <Card key={ev.id} className="p-3 border border-gray-200 dark:border-slate-800 dark:bg-slate-800">
                         <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">{ev.title}</h3>
                         <div className="flex flex-wrap gap-1">
-                          {hasMembers ? (
-                            members.map((m) => (
+                          {hasVisibleMembers ? (
+                            visibleMembers.map((m) => (
                               <span
                                 key={m.id}
                                 className={`px-2 py-0.5 rounded-md text-sm ${

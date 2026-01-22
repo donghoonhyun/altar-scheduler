@@ -2,9 +2,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, Container, Heading } from '@/components/ui';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { LogOut } from 'lucide-react';
 
 export default function WelcomeStandby() {
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    window.location.href = "/login";
+  };
 
   return (
     <Container className="flex items-center justify-center min-h-[80vh]">
@@ -45,6 +53,17 @@ export default function WelcomeStandby() {
           >
             플래너 권한 신청
           </Button>
+
+          <div className="pt-2 mt-2 border-t border-gray-100">
+            <Button 
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full text-red-500 h-10 hover:bg-red-50 hover:text-red-700 gap-2"
+            >
+              <LogOut size={16} />
+              로그아웃
+            </Button>
+          </div>
         </div>
 
         <p className="mt-8 text-xs text-gray-400">

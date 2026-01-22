@@ -27,7 +27,9 @@ interface SurveyDoc {
 interface MemberInfo {
   id: string;
   name: string;
+  baptismal_name?: string;
   grade?: string;
+  active?: boolean;
 }
 
 interface MassEventDoc {
@@ -131,9 +133,15 @@ export default function SurveyCalendar() {
                   const snap = await getDoc(doc(db, 'server_groups', serverGroupId, 'members', uid));
                   if (snap.exists()) {
                       const d = snap.data();
-                      newMap[uid] = { id: uid, name: d.name_kor, grade: d.grade };
+                      newMap[uid] = { 
+                          id: uid, 
+                          name: d.name_kor, 
+                          baptismal_name: d.baptismal_name,
+                          grade: d.grade,
+                          active: d.active
+                      };
                   } else {
-                      newMap[uid] = { id: uid, name: '알수없음' };
+                      newMap[uid] = { id: uid, name: '정보없음(삭제됨?)', active: false };
                   }
                } catch(e) { console.error(e); }
            }));
@@ -168,7 +176,12 @@ export default function SurveyCalendar() {
         });
 
         const allMemberIds = survey.member_ids || [];
-        const availableUids = allMemberIds.filter(id => !unavailableUids.includes(id));
+        const availableUids = allMemberIds
+            .filter(id => !unavailableUids.includes(id))
+            .filter(uid => memberMap[uid]?.active === true);
+
+        // Also filter unavailable (responses from inactive members)
+        const filteredUnavailableUids = unavailableUids.filter(uid => memberMap[uid]?.active === true);
 
         // Get names
         const getNames = (uids: string[]) => {
@@ -182,9 +195,9 @@ export default function SurveyCalendar() {
             '날짜': date,
             '미사': ev.title,
             '가능 인원수': availableUids.length,
-            '불가 인원수': unavailableUids.length,
+            '불가 인원수': filteredUnavailableUids.length,
             '가능 명단': getNames(availableUids),
-            '불가 명단': getNames(unavailableUids)
+            '불가 명단': getNames(filteredUnavailableUids)
         };
     });
 
@@ -370,7 +383,10 @@ export default function SurveyCalendar() {
                                                             const allMemberIds = survey.member_ids || [];
                                                             const availableUids = allMemberIds.filter(id => !unavailableUids.includes(id));
 
-                                                            const targetUids = viewMode === 'available' ? availableUids : unavailableUids;
+                                                            const rawTargetUids = viewMode === 'available' ? availableUids : unavailableUids;
+                                                            // Filter Active
+                                                            const targetUids = rawTargetUids.filter(uid => memberMap[uid]?.active === true);
+                                                            
                                                             const count = targetUids.length;
 
                                                             const isEventSelected = selectedEvent?.id === ev.id;
@@ -468,7 +484,10 @@ export default function SurveyCalendar() {
                                                 const allMemberIds = survey.member_ids || [];
                                                 const availableUids = allMemberIds.filter(id => !unavailableUids.includes(id));
                                                 
-                                                const count = viewMode === 'available' ? availableUids.length : unavailableUids.length;
+                                                const finalAvailable = availableUids.filter(uid => memberMap[uid]?.active === true);
+                                                const finalUnavailable = unavailableUids.filter(uid => memberMap[uid]?.active === true);
+
+                                                const count = viewMode === 'available' ? finalAvailable.length : finalUnavailable.length;
                                                 return `${count}명`;
                                             })()}
                                        </Badge>
@@ -484,7 +503,8 @@ export default function SurveyCalendar() {
                                           const allMemberIds = survey.member_ids || [];
                                           const availableUids = allMemberIds.filter(id => !unavailableUids.includes(id));
                                           
-                                          const targetUids = viewMode === 'available' ? availableUids : unavailableUids;
+                                          const rawTargetUids = viewMode === 'available' ? availableUids : unavailableUids;
+                                          const targetUids = rawTargetUids.filter(uid => memberMap[uid]?.active === true);
 
                                           if (targetUids.length === 0) return <div className="text-sm text-gray-400 w-full py-4 text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg">해당 인원이 없습니다.</div>;
 
@@ -497,9 +517,10 @@ export default function SurveyCalendar() {
 
                                           return userList.map(info => {
                                               return (
-                                                  <div key={info.id} className="flex items-center gap-2 bg-gray-50 dark:bg-slate-600 px-3 py-2 rounded-lg border border-gray-100 dark:border-slate-500 shadow-sm">
-                                                      <span className="font-bold text-gray-900 dark:text-gray-100">{info.name}</span>
-                                                      <span className="text-xs text-gray-500 dark:text-gray-300">{info.grade}</span>
+                                                  <div key={info.id} className="flex flex-col items-center justify-center p-2 rounded bg-gray-100 dark:bg-slate-700">
+                                                      <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{info.name}</span>
+                                                      {info.baptismal_name && <span className="text-[10px] text-blue-600 dark:text-blue-300 -mt-0.5">{info.baptismal_name}</span>}
+                                                      <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{info.grade}</span>
                                                   </div>
                                               );
                                           });

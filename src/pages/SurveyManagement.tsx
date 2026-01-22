@@ -31,7 +31,10 @@ interface SurveyDoc {
 interface MemberInfo {
   id: string;
   name: string;
+  baptismal_name?: string;
   grade?: string;
+  status?: string;
+  active?: boolean;
 }
 
 export default function SurveyManagement() {
@@ -48,6 +51,7 @@ export default function SurveyManagement() {
   const [memberMap, setMemberMap] = useState<Record<string, MemberInfo>>({}); // Cache member names
   const [detailLoading, setDetailLoading] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [membersLoaded, setMembersLoaded] = useState(false);
 
 
   // Filter & Sort State
@@ -75,42 +79,36 @@ export default function SurveyManagement() {
     }
   }, [serverGroupId]);
 
+  const fetchAllMembers = useCallback(async () => {
+       if (!serverGroupId) return;
+       try {
+           const q = query(collection(db, 'server_groups', serverGroupId, 'members'));
+           const snap = await getDocs(q);
+           const newMap: Record<string, MemberInfo> = {};
+           snap.forEach(doc => {
+               const d = doc.data();
+               newMap[doc.id] = {
+                   id: doc.id,
+                   name: d.name_kor,
+                   baptismal_name: d.baptismal_name,
+                   grade: d.grade,
+                   status: d.status || 'active',
+                   active: d.active
+               };
+           });
+           setMemberMap(newMap);
+           setMembersLoaded(true);
+       } catch (e) {
+           console.error("Member fetch failed", e);
+       }
+  }, [serverGroupId]);
+
   useEffect(() => {
     fetchSurveys();
-  }, [fetchSurveys]);
+    fetchAllMembers();
+  }, [fetchSurveys, fetchAllMembers]);
 
-  // Fetch member info when a survey is selected
-  useEffect(() => {
-    if (!serverGroupId || !selectedSurvey) return;
-    
-    const fetchMembers = async () => {
-      setDetailLoading(true);
-      const targetIds = selectedSurvey.member_ids || [];
-      const newMap = { ...memberMap };
-      const missingIds = targetIds.filter(id => !newMap[id]);
-
-      if (missingIds.length > 0) {
-         // Fetch all members in one go if possible, or batched.
-         // For optimization, we can fetch all members of the group once, or just the missing ones.
-         // Let's fetch individual for now as simple approach, or better yet, fetch all group members once in parent?
-         // For now, let's just fetch individual docs.
-         await Promise.all(missingIds.map(async (uid) => {
-             try {
-                const snap = await getDoc(doc(db, 'server_groups', serverGroupId, 'members', uid));
-                if (snap.exists()) {
-                    const d = snap.data();
-                    newMap[uid] = { id: uid, name: d.name_kor, grade: d.grade };
-                } else {
-                    newMap[uid] = { id: uid, name: '알수없음' };
-                }
-             } catch(e) { console.error(e); }
-         }));
-         setMemberMap(newMap);
-      }
-      setDetailLoading(false);
-    };
-    fetchMembers();
-  }, [selectedSurvey, serverGroupId]);
+  // Removed old selective fetchMembers effect since we fetch all now
 
   const handleOpenDetail = (s: SurveyDoc) => {
     setSelectedSurvey(s);
@@ -122,7 +120,7 @@ export default function SurveyManagement() {
       setTimeout(() => setSelectedSurvey(null), 300);
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
+  if (loading || !membersLoaded) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
 
   return (
     <div className="min-h-screen bg-gray-50/50 dark:bg-transparent">
@@ -137,7 +135,7 @@ export default function SurveyManagement() {
              <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => fetchSurveys(true)} 
+                onClick={() => { fetchSurveys(true); fetchAllMembers(); }} 
                 disabled={refreshing}
                 className="gap-2 dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700"
              >
@@ -151,8 +149,14 @@ export default function SurveyManagement() {
                  <div className="text-center text-gray-500 py-10">생성된 설문이 없습니다.</div>
              ) : (
                  surveys.map(survey => {
-                     const total = survey.member_ids?.length || 0;
-                     const responseCount = Object.keys(survey.responses || {}).length;
+                     // Active count logic
+                     const allMemberIds = survey.member_ids || [];
+                     const responseKeys = Object.keys(survey.responses || {});
+                     
+                     // Filter active
+                     const total = allMemberIds.filter(uid => memberMap[uid]?.active === true).length;
+                     const responseCount = responseKeys.filter(uid => memberMap[uid]?.active === true).length;
+                     
                      const rate = total > 0 ? Math.round((responseCount / total) * 100) : 0;
                      const dateKey = survey.id; // YYYYMM
                      const title = `${dateKey.slice(0, 4)}년 ${parseInt(dateKey.slice(4))}월 설문`;
@@ -217,18 +221,27 @@ export default function SurveyManagement() {
                       <div className="py-10 text-center text-gray-400">명단 로딩 중...</div>
                   ) : selectedSurvey ? (
                       <div className="space-y-4">
-                          <div className="bg-gray-50 p-3 rounded-lg text-center dark:bg-slate-800">
-                              <div className="text-sm">
-                                  <span className="font-bold text-gray-900 dark:text-gray-100">총 대상자 {selectedSurvey.member_ids?.length || 0}명</span>
-                                  <span className="mx-2 text-gray-300 dark:text-gray-600">|</span>
-                                  <span className="font-bold text-blue-600 dark:text-blue-400">응답자 {Object.keys(selectedSurvey.responses || {}).length}명</span>
-                                  <span className="ml-1 text-gray-500 dark:text-gray-400">({
-                                      (selectedSurvey.member_ids?.length || 0) > 0 
-                                      ? Math.round((Object.keys(selectedSurvey.responses || {}).length / (selectedSurvey.member_ids?.length || 1)) * 100) 
-                                      : 0
-                                  }%)</span>
-                              </div>
-                          </div>
+                          {(() => {
+                              // Active Only Counts
+                              const targets = selectedSurvey.member_ids || [];
+                              const totalActive = targets.filter(uid => memberMap[uid]?.active === true).length;
+                              
+                              const responseKeys = Object.keys(selectedSurvey.responses || {});
+                              const responseActive = responseKeys.filter(uid => memberMap[uid]?.active === true).length;
+                              
+                              const rate = totalActive > 0 ? Math.round((responseActive / totalActive) * 100) : 0;
+
+                              return (
+                                  <div className="bg-gray-50 p-3 rounded-lg text-center dark:bg-slate-800">
+                                      <div className="text-sm">
+                                          <span className="font-bold text-gray-900 dark:text-gray-100">총 대상자 {totalActive}명</span>
+                                          <span className="mx-2 text-gray-300 dark:text-gray-600">|</span>
+                                          <span className="font-bold text-blue-600 dark:text-blue-400">응답자 {responseActive}명</span>
+                                          <span className="ml-1 text-gray-500 dark:text-gray-400">({rate}%)</span>
+                                      </div>
+                                  </div>
+                              );
+                          })()}
                           
                           <div className="space-y-3">
                               <div className="flex flex-col gap-2 bg-white sticky top-0 z-10 dark:bg-slate-900">
@@ -290,8 +303,18 @@ export default function SurveyManagement() {
                                           return true;
                                       });
                                       
-                                      // Sort
-                                      list.sort((a, b) => {
+                                      // 분리: 정상 회원 active=true
+                                      const isDeleted = (m: any) => m.status === 'deleted' || m.name === '정보없음(삭제됨?)';
+                                      const isActive = (m: any) => m.active === true;
+
+                                      // 1. 정상 목록: 삭제되지 않았고 Active=true 인 경우
+                                      const validList = list.filter(m => !isDeleted(m) && isActive(m));
+                                      
+                                      // 2. 하단 목록: 삭제되었거나, Active가 아니지만(active!=true) 설문 이력이 있는 경우
+                                      const bottomList = list.filter(m => isDeleted(m) || (!isActive(m) && m.hasRes));
+                                      
+                                      // Sort only valid list
+                                      validList.sort((a, b) => {
                                           if (sortBy === 'grade') {
                                               if (a.grade !== b.grade) {
                                                   return (a.grade || '').localeCompare(b.grade || '');
@@ -302,23 +325,57 @@ export default function SurveyManagement() {
                                           }
                                       });
 
-                                      if (list.length === 0) {
+                                      if (validList.length === 0 && bottomList.length === 0) {
                                           return <div className="col-span-2 text-center text-gray-400 py-4 text-xs">표시할 대상이 없습니다.</div>;
                                       }
 
-                                      return list.map(m => (
-                                          <div key={m.id} className={`p-2 rounded border text-sm flex items-center justify-between ${m.hasRes ? 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-white border-gray-100 dark:bg-slate-800 dark:border-slate-700'}`}>
-                                              <div className="flex items-center gap-1.5 overflow-hidden">
-                                                  <span className="font-medium text-gray-800 dark:text-gray-200 truncate">{m.name}</span>
-                                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">{m.grade}</span>
-                                              </div>
-                                              {m.hasRes ? (
-                                                  <Badge variant="outline" className="text-[10px] bg-white text-blue-600 border-blue-200 dark:bg-transparent dark:text-blue-300 dark:border-blue-700 px-1 py-0 h-5 shrink-0">제출</Badge>
-                                              ) : (
-                                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">미제출</span>
+                                      return (
+                                          <>
+                                              {validList.map(m => (
+                                                  <div key={m.id} className={`p-2 rounded border text-sm flex items-center justify-between ${m.hasRes ? 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-white border-gray-100 dark:bg-slate-800 dark:border-slate-700'}`}>
+                                                      <div className="flex items-center gap-1.5 overflow-hidden">
+                                                          <span className="font-medium text-gray-800 dark:text-gray-200 truncate">
+                                                            {m.name}
+                                                            {m.baptismal_name && <span className="text-[10px] text-gray-500 dark:text-gray-400 ml-1 font-normal">({m.baptismal_name})</span>}
+                                                          </span>
+                                                          <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">{m.grade}</span>
+                                                      </div>
+                                                      {m.hasRes ? (
+                                                          <Badge variant="outline" className="text-[10px] bg-white text-blue-600 border-blue-200 dark:bg-transparent dark:text-blue-300 dark:border-blue-700 px-1 py-0 h-5 shrink-0">제출</Badge>
+                                                      ) : (
+                                                          <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">미제출</span>
+                                                      )}
+                                                  </div>
+                                              ))}
+
+                                              {bottomList.length > 0 && (
+                                                  <>
+                                                      {validList.length > 0 && (
+                                                          <div className="col-span-2 py-2 flex items-center gap-2">
+                                                              <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1" />
+                                                              <span className="text-[10px] text-gray-400">활동종료 / 정보없음</span>
+                                                              <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1" />
+                                                          </div>
+                                                      )}
+                                                      {bottomList.map(m => (
+                                                          <div key={m.id} className="p-2 rounded border border-gray-200 bg-gray-50 text-sm flex items-center justify-between opacity-60 dark:bg-slate-800/50 dark:border-slate-700">
+                                                              <div className="flex items-center gap-1.5 overflow-hidden">
+                                                                  <span className="font-medium text-gray-500 dark:text-gray-400 truncate text-xs">
+                                                                    {m.name}
+                                                                    {m.baptismal_name && <span className="text-[10px] ml-1 font-normal">({m.baptismal_name})</span>}
+                                                                  </span>
+                                                              </div>
+                                                              {m.hasRes ? (
+                                                                  <Badge variant="outline" className="text-[10px] bg-gray-100 text-gray-500 border-gray-200 dark:bg-transparent dark:text-gray-500 dark:border-gray-700 px-1 py-0 h-5 shrink-0">제출됨</Badge>
+                                                              ) : (
+                                                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">정보없음</span>
+                                                              )}
+                                                          </div>
+                                                      ))}
+                                                  </>
                                               )}
-                                          </div>
-                                      ));
+                                          </>
+                                      );
                                   })()}
                               </div>
                           </div>

@@ -13,6 +13,7 @@ import {
   doc,
   where,
   setDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
 import { toast } from 'sonner';
@@ -86,6 +87,24 @@ const MassEventPlanner: React.FC = () => {
   const [autoAssignDrawerOpen, setAutoAssignDrawerOpen] = useState(false);
   const [finalConfirmDrawerOpen, setFinalConfirmDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+
+  // ✅ 실시간 설문 상태 감지 (버튼 라벨 변경용)
+  useEffect(() => {
+     if (!serverGroupId || !monthKey) return;
+
+     const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${monthKey}`);
+     const unsub = onSnapshot(surveyRef, (snap) => {
+         if (snap.exists()) {
+             const data = snap.data();
+             setIsSurveyOpen(data.status === 'OPEN');
+         } else {
+             setIsSurveyOpen(false);
+         }
+     });
+
+     return () => unsub();
+  }, [serverGroupId, monthKey, db]);
 
   /** ✅ 날짜 클릭 시 Drawer 열기 */
   const handleDayClick = (date: Date, eventId?: string) => {
@@ -97,6 +116,8 @@ const MassEventPlanner: React.FC = () => {
     }
     setDrawerOpen(true);
   };
+
+
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
@@ -174,6 +195,7 @@ const MassEventPlanner: React.FC = () => {
         monthStatus={monthStatus}
         isLocked={isLocked}
         isCopyEnabled={isCopyEnabled}
+        isSurveyOpen={isSurveyOpen}
         onApplyPreset={() => setApplyPresetDrawerOpen(true)}
         onConfirmMass={() => setConfirmDrawerOpen(true)}
         onOpenSurvey={() => setSurveyDrawerOpen(true)}

@@ -1,7 +1,6 @@
 // src/components/SendSurveyDrawer.tsx
 import { useEffect, useState, useCallback } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { DialogDescription } from '@/components/ui/dialog-description';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -21,11 +20,20 @@ import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import type { MassStatus } from '@/types/firestore';
 import { APP_BASE_URL } from '@/lib/env';
-import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 // ---------- 🔹 Type Definitions ----------
+interface NotificationLog {
+    type: 'app_push' | 'sms' | 'kakaotalk';
+    sent_at: any;
+    recipient_count: number;
+    status: 'success' | 'partial' | 'failure';
+    title?: string;
+    body?: string;
+}
+
 const ALL_GRADES = [
   'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
   'M1', 'M2', 'M3',
@@ -48,6 +56,7 @@ interface AvailabilitySurveyDoc {
   status?: 'OPEN' | 'CLOSED';
   created_at?: any;
   updated_at?: any;
+  notifications?: NotificationLog[]; // ✅ Added notifications field
   responses?: Record<string, {
       uid: string;
       unavailable: string[] | Record<string, any>; // Support both new array and old map
@@ -98,6 +107,7 @@ export function SendSurveyDrawer({
   const [showExcludedOnly, setShowExcludedOnly] = useState(false);
   const [showUncheckedOnly, setShowUncheckedOnly] = useState(false);
   const [showUnsubmittedOnly, setShowUnsubmittedOnly] = useState(false);
+  const [showAllLogs, setShowAllLogs] = useState(false);
 
   const [allServerMembers, setAllServerMembers] = useState<MemberDoc[]>([]);
 
@@ -292,13 +302,17 @@ export function SendSurveyDrawer({
   return (
     <>
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="space-y-1">
+      <DialogContent className="max-w-md w-full h-full p-0 flex flex-col overflow-hidden bg-white dark:bg-gray-800">
+        {/* ✅ Fixed Header */}
+        <div className="p-6 pb-4 space-y-1 border-b border-gray-100 dark:border-slate-800 shrink-0">
           <DialogTitle>📩 복사 일정 설문 ({dayjs(currentMonth).format('YYYY년 MM월')})</DialogTitle>
           <DialogDescription>
             이번 달 확정된 미사 일정에 대해 복사들의 참석 불가 여부를 조사합니다.
           </DialogDescription>
         </div>
+
+        {/* ✅ Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
         {/* ✅ 기존 설문 존재 시 안내 */}
         {existingSurvey && (
@@ -707,21 +721,67 @@ export function SendSurveyDrawer({
                                  
                                  {/* Detail Expansion */}
                                  {isExpanded && isSubmitted && (
-                                     <div className="bg-slate-50 p-3 text-sm border-t">
+                                     <div className="bg-slate-50 dark:bg-slate-900/40 p-3 text-sm border-t dark:border-slate-800">
                                          <p className="font-semibold mb-2 text-gray-700 dark:text-gray-300">참석 불가능한 일정:</p>
                                          {unavailableIds.length === 0 ? (
                                              <p className="text-gray-500 dark:text-gray-400">없음 (모두 참석 가능)</p>
                                          ) : (
-                                             <ul className="space-y-1">
-                                                 {unavailableIds.map(eid => {
-                                                     const ev = massEvents[eid];
-                                                     return (
-                                                         <li key={eid} className="flex gap-2 text-gray-600 dark:text-gray-400">
-                                                             <span>• {ev ? `${dayjs(ev.event_date).format('M/D(ddd)')} ${ev.title}` : '알 수 없는 일정'}</span>
-                                                         </li>
-                                                     )
-                                                 })}
-                                             </ul>
+                                             <div className="space-y-1">
+                                                 {(() => {
+                                                     // 1. Event 객체 매핑 및 정렬
+                                                     const events = unavailableIds
+                                                         .map(id => massEvents[id])
+                                                         .filter(e => !!e)
+                                                         .sort((a, b) => a.event_date.localeCompare(b.event_date)); // YYYYMMDD string sort
+
+                                                     // 2. 날짜별 그룹핑
+                                                     const grouped: Record<string, typeof events> = {};
+                                                     events.forEach(ev => {
+                                                         if (!grouped[ev.event_date]) grouped[ev.event_date] = [];
+                                                         grouped[ev.event_date].push(ev);
+                                                     });
+
+                                                     // 3. 렌더링 (주 단위 구분선 추가)
+                                                     const dates = Object.keys(grouped).sort();
+                                                     let lastWeek = -1;
+
+                                                     return dates.map((dateStr, idx) => {
+                                                         const dayDate = dayjs(dateStr);
+                                                         const currentWeek = dayDate.week();
+                                                         const showDivider = idx > 0 && lastWeek !== -1 && currentWeek !== lastWeek;
+                                                         lastWeek = currentWeek;
+
+                                                         const groupEvents = grouped[dateStr];
+                                                         // 같은 날짜 내에서는 title 순 정렬 (오전/오후 등)
+                                                         groupEvents.sort((a,b) => a.title.localeCompare(b.title));
+
+                                                         return (
+                                                             <div key={dateStr}>
+                                                                 {/* 주 구분선 (토요일이 지나고 일요일이 될때, 혹은 주가 바뀔때) */}
+                                                                 {showDivider && (
+                                                                     <div className="border-t border-dashed border-gray-200 dark:border-gray-700 my-2" />
+                                                                 )}
+                                                                 
+                                                                 <div className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
+                                                                     {/* 날짜 라벨 (고정 너비) */}
+                                                                     <span className="text-[11px] font-medium min-w-[60px] pt-0.5">
+                                                                         • {dayDate.format('M/D(ddd)')}
+                                                                     </span>
+                                                                     
+                                                                     {/* 해당 날짜의 일정들 (가로 배치) */}
+                                                                     <div className="flex flex-wrap gap-1.5">
+                                                                         {groupEvents.map(ev => (
+                                                                             <span key={ev.id} className="text-xs bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                                                                                 {ev.title}
+                                                                             </span>
+                                                                         ))}
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         );
+                                                     });
+                                                 })()}
+                                             </div>
                                          )}
                                      </div>
                                  )}
@@ -732,6 +792,78 @@ export function SendSurveyDrawer({
               </div>
                 </>
               )}
+
+              {/* ✅ 알림 발송 이력 */}
+              <div className="pt-4 mt-2 border-t border-gray-100 dark:border-slate-700">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
+                              <Bell size={14} className="text-gray-500" /> 알림 발송 이력
+                          </span>
+                      </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-100 dark:border-slate-700">
+                     {(!existingSurvey.notifications || existingSurvey.notifications.length === 0) ? (
+                        <p className="text-xs text-gray-400 text-center py-4">발송된 이력이 없습니다.</p>
+                     ) : (
+                        <>
+                          <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                             {(() => {
+                                 // Sort descending by sent_at
+                                 const logs = [...existingSurvey.notifications!].sort((a, b) => {
+                                     // Handle Timestamp or date
+                                     // @ts-ignore
+                                     const tA = a.sent_at?.toDate ? a.sent_at.toDate().getTime() : new Date(a.sent_at).getTime();
+                                     // @ts-ignore
+                                     const tB = b.sent_at?.toDate ? b.sent_at.toDate().getTime() : new Date(b.sent_at).getTime();
+                                     return tB - tA;
+                                 });
+                                 
+                                 const displayedLogs = showAllLogs ? logs : logs.slice(0, 3);
+                                 
+                                 return displayedLogs.map((log, idx) => {
+                                     // @ts-ignore
+                                     const sentDate = log.sent_at?.toDate ? dayjs(log.sent_at.toDate()) : dayjs(log.sent_at);
+                                     
+                                     return (
+                                        <div key={idx} className="p-3 text-xs">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <span className={`font-bold ${log.status === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>
+                                                    {log.title || '알림'}
+                                                </span>
+                                                <span className="text-gray-400">
+                                                    {sentDate.format('MM.DD HH:mm')}
+                                                </span>
+                                            </div>
+                                            <p className="text-gray-600 dark:text-gray-400 mb-1">{log.body}</p>
+                                            <div className="flex justify-between items-center text-[10px] text-gray-400">
+                                                <span>발송대상: {log.recipient_count}명</span>
+                                                <span>{log.type === 'app_push' ? '앱푸시' : log.type}</span>
+                                            </div>
+                                        </div>
+                                     );
+                                 });
+                             })()}
+                          </div>
+                          
+                          {existingSurvey.notifications.length > 3 && (
+                              <button 
+                                  onClick={() => setShowAllLogs(!showAllLogs)}
+                                  className="w-full py-2 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 bg-gray-50/50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors border-t border-gray-100 dark:border-slate-700 rounded-b-lg"
+                              >
+                                  {showAllLogs ? (
+                                      <>접기 <ChevronUp size={12} /></>
+                                  ) : (
+                                      <>더보기 ({existingSurvey.notifications.length - 3}건) <ChevronDown size={12} /></>
+                                  )}
+                              </button>
+                          )}
+                        </>
+                     )}
+                  </div>
+              </div>
+
            </div>
         )}
 
@@ -931,6 +1063,7 @@ export function SendSurveyDrawer({
         )}
 
         {/* 기존 닫기 버튼 제거 (위로 이동됨) */}
+        </div>
       </DialogContent>
     </Dialog>
 

@@ -34,6 +34,27 @@ export const onSurveyClosed = functions.region(REGION_V1).firestore
     }
 
     const { sgId, month } = context.params;
+
+    // ✅ [제한] 알림은 "다음 달" 설문에 대해서만 발송 (테스트/과거 데이터 방지)
+    // KST 기준 현재 날짜 계산
+    const now = new Date();
+    const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const currYear = kstNow.getUTCFullYear();
+    const currMonth = kstNow.getUTCMonth() + 1; // 1-12
+
+    // 다음 달 계산
+    let nextYear = currYear;
+    let nextMonth = currMonth + 1;
+    if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear++;
+    }
+    const nextYm = `${nextYear}${String(nextMonth).padStart(2, '0')}`;
+
+    if (month !== nextYm) {
+        console.log(`[onSurveyClosed] 🚫 Skipped notification. Target ${month} is not next month (${nextYm})`);
+        return null;
+    }
     const memberIds: string[] = afterData.member_ids || [];
 
     if (memberIds.length === 0) return null;
@@ -79,6 +100,18 @@ export const onSurveyClosed = functions.region(REGION_V1).firestore
           status: newStatus
         },
         clickAction: `/server-groups/${sgId}` // 메인 페이지로 이동
+      });
+
+      // ✅ [Log] 알림 발송 이력 저장
+      await db.doc(`server_groups/${sgId}/availability_surveys/${month}`).update({
+        notifications: admin.firestore.FieldValue.arrayUnion({
+            type: 'app_push',
+            sent_at: admin.firestore.Timestamp.now(),
+            recipient_count: parentUids.size,
+            status: 'success',
+            title: title,
+            body: body
+        })
       });
 
       return null;

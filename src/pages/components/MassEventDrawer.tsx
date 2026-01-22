@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -10,6 +11,11 @@ import {
   serverTimestamp,
   DocumentData,
   runTransaction,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  where,
 } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions'; // httpsCallable removed
 import dayjs from 'dayjs';
@@ -28,6 +34,7 @@ import type { MemberDoc } from '@/types/firestore';
 import type { MassEventCalendar } from '@/types/massEvent';
 import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCallback } from 'react';
+import { toast } from 'sonner';
 
 interface MassEventDrawerProps {
   eventId?: string;
@@ -366,16 +373,154 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
-  // ✅ 삭제 처리
+  // ✅ [New] 삭제된 이력 State
+  const [deletedHistory, setDeletedHistory] = useState<{ id: string; title: string; deletedAt: Date; data: any; deletedBy?: string; deletedByName?: string }[]>([]);
+
+  // ✅ [New] 삭제 이력 조회 (생성 모드일 때만)
+  useEffect(() => {
+    // 조회 조건: 신규 생성이며(date 있음, eventId 없음), serverGroupId가 유효할 때
+    if (eventId || !date || !serverGroupId) {
+        setDeletedHistory([]);
+        return;
+    }
+    
+    // 실시간 감시 (onSnapshot) 및 Client-side filtering으로 변경
+    const historyRef = collection(db, 'server_groups', serverGroupId, 'deleted_mass_events');
+    // 최근 삭제된 30건을 가져와서 현재 날짜와 일치하는 것만 필터링 (Where 절 인덱스 문제 회피 및 디버깅 용이성)
+    const q = query(historyRef, orderBy('deleted_at', 'desc'), limit(30));
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+        const yyyymmdd = dayjs(date).format('YYYYMMDD');
+        
+        const list = snap.docs
+            .map(doc => {
+                const d = doc.data();
+                const delTime = d.deleted_at?.toDate ? d.deleted_at.toDate() : new Date();
+                return {
+                    id: doc.id,
+                    title: d.title || '(제목없음)',
+                    deletedAt: delTime,
+                    data: d.data,
+                    eventDate: d.event_date, // 필터링용
+                    deletedBy: d.deleted_by, // 삭제자 UID
+                    deletedByName: d.deleted_by_name // 삭제자 이름 (저장된 값)
+                };
+            })
+            .filter(item => item.eventDate === yyyymmdd) // 날짜 일치 여부 확인
+            .sort((a, b) => b.deletedAt.getTime() - a.deletedAt.getTime());
+
+        setDeletedHistory(list);
+    }, (error) => {
+        console.error('Failed to subscribe to deleted history', error);
+    });
+
+    return () => unsubscribe();
+  }, [eventId, date, serverGroupId, db]);
+
+
+
+  // ✅ [New] 복구 처리
+  const handleRestore = async (historyId: string, backupData: any) => {
+      if (!window.confirm(`'${backupData.title}' 일정을 복구하시겠습니까?`)) return;
+      
+      const restoreToast = toast.loading('일정을 복구하고 있습니다...');
+      try {
+          const originalId = backupData.id;
+          // 1. Restore to mass_events
+          const eventRef = doc(db, 'server_groups', serverGroupId, 'mass_events', originalId);
+          await setDoc(eventRef, backupData);
+
+          // 2. Remove from history
+          const historyRef = doc(db, 'server_groups', serverGroupId, 'deleted_mass_events', historyId);
+          await deleteDoc(historyRef);
+
+          toast.success('일정이 복구되었습니다.', { id: restoreToast });
+          onClose(); // Close to refresh
+      } catch (e) {
+          console.error('Restore failed', e);
+          toast.error('복구 중 오류가 발생했습니다.', { id: restoreToast });
+      }
+  };
+
+  // ✅ 삭제 처리 (복구 가능하도록 수정 + History 저장)
   const handleDelete = async () => {
     if (!eventId) return;
     if (!window.confirm('이 미사 일정을 삭제하시겠습니까?')) return;
+    
     setLoading(true);
     try {
-      const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
-      await deleteDoc(ref);
+      // 1. 복구용 데이터 백업
+      const eventRef = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
+      const eventSnap = await getDoc(eventRef);
+      if (!eventSnap.exists()) throw new Error('삭제할 데이터를 찾을 수 없습니다.');
+      
+      const backupData = eventSnap.data();
+      
+      // 🔥 [Fix] event_date가 DB에 없는 경우를 대비해 date props에서 생성 (안전장치)
+      const eventDateStr = backupData.event_date || (date ? dayjs(date).format('YYYYMMDD') : '');
+
+      if (!eventDateStr) {
+          throw new Error('이벤트 날짜 정보를 찾을 수 없어 삭제 이력을 저장할 수 없습니다.');
+      }
+
+      // 2. History Collection에 저장 (Persistent Undo)
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const historyCollection = collection(db, 'server_groups', serverGroupId, 'deleted_mass_events');
+      
+      // 사용자 이름 조회 (삭제자 실명 기록)
+      let deleterName = '알수없음';
+      if (currentUser) {
+          deleterName = currentUser.displayName || '사용자';
+          try {
+              // Users 컬렉션에서 정확한 이름 조회 시도
+              const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+              if (userSnap.exists()) {
+                  const userData = userSnap.data();
+                  if (userData.name) deleterName = userData.name;
+              }
+          } catch (e) {
+              console.warn('Failed to fetch deleter name', e);
+          }
+      }
+
+      const { addDoc } = await import('firebase/firestore'); 
+      const historyDoc = await addDoc(historyCollection, {
+              original_id: eventId,
+              event_date: eventDateStr, // 쿼리용 필드
+              title: title,
+              data: { ...backupData, id: eventId }, 
+              deleted_at: serverTimestamp(),
+              deleted_by: currentUser?.uid || 'unknown',
+              deleted_by_name: deleterName
+      });
+
+      // 3. 삭제 수행 (설문 데이터 유지)
+      await deleteDoc(eventRef);
       console.log(`🗑️ MassEvent deleted: ${eventId}`);
+      
       onClose();
+
+      // 4. 복구(Undo) 토스트 표시
+      toast.success('미사 일정이 삭제되었습니다.', {
+        duration: 5000,
+        action: {
+          label: '실행 취소',
+          onClick: async () => {
+             const loadingToast = toast.loading('일정을 복구하고 있습니다...');
+             try {
+                await setDoc(eventRef, backupData); // Restore Data
+                await deleteDoc(historyDoc);        // Clean up History
+                
+                toast.success('미사 일정이 복구되었습니다.', { id: loadingToast });
+             } catch (restoreErr) {
+               console.error('복구 실패:', restoreErr);
+               toast.error('일정 복구에 실패했습니다.', { id: loadingToast });
+             }
+          },
+        },
+      });
+
     } catch (err) {
       console.error('❌ 삭제 오류:', err);
       setErrorMsg('삭제 중 오류가 발생했습니다.');
@@ -424,9 +569,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-6 flex flex-col bg-white dark:bg-slate-800 shadow-2xl overflow-y-auto fade-in">
-        {/* Header */}
-        <div className="space-y-1">
+      <DialogContent className="max-w-md h-full fixed right-0 top-0 p-0 flex flex-col bg-white dark:bg-slate-800 shadow-2xl overflow-hidden fade-in">
+        {/* ✅ Fixed Header */}
+        <div className="space-y-1 p-6 pb-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <DialogTitle>
             📝 {readOnly ? '미사 일정 상세' : eventId ? '미사 일정 수정' : '미사 일정 등록'}
             {date && (
@@ -440,7 +585,54 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
           </DialogDescription>
         </div>
         
-        <div className="border-b border-gray-200" />
+        {/* ✅ Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-6 w-full">
+        
+        {/* ✅ [New] 삭제된 이력 표시 영역 */}
+        {!eventId && deletedHistory.length > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-2 animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                        🗑️ 삭제된 항목 ({deletedHistory.length})
+                    </span>
+                    <span className="text-[10px] text-orange-600/70 dark:text-orange-500">
+                      최근 삭제된 일정을 복구할 수 있습니다.
+                    </span>
+                </div>
+                <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                    {deletedHistory.map((item) => {
+                        // 사용자 이름 찾기 (1. 저장된 이름 -> 2. members 목록 매칭 -> 3. 기본값)
+                        let deleterName = item.deletedByName;
+                        
+                        if (!deleterName) {
+                            const deleter = members.find(m => m.id === item.deletedBy);
+                            deleterName = deleter ? deleter.name.split(' ')[0] : (item.deletedBy === 'user' ? '사용자' : '알수없음');
+                        }
+
+                        return (
+                        <div key={item.id} className="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded border border-orange-100 dark:border-orange-900/50 shadow-sm">
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{item.title}</span>
+                                <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                    <span>삭제됨: {dayjs(item.deletedAt).format('HH:mm:ss')}</span>
+                                    <span>·</span>
+                                    <span>by {deleterName}</span>
+                                </div>
+                            </div>
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-6 text-[10px] px-2 border-orange-200 hover:bg-orange-50 hover:text-orange-700 dark:border-orange-800 dark:hover:bg-orange-900/50"
+                                onClick={() => handleRestore(item.id, item.data)}
+                            >
+                                복구
+                            </Button>
+                        </div>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
 
         {/* Body */}
         <div className="flex flex-col gap-4 text-sm text-gray-700">
@@ -792,7 +984,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                   <Button
                     variant="destructive"
                     onClick={handleDelete}
-                    disabled={loading}
+                    disabled={loading || monthStatus === 'FINAL-CONFIRMED'}
+                    className={cn(
+                        monthStatus === 'FINAL-CONFIRMED' && "bg-gray-200 text-gray-400 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-500 opacity-100"
+                    )}
                   >
                     삭제
                   </Button>
@@ -813,6 +1008,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                 )}
             </div>
           </div>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

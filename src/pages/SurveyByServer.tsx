@@ -25,7 +25,9 @@ interface SurveyDoc {
 interface MemberInfo {
   id: string;
   name: string;
+  baptismal_name?: string;
   grade?: string;
+  active?: boolean;
 }
 
 interface MassEventDoc {
@@ -156,15 +158,24 @@ export default function SurveyByServer() {
              const mSnap = await getDoc(mRef);
              if (mSnap.exists()) {
                  const md = mSnap.data();
-                 members.push({ id: uid, name: md.name_kor, grade: md.grade });
+                 members.push({ 
+                     id: uid, 
+                     name: md.name_kor, 
+                     baptismal_name: md.baptismal_name, 
+                     grade: md.grade,
+                     active: md.active
+                 });
              } else {
-                 members.push({ id: uid, name: 'Unknown' });
+                 members.push({ id: uid, name: 'Unknown', active: false });
              }
           }));
           
+          // Filter active=true
+          const activeMembers = members.filter(m => m.active === true);
+
           // Sort by Name
-          members.sort((a, b) => a.name.localeCompare(b.name));
-          setMemberList(members);
+          activeMembers.sort((a, b) => a.name.localeCompare(b.name));
+          setMemberList(activeMembers);
       }
 
     } catch (e) {
@@ -231,7 +242,10 @@ export default function SurveyByServer() {
                     >
                         {/* Name Column */}
                         <div className="py-3 px-4 border-r border-gray-100 dark:border-slate-700 font-medium text-gray-900 dark:text-gray-100 flex flex-col justify-center">
-                            <span>{member.name}</span>
+                            <span>
+                                {member.name}
+                                {member.baptismal_name && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">({member.baptismal_name})</span>}
+                            </span>
                             <span className="text-xs text-gray-400 font-normal">{member.grade}</span>
                         </div>
 
