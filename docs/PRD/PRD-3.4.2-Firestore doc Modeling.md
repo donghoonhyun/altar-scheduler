@@ -216,6 +216,32 @@ users/{uid}
   managerParishes?: string[]   # 캐시용
   created_at: timestamp
   updated_at: timestamp
+  fcm_tokens?: string[]        // FSA(FCM) 토큰 목록 (Multi-device support)
+```
+
+## 6. System Logs (Root Level)
+
+### 6.1 SMS Logs
+```lua
+system_sms_logs/{logId}
+  receiver: string       // 수신번호
+  status: string         // success / failed
+  message: string
+  created_at: timestamp
+```
+
+### 6.2 System Notification Logs (App Push)
+```lua
+system_notification_logs/{logId}
+  title: string
+  body: string
+  target_uids: string[]          // 수신 대상 User UIDs (Snapshot)
+  target_device_count: number    // 실제 발송된 기기 토큰 수
+  success_count: number
+  failure_count: number
+  status: string                 // "success"
+  created_at: timestamp
+  data?: object                  // 추가 메타데이터
 ```
 
 ## 4. 클라이언트 연계 포인트 (UI기준)

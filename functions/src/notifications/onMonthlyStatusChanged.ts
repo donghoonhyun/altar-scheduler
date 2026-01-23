@@ -4,9 +4,9 @@ import { REGION_V1 } from '../config';
 import { sendNotificationToUids } from './utils';
 
 export const onMonthlyStatusChanged = functions.region(REGION_V1).firestore
-  .document('server_groups/{groupId}/months/{monthId}')
+  .document('server_groups/{groupId}/month_status/{monthId}')
   .onUpdate(async (change, context) => {
-      const { groupId, monthId } = context.params; // monthId format "YYYY-MM"
+      const { groupId, monthId } = context.params; // monthId format "YYYYMM" (e.g. 202402)
       const before = change.before.data();
       const after = change.after.data();
 
@@ -15,41 +15,33 @@ export const onMonthlyStatusChanged = functions.region(REGION_V1).firestore
 
       const newStatus = after.status;
       
-      // Target statuses: 'OPEN' (미사확정/설문진행), 'CLOSED' (설문종료), 'CONFIRMED' (최종확정)
-      // Assuming English codes are used in DB.
-      // Dashboard uses: 'OPEN', 'CLOSED', 'CONFIRMED' (typically).
-      // Let's verify status codes from context if possible, but standard is uppercase.
-      
       let title = '';
       let body = '';
       let shouldSend = false;
 
-      // Extract Month/Year readable
-      // monthId "2024-03"
-      const [year, month] = monthId.split('-');
-      const monthStr = `${year}년 ${parseInt(month)}월`;
-
-      if (newStatus === 'OPEN') {
-          title = '📅 설문 시작 알림';
-          body = `${monthStr} 미사 배정 설문이 시작되었습니다. 가능 여부를 제출해주세요.`;
-          shouldSend = true;
-      } else if (newStatus === 'CLOSED') {
-          title = '⏳ 설문 마감 알림';
-          body = `${monthStr} 설문이 마감되었습니다. 곧 배정 결과가 공지됩니다.`;
-          shouldSend = true;
-      } else if (newStatus === 'CONFIRMED') {
-          title = '✅ 배정 완료 알림';
-          body = `${monthStr} 미사 배정이 완료되었습니다. 나의 배정 현황을 확인하세요.`;
-          shouldSend = true;
+      // Extract Month Readably
+      // monthId is usually "YYYYMM" in `month_status`
+      // But ensure format.
+      let monthStr = monthId;
+      if (monthId.length === 6) {
+          const m = parseInt(monthId.substring(4, 6));
+          monthStr = `${m}월`;
       }
 
+      // Check Status
+      if (newStatus === 'FINAL-CONFIRMED') {
+          title = '✅ 배정 최종 확정';
+          body = `${monthStr} 미사 배정이 최종 확정되었습니다 (수정 완료). 앱에서 확인하세요.`;
+          shouldSend = true;
+      }
+      // Add other statuses if needed, e.g. MASS-CONFIRMED?
+      
       if (shouldSend) {
+          // ... Same sending logic ...
           const db = admin.firestore();
           
-          // Fetch All Members of the group
-          // Usually roles: 'server', 'planner', 'admin' should all know?
-          // Especially 'server' needs to know.
-          // Get all memberships for groupId
+          // Fetch All Members of the group (Using Members collection, better than memberships if possible, but memberships contains UIDs)
+          // Use 'memberships' collection as in original code logic
           const membershipSnaps = await db.collection('memberships')
             .where('groupId', '==', groupId)
             .get();
@@ -57,23 +49,34 @@ export const onMonthlyStatusChanged = functions.region(REGION_V1).firestore
           const recipientUids: string[] = [];
           membershipSnaps.forEach(doc => {
               const data = doc.data();
-              // Filter out invalid/inactive?
-              // Assuming all memberships in this collection are active users of the group.
-              if (data.userId) recipientUids.push(data.userId);
+              if (data.userId) recipientUids.push(data.userId); // userId is active field
               else if (data.uid) recipientUids.push(data.uid);
-               else {
-                const parts = doc.id.split(`_${groupId}`);
-                if (parts.length > 0) recipientUids.push(parts[0]);
-             }
           });
+          
+          const uniqueUids = [...new Set(recipientUids)];
 
-          if (recipientUids.length > 0) {
+          if (uniqueUids.length > 0) {
               await sendNotificationToUids(
-                  recipientUids,
+                  uniqueUids,
                   title,
                   body,
-                  `/server-groups/${groupId}/main` // Link to main or dashboard
+                  `/server-groups/${groupId}/main`
               );
+              console.log(`[onMonthlyStatusChanged] Sent ${newStatus} notification to ${uniqueUids.length} users.`);
+              
+              // ✅ Log to system_notification_logs for history tracking
+              await db.collection('system_notification_logs').add({
+                  created_at: admin.firestore.FieldValue.serverTimestamp(),
+                  title,
+                  body,
+                  feature: 'MONTH_STATUS',
+                  status: 'success',
+                  target_uids: uniqueUids,
+                  success_count: uniqueUids.length,
+                  server_group_id: groupId,
+                  month_id: monthId, // Added for filtering
+                  trigger_status: newStatus
+              });
           }
       }
   });

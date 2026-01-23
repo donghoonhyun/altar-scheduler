@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Lock } from 'lucide-react';
 import { Button, Card, Container, Heading } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -162,7 +162,7 @@ export default function MassCalendar({
                   onDayClick?.(date.toDate(), ev.id);
                 }}
                 className={cn(
-                  "p-2 rounded-lg border flex flex-col gap-1 transition-all duration-200 w-full",
+                  "relative p-2 rounded-lg border flex flex-col gap-1 transition-all duration-200 w-full",
                   !isFulfilled 
                     ? "bg-red-200 border-red-400 hover:bg-red-300 dark:bg-red-800/60 dark:border-red-600"
                     : "bg-green-50 border-green-200 hover:bg-green-100 dark:bg-green-600/30 dark:border-green-500/50 dark:hover:bg-green-600/40",
@@ -171,6 +171,12 @@ export default function MassCalendar({
                     "border-amber-500 ring-2 ring-amber-200 dark:border-amber-400"
                 )}
               >
+                {/* 🔒 Lock Icon (Only if locked AND not Final Confirmed) */}
+                {ev.anti_autoassign_locked && monthStatus !== 'FINAL-CONFIRMED' && (
+                    <div className="absolute -top-1 -right-1 z-20 bg-red-500 text-white rounded-full p-1 shadow-md ring-2 ring-white dark:ring-slate-800">
+                        <Lock size={10} strokeWidth={3} />
+                    </div>
+                )}
                 <div className="text-xs font-medium text-gray-800 dark:text-gray-100 truncate">
                   {ev.title}
                   {ev.required_servers && (
@@ -315,6 +321,39 @@ export default function MassCalendar({
 
         {/* 날짜 셀 */}
         <div className="grid grid-cols-7 gap-2 mt-2">{cells}</div>
+
+        {/* 🎨 범례 (Legend) */}
+        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-600 dark:text-gray-400">
+            {/* 상태 */}
+            <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-green-50 border border-green-200 dark:bg-green-600/30 dark:border-green-500"></div>
+                <span>인원 충족</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-red-200 border border-red-300 dark:bg-red-800/60 dark:border-red-600"></div>
+                <span>인원 미달 (부족)</span>
+            </div>
+
+            {/* 역할 */}
+            <div className="flex items-center gap-1.5 border-l pl-4 dark:border-gray-700">
+                <div className="px-1.5 py-0.5 rounded bg-blue-500 text-white text-[10px] dark:bg-blue-600">홍길동</div>
+                <span>주복사</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+                <div className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-800 text-[10px] dark:bg-gray-600 dark:text-gray-200">홍길동</div>
+                <span>일반/부복사</span>
+            </div>
+
+            {/* 아이콘 */}
+            <div className="flex items-center gap-1.5 border-l pl-4 dark:border-gray-700">
+                <div className="relative w-4 h-4 flex items-center justify-center bg-gray-100 rounded border border-gray-200">
+                     <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-[2px] shadow-sm ring-1 ring-white">
+                        <Lock size={8} />
+                    </div>
+                </div>
+                <span>고정 (자동 배정 제외)</span>
+            </div>
+        </div>
       </Card>
     </Container>
   );

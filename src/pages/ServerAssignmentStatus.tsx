@@ -18,6 +18,9 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { cn } from '@/lib/utils'; // optimized class names
 import { useSession } from '@/state/session';
 import timezone from 'dayjs/plugin/timezone';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { MassStatus } from '@/types/firestore';
+import { Printer } from 'lucide-react';
 
 dayjs.extend(timezone);
 
@@ -47,6 +50,7 @@ export default function ServerAssignmentStatus() {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'by-member' | 'by-date'>('by-member');
+  const [monthlyStatus, setMonthlyStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
 
   // Sync with global session changes
   useEffect(() => {
@@ -57,7 +61,7 @@ export default function ServerAssignmentStatus() {
 
   const [members, setMembers] = useState<MemberDoc[]>([]);
   const [events, setEvents] = useState<MassEventDoc[]>([]);
-  const [unavailableMap, setUnavailableMap] = useState<Record<string, string[]>>({}); // memberId -> [eventId, eventId...]
+  // const [unavailableMap, setUnavailableMap] = useState<Record<string, string[]>>({}); // Removed per request
 
   const yyyymm = currentMonth.format('YYYYMM');
 
@@ -84,7 +88,7 @@ export default function ServerAssignmentStatus() {
         setMembers(memList);
 
         // 2. Fetch Mass Events for Month
-        const startStr = currentMonth.format('YYYYMMDD');
+        const startStr = currentMonth.startOf('month').format('YYYYMMDD');
         const endStr = currentMonth.endOf('month').format('YYYYMMDD');
         const evRef = collection(db, `server_groups/${serverGroupId}/mass_events`);
         const evQ = query(evRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr), orderBy('event_date', 'asc'));
@@ -92,27 +96,21 @@ export default function ServerAssignmentStatus() {
         const evList = evSnap.docs.map(d => ({ id: d.id, ...d.data() } as MassEventDoc));
         setEvents(evList);
 
-        // 3. Fetch Survey Responses (Unavailable Info)
-        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
-        const surveySnap = await getDoc(surveyRef);
-        const uMap: Record<string, string[]> = {};
-        
-        if (surveySnap.exists()) {
-             const sData = surveySnap.data();
-             const responses = sData.responses || {};
-             Object.values(responses).forEach((resp: any) => {
-                 let ids: string[] = [];
-                 if (Array.isArray(resp.unavailable)) {
-                     ids = resp.unavailable;
-                 } else if (resp.unavailable && typeof resp.unavailable === 'object') {
-                     ids = Object.keys(resp.unavailable);
-                 }
-                 if (ids.length > 0) {
-                     uMap[resp.uid] = ids;
-                 }
-             });
+        // 3. (Removed) Fetch Survey Responses logic was here
+        // The user requested to show ONLY assigned info, regardless of survey status.
+
+        // 4. Fetch Monthly Status
+        try {
+            const mStatRef = doc(db, `server_groups/${serverGroupId}/month_status/${yyyymm}`);
+            const mStatSnap = await getDoc(mStatRef);
+            if (mStatSnap.exists()) {
+                setMonthlyStatus(mStatSnap.data().status as MassStatus);
+            } else {
+                setMonthlyStatus('MASS-NOTCONFIRMED');
+            }
+        } catch (e) {
+            setMonthlyStatus('MASS-NOTCONFIRMED');
         }
-        setUnavailableMap(uMap);
 
       } catch (err) {
         console.error(err);
@@ -158,36 +156,23 @@ export default function ServerAssignmentStatus() {
   const renderCell = (member: MemberDoc, event: MassEventDoc) => {
       const isAssigned = event.member_ids?.includes(member.id);
       const isMain = event.main_member_id === member.id;
-      const isUnavailable = unavailableMap[member.id]?.includes(event.id);
 
       if (isAssigned) {
-          const isConflict = isUnavailable;
-          
           return (
               <div 
                 className={cn(
                   "flex items-center justify-center w-full h-full font-bold text-xs rounded shadow-sm border",
-                  isConflict 
-                    ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50" // Conflict: Assigned but Unavailable
-                    : isMain 
+                  isMain 
                         ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-600 dark:text-white dark:border-blue-500" 
                         : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
                 )}
-                title={`${isMain ? "주복사" : "부복사"}${isConflict ? " (불참 설문)" : ""}`}
+                title={isMain ? "주복사" : "부복사"}
               >
                   {isMain ? "주" : "부"}
               </div>
           );
       }
       
-      if (isUnavailable) {
-          return (
-            <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600 font-bold text-sm dark:bg-red-900/10 dark:text-red-400" title="참석불가">
-                 ✕ 
-            </div>
-          );
-      }
-
       return null;
   };
 
@@ -196,32 +181,30 @@ export default function ServerAssignmentStatus() {
     const wb = utils.book_new();
 
     if (viewMode === 'by-member') {
-       // 1. By Member Data
-       const data = members.map(m => {
-          const row: any = {
-              '이름': m.name_kor,
-              '세례명': m.baptismal_name,
-              '학년': m.grade || '',
-          };
+        // 1. By Member Data
+        const data = members.map(m => {
+           const count = events.filter(ev => ev.member_ids?.includes(m.id)).length;
+           const row: any = {
+               '이름': m.name_kor,
+               '세례명': m.baptismal_name,
+               '학년': m.grade || '',
+               '배정횟수': count,
+           };
 
-          events.forEach(ev => {
-              const isAssigned = ev.member_ids?.includes(m.id);
-              const isMain = ev.main_member_id === m.id;
-              const isUnavailable = unavailableMap[m.id]?.includes(ev.id);
-              
-              const dateKey = `${dayjs(ev.event_date).format('MM/DD')} ${ev.title}`;
-              
-              if (isAssigned) {
-                  row[dateKey] = isMain ? '주' : '부';
-                  if (isUnavailable) row[dateKey] += '!'; // Conflict
-              } else if (isUnavailable) {
-                  row[dateKey] = '✕';
-              } else {
-                  row[dateKey] = '';
-              }
-          });
-          return row;
-       });
+           events.forEach(ev => {
+               const isAssigned = ev.member_ids?.includes(m.id);
+               const isMain = ev.main_member_id === m.id;
+               
+               const dateKey = `${dayjs(ev.event_date).format('MM/DD')} ${ev.title}`;
+               
+               if (isAssigned) {
+                   row[dateKey] = isMain ? '주' : '부';
+               } else {
+                   row[dateKey] = '';
+               }
+           });
+           return row;
+        });
 
        const ws = utils.json_to_sheet(data);
        // Auto-width for first few columns
@@ -267,60 +250,95 @@ export default function ServerAssignmentStatus() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-transparent overflow-hidden">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between shadow-sm shrink-0 gap-3">
-         <div className="flex items-center gap-3">
-             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:text-gray-200">
-                <ArrowLeft size={20} />
-             </Button>
-             <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">복사별 배정 현황</h1>
-         </div>
-         
-         <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto">
-             <div className="flex items-center gap-2 lg:gap-4 dark:text-gray-200">
-                 <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="px-1 lg:px-2 dark:hover:bg-slate-800">
-                     <ChevronLeft size={20} />
+      <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 px-6 py-4 flex flex-col gap-1 shadow-sm shrink-0">
+         {/* Row 1: Title & Status */}
+         <div className="flex justify-between items-center">
+             <div className="flex items-center gap-1">
+                 <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 mr-2 dark:text-gray-200">
+                    <ArrowLeft size={24} />
                  </Button>
-                 <span className="text-lg font-bold min-w-[90px] text-center">
-                     {currentMonth.format('YYYY년 M월')}
+                 
+                 <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full">
+                    <ChevronLeft size={20} />
+                 </Button>
+
+                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 min-w-[110px] text-center">
+                    {currentMonth.format('YYYY년 M월')}
+                 </h1>
+
+                 <Button variant="ghost" size="sm" onClick={handleNextMonth} className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full">
+                    <ChevronRight size={20} />
+                 </Button>
+
+                 <span className="text-xl font-bold text-gray-900 dark:text-gray-100 ml-2">
+                    배정 현황
                  </span>
-                 <Button variant="ghost" size="sm" onClick={handleNextMonth} className="px-1 lg:px-2 dark:hover:bg-slate-800">
-                     <ChevronRight size={20} />
-                 </Button>
              </div>
-              
-             <div className="flex items-center gap-2">
-                {/* Toggle View Mode */}
-                <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
-                    <button
-                    onClick={() => setViewMode('by-member')}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                        viewMode === 'by-member' ? "bg-white shadow text-gray-900 dark:bg-slate-600 dark:text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                    )}
-                    >
-                    <LayoutGrid size={16} />
-                    <span className="hidden sm:inline">복사별</span>
-                    </button>
-                    <button
-                    onClick={() => setViewMode('by-date')}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                        viewMode === 'by-date' ? "bg-white shadow text-gray-900 dark:bg-slate-600 dark:text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                    )}
-                    >
-                        <LayoutList size={16} />
-                    <span className="hidden sm:inline">날짜별</span>
-                    </button>
+             <StatusBadge status={monthlyStatus} />
+         </div>
+
+         {/* Row 2: Description */}
+         <div className="pl-11">
+             <p className="text-xs text-gray-500 dark:text-gray-400">
+                월별 미사 배정 현황을 조회하고 번표를 출력할 수 있습니다.
+             </p>
+         </div>
+
+         {/* Row 3: Controls */}
+         <div className="flex flex-col sm:flex-row justify-between items-center mt-4 bg-gray-50 dark:bg-slate-800/50 p-2 rounded-lg border border-gray-100 dark:border-slate-700 gap-2">
+             {/* Left: View Mode */}
+             <div className="flex bg-white dark:bg-slate-800 p-1 rounded-md border dark:border-slate-600 shadow-sm">
+                <button
+                onClick={() => setViewMode('by-member')}
+                className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all",
+                    viewMode === 'by-member' ? "bg-blue-50 text-blue-600 dark:bg-slate-700 dark:text-blue-300 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                )}
+                >
+                <LayoutGrid size={14} />
+                복사별
+                </button>
+                <button
+                onClick={() => setViewMode('by-date')}
+                className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all",
+                    viewMode === 'by-date' ? "bg-blue-50 text-blue-600 dark:bg-slate-700 dark:text-blue-300 shadow-sm" : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                )}
+                >
+                <LayoutList size={14} />
+                날짜별
+                </button>
+            </div>
+
+            {/* Center: Legend */}
+            <div className="hidden md:flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1">
+                    <div className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold">주</div>
+                    <span>주복사</span>
                 </div>
-                
-                <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700" title="엑셀로 저장">
-                    <Download size={16} className="mr-2" />
+                <div className="flex items-center gap-1">
+                    <div className="w-5 h-5 flex items-center justify-center bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 rounded text-[10px] font-bold">부</div>
+                    <span>부복사</span>
+                </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+                 <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(`/server-groups/${serverGroupId}/print-schedule/${yyyymm}`, '_blank')} 
+                    className="gap-2 dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700"
+                >
+                    <Printer size={14} />
+                    복사번표출력
+                </Button>
+
+                <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="gap-2 dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700" title="엑셀로 저장">
+                    <Download size={14} />
                     엑셀
                 </Button>
-                <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700" title="엑셀로 저장">
-                    <Download size={16} />
-                </Button>
-             </div>
+            </div>
          </div>
       </div>
 
@@ -367,15 +385,18 @@ export default function ServerAssignmentStatus() {
                       </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
-                      {members.map(member => (
-                          <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
-                              <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 whitespace-nowrap text-sm border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
-                                  <div className="flex items-center">
-                                      <span className="font-medium text-gray-900 dark:text-gray-100">{member.name_kor}</span>
-                                      <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5">{member.baptismal_name}</span>
-                                  </div>
-                              </td>
-                              {events.map((ev, idx) => {
+                      {members.map(member => {
+                          const count = events.filter(ev => ev.member_ids?.includes(member.id)).length;
+                          return (
+                           <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                               <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 whitespace-nowrap text-sm border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
+                                   <div className="flex items-center">
+                                       <span className="font-medium text-gray-900 dark:text-gray-100">{member.name_kor}</span>
+                                       <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5">{member.baptismal_name}</span>
+                                       <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold ml-1.5 bg-blue-50 dark:bg-blue-900/30 px-1 rounded">({count}회)</span>
+                                   </div>
+                               </td>
+                               {events.map((ev, idx) => {
                                   const dateObj = dayjs(ev.event_date);
                                   const dayNum = dateObj.day();
                                   const nextEv = events[idx + 1];
@@ -392,8 +413,10 @@ export default function ServerAssignmentStatus() {
                                     </td>
                                   );
                               })}
-                          </tr>
-                      ))}
+
+                           </tr>
+                          );
+                       })}
                       {members.length === 0 && (
                           <tr>
                               <td colSpan={events.length + 1} className="px-6 py-10 text-center text-gray-500 text-sm">

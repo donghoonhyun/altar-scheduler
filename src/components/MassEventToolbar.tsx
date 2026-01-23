@@ -1,7 +1,7 @@
 // src/components/MassEventToolbar.tsx
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Copy, Lock, Send, StopCircle, Repeat, Settings, Check, Bot } from 'lucide-react';
+import { Copy, Lock, Send, StopCircle, Repeat, Settings, Check, Bot, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MassEventToolbarProps {
@@ -16,6 +16,7 @@ interface MassEventToolbarProps {
   onAutoAssign: () => void;
   onFinalConfirm: () => void;
   onOpenMonthStatus: () => void;
+  onOpenBackup: () => void; // ✅ Added
 }
 
 export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
@@ -30,9 +31,12 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
   onAutoAssign,
   onFinalConfirm,
   onOpenMonthStatus,
+  onOpenBackup,
 }) => {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-4 justify-center">
+    <div className="flex flex-col gap-2 mb-4 w-full">
+      {/* 🔹 Row 1: 주요 액션 버튼 (중앙 정렬) */}
+      <div className="flex flex-wrap items-center gap-1.5 justify-center">
       {/* 🔵 그룹 ① 확정 준비 */}
       <Button
         variant="outline"
@@ -123,22 +127,34 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         <Check className="w-3.5 h-3.5 mr-1" /> 최종확정
       </Button>
 
-      {/* 구분선 */}
-      <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
+      </div>
 
-      {/* ⚙️ 기타 */}
-      <Button
-        variant="outline"
-        size="sm"
-        className={cn(
-          'h-7 text-[12px] px-2 py-1 border border-gray-400 text-gray-700 dark:text-gray-300 dark:border-gray-500',
-          'hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800 dark:hover:bg-gray-800 dark:hover:text-gray-200',
-          'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-800/40 dark:disabled:text-gray-500 dark:disabled:border-gray-600'
-        )}
-        onClick={onOpenMonthStatus}
-      >
-        <Settings className="w-3.5 h-3.5 mr-1" /> 월상태변경
-      </Button>
+      {/* 🔹 Row 2: 유틸리티 버튼 (우측 정렬) */}
+      <div className="flex flex-wrap items-center gap-1.5 justify-end">
+        {/* ⚙️ 월상태변경 */}
+        <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+            'h-7 text-[12px] px-2 py-1 border border-gray-400 text-gray-700 dark:text-gray-300 dark:border-gray-500',
+            'hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800 dark:hover:bg-gray-800 dark:hover:text-gray-200',
+            'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-800/40 dark:disabled:text-gray-500 dark:disabled:border-gray-600'
+            )}
+            onClick={onOpenMonthStatus}
+        >
+            <Settings className="w-3.5 h-3.5 mr-1" /> 월상태변경
+        </Button>
+
+        {/* 📦 백업 */}
+        <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[12px] px-2 py-1 border border-gray-300 text-gray-600 dark:text-gray-400 dark:border-gray-600 hover:bg-gray-50 hover:text-gray-800 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            onClick={onOpenBackup}
+        >
+            <Archive className="w-3.5 h-3.5 mr-1" /> 미사백업
+        </Button>
+      </div>
     </div>
   );
 };

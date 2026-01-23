@@ -76,7 +76,12 @@ service cloud.firestore {
     }
 
     // 3.9 SMS Logs (슈퍼어드민만 읽기 허용)
-    match /sms_logs/{logId} {
+    match /system_sms_logs/{logId} {
+      allow read: if isSuperAdmin();
+    }
+
+    // 3.10 System Notification Logs (시스템 알림 로그)
+    match /system_notification_logs/{logId} {
       allow read: if isSuperAdmin();
     }
     

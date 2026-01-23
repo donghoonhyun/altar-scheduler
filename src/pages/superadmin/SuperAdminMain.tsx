@@ -383,6 +383,24 @@ export default function SuperAdminMain() {
                   SMS문자 관리
                 </Button>
              </div>
+
+             <div className="my-4 border-t border-slate-100 dark:border-slate-800" />
+
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-white">Notification 관리</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    전체 앱 푸시 발송 이력을 조회하고 관리합니다.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/superadmin/notifications')}
+                  className="gap-2 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+                  variant="outline"
+                >
+                  Notification 관리
+                </Button>
+             </div>
           </div>
         </section>
 

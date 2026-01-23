@@ -72,7 +72,7 @@ export default function SmsManagement() {
     try {
       setIsLoadingLogs(true);
       const q = query(
-        collection(db, 'sms_logs'),
+        collection(db, 'system_sms_logs'),
         orderBy('created_at', 'desc'),
         limit(50)
       );

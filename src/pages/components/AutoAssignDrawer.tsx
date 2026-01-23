@@ -54,28 +54,44 @@ const AutoAssignDrawer: React.FC<AutoAssignDrawerProps> = ({ open, onClose, onCo
                </div>
                <ol className="list-none space-y-2 text-xs text-gray-700">
                 <li className="flex gap-2">
-                  <span className="font-bold shrink-0 text-blue-600">1.</span>
+                  <span className="font-bold shrink-0 text-red-600">1.</span>
+                  <div>
+                    <span className="font-bold text-red-600">고정 미사 보존 (중요)</span>
+                    <p className="text-gray-500 mt-0.5">
+                       '자동 배정 제외(고정)'가 설정된 미사는 배정을 실행하지 않고 <b className="text-gray-700">기존 배정 인원을 그대로 유지</b>합니다.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold shrink-0 text-blue-600">2.</span>
                   <div>
                     <span className="font-bold">불참자 제외</span>
                     <p className="text-gray-500 mt-0.5">불참으로 설문 제출한 복사는 배정에서 제외합니다.</p>
                   </div>
                 </li>
                 <li className="flex gap-2">
-                  <span className="font-bold shrink-0 text-blue-600">2.</span>
+                  <span className="font-bold shrink-0 text-blue-600">3.</span>
                   <div>
-                    <span className="font-bold">배정 실적 우선 (전월)</span>
-                    <p className="text-gray-500 mt-0.5">가능한 복사 중 전월 배정 실적이 적은 복사를 먼저 배정합니다.</p>
+                    <span className="font-bold">배정 간격 조정</span>
+                    <p className="text-gray-500 mt-0.5">최근 배정일로부터 최소 2~3일 간격을 두어 배정합니다. (대상자 부족 시 간격 자동 완화)</p>
                   </div>
                 </li>
                 <li className="flex gap-2">
-                  <span className="font-bold shrink-0 text-blue-600">3.</span>
+                  <span className="font-bold shrink-0 text-blue-600">4.</span>
+                  <div>
+                    <span className="font-bold">균등 배정 (1회 우선)</span>
+                    <p className="text-gray-500 mt-0.5">이번 달 배정 횟수가 적은 인원을 최우선으로 배정합니다. (횟수 동일 시 전월 실적 반영)</p>
+                  </div>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold shrink-0 text-blue-600">5.</span>
                   <div>
                     <span className="font-bold">이름순 배정</span>
                     <p className="text-gray-500 mt-0.5">실적이 동일한 경우, 이름 가나다순으로 순차 배정합니다.</p>
                   </div>
                 </li>
                 <li className="flex gap-2">
-                  <span className="font-bold shrink-0 text-blue-600">4.</span>
+                  <span className="font-bold shrink-0 text-blue-600">6.</span>
                   <div>
                     <span className="font-bold">주복사 자동 지정</span>
                     <p className="text-gray-500 mt-0.5">
@@ -87,7 +103,7 @@ const AutoAssignDrawer: React.FC<AutoAssignDrawerProps> = ({ open, onClose, onCo
             </div>
             
             <div className="bg-amber-50 text-amber-800 text-xs px-3 py-2 rounded border border-amber-200">
-               ⚠️ <b>주의:</b> 자동 배정 실행 시 <span className="underline">기존 배정 정보는 모두 초기화(삭제)</span>되고 새로 배정됩니다.
+               ⚠️ <b>주의:</b> 자동 배정 실행 시 <span className="underline">기존 배정 정보는 초기화</span>되지만, <b>'자동 배정 제외'가 설정된 미사는 변경되지 않습니다.</b>
             </div>
 
             <p className="text-xs text-gray-400 text-center">

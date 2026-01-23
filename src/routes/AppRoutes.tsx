@@ -30,11 +30,13 @@ import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
 import ParishAdminManagement from '../pages/superadmin/ParishAdminManagement';
 import UserManagement from '../pages/superadmin/UserManagement';
 import SmsManagement from '../pages/superadmin/SmsManagement';
+import NotificationManagement from '../pages/superadmin/NotificationManagement';
 import SurveyManagement from '../pages/SurveyManagement';
 import SurveyCalendar from '@/pages/SurveyCalendar';
 import SurveyByServer from '@/pages/SurveyByServer';
 import WelcomeStandby from '../pages/WelcomeStandby';
 import Support from '@/pages/Support';
+import ServerSchedulePrint from '@/pages/ServerSchedulePrint';
 
 export default function AppRoutes() {
   const session = useSession();
@@ -143,6 +145,16 @@ export default function AppRoutes() {
       {/* 3) Forbidden 페이지 */}
       <Route path="/forbidden" element={<Forbidden />} />
 
+      {/* 3-1) 인쇄 페이지 (Layout 미적용 - 별도 윈도우/전체화면용) */}
+      <Route
+          path="/server-groups/:serverGroupId/print-schedule/:yyyymm"
+          element={
+            <RoleGuard require="planner">
+              <ServerSchedulePrint />
+            </RoleGuard>
+          }
+        />
+
       {/* 4) 메인 앱 레이아웃 (Layout 적용) */}
       <Route element={<Layout />}>
         {/* 대기 페이지 (Layout 적용) */}
@@ -159,6 +171,7 @@ export default function AppRoutes() {
         <Route path="/superadmin/parish/:parishCode/admins" element={<ParishAdminManagement />} />
         <Route path="/superadmin/users" element={<UserManagement />} />
         <Route path="/superadmin/sms" element={<SmsManagement />} />
+        <Route path="/superadmin/notifications" element={<NotificationManagement />} />
 
 
         {/* Admin 전용 라우트 */}
@@ -248,6 +261,8 @@ export default function AppRoutes() {
             </RoleGuard>
           }
         />
+
+
 
         <Route
           path="/server-groups/:serverGroupId/surveys"

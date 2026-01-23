@@ -5,6 +5,8 @@ export interface NotificationPayload {
   body: string;
   data?: { [key: string]: string };
   clickAction?: string;
+  feature?: string; // e.g. 'TEST_SEND', 'MASS_REMINDER', 'SURVEY_OPEN', etc.
+  serverGroupId?: string; // Optional: associated server group ID
 }
 
 /**
@@ -78,6 +80,30 @@ export async function sendMulticastNotification(
   try {
     const response = await admin.messaging().sendEachForMulticast(message);
     console.log(`[sendMulticastNotification] Sent to ${uniqueTokens.length} devices. Success: ${response.successCount}, Failed: ${response.failureCount}`);
+    
+    // 🔔 Log to FireStore (System History)
+    console.log('[sendMulticastNotification] Attempting to write log to system_notification_logs...');
+    try {
+        const logData = {
+            created_at: new Date(), // Use JS Date object instead of serverTimestamp for safety
+            feature: payload.feature || 'unknown',
+            server_group_id: payload.serverGroupId || null,
+            title: payload.title,
+            body: payload.body,
+            data: payload.data || null,
+            target_uids: parentUids,
+            target_device_count: uniqueTokens.length,
+            success_count: response.successCount,
+            failure_count: response.failureCount,
+            click_action: payload.clickAction || null,
+            status: 'success'
+        };
+        
+        const ref = await db.collection('system_notification_logs').add(logData);
+        console.log(`[sendMulticastNotification] Log written successfully. Doc ID: ${ref.id}`);
+    } catch (logErr) {
+        console.error('[sendMulticastNotification] Logging failed. Error details:', JSON.stringify(logErr, Object.getOwnPropertyNames(logErr)));
+    }
     
     // (TODO: 실패한 토큰 정리 로직 추가 가능)
     

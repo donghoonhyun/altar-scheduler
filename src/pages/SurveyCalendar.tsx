@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { MassStatus } from '@/types/firestore';
-import { ArrowLeft, Loader2, Download } from 'lucide-react';
+import { ArrowLeft, Loader2, Download, Trash2 } from 'lucide-react';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 
@@ -36,6 +38,7 @@ interface MassEventDoc {
     id: string;
     event_date: string; // YYYYMMDD
     title: string;
+    isDeleted?: boolean;
 }
 
 export default function SurveyCalendar() {
@@ -47,6 +50,7 @@ export default function SurveyCalendar() {
   const [memberMap, setMemberMap] = useState<Record<string, MemberInfo>>({});
   const [eventDateMap, setEventDateMap] = useState<Record<string, string>>({}); // eventId -> YYYY-MM-DD
   const [events, setEvents] = useState<MassEventDoc[]>([]); // Store all fetched events
+  const [deletedEvents, setDeletedEvents] = useState<MassEventDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<MassEventDoc | null>(null);
   const [monthlyStatus, setMonthlyStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
@@ -54,6 +58,7 @@ export default function SurveyCalendar() {
   // ✅ View Options
   const [viewMode, setViewMode] = useState<'available' | 'unavailable'>('available');
   const [displayMode, setDisplayMode] = useState<'count' | 'name'>('available' === 'available' ? 'count' : 'count'); 
+  const [showDeleted, setShowDeleted] = useState(false); 
 
   // Toggle defaults:
   // "가능보기" (default)
@@ -118,6 +123,27 @@ export default function SurveyCalendar() {
       });
       setEventDateMap(newEventDateMap);
       setEvents(newEvents);
+
+      // 4. Fetch Deleted Mass Events
+      const deletedQuery = query(
+        collection(db, 'server_groups', serverGroupId, 'deleted_mass_events'),
+        where('event_date', '>=', startStr),
+        where('event_date', '<=', endStr)
+      );
+      const deletedSnap = await getDocs(deletedQuery);
+      const newDeletedEvents: MassEventDoc[] = [];
+      deletedSnap.forEach(doc => {
+          const data = doc.data();
+          if (data.event_date && data.original_id) {
+             newDeletedEvents.push({
+                 id: data.original_id,
+                 event_date: data.event_date,
+                 title: data.title || '(삭제됨)',
+                 isDeleted: true
+             });
+          }
+      });
+      setDeletedEvents(newDeletedEvents);
 
       // 3. Fetch Members
       const memberIds = surveyData.member_ids || [];
@@ -231,21 +257,28 @@ export default function SurveyCalendar() {
     <div className="min-h-screen bg-gray-50/50 dark:bg-slate-900 transition-colors">
        <Container className="py-6">
           <div className="flex flex-col gap-2 mb-6">
-              <div className="flex items-center gap-2">
-                 <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:hover:bg-slate-800">
-                    <ArrowLeft size={24} className="text-gray-900 dark:text-gray-100" />
-                 </Button>
-                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
-                     {`${parseInt(survey.id.slice(4))}월 불참 설문`}
-                 </h1>
-                 <Badge variant={survey.status === 'OPEN' ? 'default' : 'secondary'} className={`shrink-0 ${survey.status === 'OPEN' ? 'bg-green-600 hover:bg-green-700' : 'dark:bg-gray-700 dark:text-gray-300'}`}>
-                    {survey.status === 'OPEN' ? '진행중' : '마감됨'}
-                 </Badge>
+              {/* Row 1: Title and Month Status */}
+              <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                     <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 dark:hover:bg-slate-800">
+                        <ArrowLeft size={24} className="text-gray-900 dark:text-gray-100" />
+                     </Button>
+                     <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+                         {`${parseInt(survey.id.slice(4))}월 불참 설문`}
+                     </h1>
+                     <Badge variant={survey.status === 'OPEN' ? 'default' : 'secondary'} className={`shrink-0 ${survey.status === 'OPEN' ? 'bg-green-600 hover:bg-green-700' : 'dark:bg-gray-700 dark:text-gray-300'}`}>
+                        {survey.status === 'OPEN' ? '진행중' : '마감됨'}
+                     </Badge>
+                  </div>
+                  <StatusBadge status={monthlyStatus} />
               </div>
 
-               <div className="flex justify-between items-center mt-2 pl-10">
-                  <StatusBadge status={monthlyStatus} />
-                  <div className="flex gap-1">
+               {/* Row 2: Description and Actions */}
+               <div className="flex justify-between items-end mt-1 pl-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xl break-keep">
+                     <span className="font-bold">가능/불가</span> 보기에 따라 달력 및 상세 내역이 변경되며, <span className="font-bold">인원수/이름</span>으로 표시 방식을 전환할 수 있습니다. 삭제된 미사도 포함하여 조회 가능합니다.
+                  </p>
+                  <div className="flex gap-1 shrink-0 ml-4">
                     <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200" title="엑셀로 저장">
                         <Download size={16} className="mr-2" />
                         엑셀
@@ -258,28 +291,41 @@ export default function SurveyCalendar() {
           </div>
 
 
-          {/* View Controls */}
-          <div className="flex flex-row gap-2 justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-slate-700 shadow-sm mb-4 transition-colors">
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 p-1 rounded-md">
-                  <button
-                    onClick={() => setViewMode('available')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
-                        viewMode === 'available' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    가능보기
-                  </button>
-                  <button
-                    onClick={() => setViewMode('unavailable')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
-                        viewMode === 'unavailable' ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    불가보기
-                  </button>
+          <div className="flex flex-col sm:flex-row gap-2 justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-slate-700 shadow-sm mb-4 transition-colors">
+              <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 p-1 rounded-md">
+                      <button
+                        onClick={() => setViewMode('available')}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
+                            viewMode === 'available' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        가능보기
+                      </button>
+                      <button
+                        onClick={() => setViewMode('unavailable')}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${
+                            viewMode === 'unavailable' ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        불가보기
+                      </button>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                       <Switch 
+                           id="show-deleted" 
+                           checked={showDeleted} 
+                           onCheckedChange={setShowDeleted}
+                           className="data-[state=checked]:bg-orange-500"
+                       />
+                       <Label htmlFor="show-deleted" className="text-xs cursor-pointer text-gray-600 dark:text-gray-300">
+                           삭제된 미사 포함
+                       </Label>
+                  </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-2 sm:mt-0">
                  <span className="text-xs text-gray-400 font-medium hidden sm:inline">|</span>
                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 p-1 rounded-md">
                     <button
@@ -354,9 +400,23 @@ export default function SurveyCalendar() {
                                            if (!date) return <div key={dIdx} />;
                                            const dateStr = date.format('YYYY-MM-DD');
                                            
-                                           // Get events for this day
-                                           const daysEvents = events.filter(e => dayjs(e.event_date).format('YYYY-MM-DD') === dateStr);
-                                           daysEvents.sort((a, b) => a.title.localeCompare(b.title));
+                                           // Merge active and deleted events
+                                           let dayEvents = events.filter(e => dayjs(e.event_date).format('YYYY-MM-DD') === dateStr);
+                                           
+                                           if (showDeleted) {
+                                               const activeIds = new Set(dayEvents.map(e => e.id));
+                                               const dayDeleted = deletedEvents.filter(e => dayjs(e.event_date).format('YYYY-MM-DD') === dateStr);
+                                               dayDeleted.forEach(de => {
+                                                   if (!activeIds.has(de.id)) {
+                                                       // dedupe
+                                                       if (!dayEvents.find(x => x.id === de.id)) {
+                                                           dayEvents.push(de);
+                                                       }
+                                                   }
+                                               });
+                                           }
+
+                                           dayEvents.sort((a, b) => a.title.localeCompare(b.title));
 
                                            return (
                                                <div 
@@ -371,7 +431,7 @@ export default function SurveyCalendar() {
                                                    </span>
                                                    
                                                    <div className="flex flex-col gap-1 w-full relative">
-                                                       {daysEvents.map(ev => {
+                                                       {dayEvents.map(ev => {
                                                             // Logic to determine count/names based on viewMode
                                                             const unavailableUids: string[] = [];
                                                             Object.values(survey.responses || {}).forEach(r => {
@@ -391,11 +451,20 @@ export default function SurveyCalendar() {
 
                                                             const isEventSelected = selectedEvent?.id === ev.id;
                                                             
-                                                            // Styles
-                                                            const bgColor = viewMode === 'available' ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-red-50 dark:bg-red-900/30';
-                                                            const borderColor = viewMode === 'available' ? 'border-blue-100 dark:border-blue-800' : 'border-red-100 dark:border-red-800';
-                                                            const textColor = viewMode === 'available' ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300';
-                                                            const badgeColor = viewMode === 'available' ? 'bg-blue-500' : 'bg-red-500';
+                                                                    const isDeleted = ev.isDeleted;
+                                                                    
+                                                                    // Styles
+                                                                    let bgColor = viewMode === 'available' ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-red-50 dark:bg-red-900/30';
+                                                                    let borderColor = viewMode === 'available' ? 'border-blue-100 dark:border-blue-800' : 'border-red-100 dark:border-red-800';
+                                                                    let textColor = viewMode === 'available' ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300';
+                                                                    const badgeColor = viewMode === 'available' ? 'bg-blue-500' : 'bg-red-500';
+
+                                                                    // Deleted Style Override
+                                                                    if (isDeleted) {
+                                                                        bgColor = 'bg-gray-100 dark:bg-slate-700';
+                                                                        borderColor = 'border-gray-300 dark:border-slate-600';
+                                                                        textColor = 'text-gray-500 dark:text-gray-400 line-through';
+                                                                    }
 
                                                            return (
                                                                <div 
@@ -407,7 +476,7 @@ export default function SurveyCalendar() {
                                                                     className={`
                                                                         w-full rounded border flex flex-col justify-start items-start cursor-pointer transition-all overflow-hidden
                                                                         ${isEventSelected ? 'ring-2 ring-gray-900 dark:ring-gray-100 border-gray-900 dark:border-gray-100 z-10 shadow-sm' : ''}
-                                                                        ${count > 0 ? `${bgColor} ${borderColor} ${textColor}` : 'bg-gray-50 border-gray-100 text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-500'}
+                                                                        ${count > 0 || isDeleted ? `${bgColor} ${borderColor} ${textColor}` : 'bg-gray-50 border-gray-100 text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-500'}
                                                                         hover:brightness-95 dark:hover:brightness-110
                                                                     `}
                                                                >
@@ -458,7 +527,10 @@ export default function SurveyCalendar() {
                                {selectedEvent && (
                                    <>
                                        <span className={`w-1.5 h-6 rounded-full ${viewMode === 'available' ? 'bg-blue-500' : 'bg-red-500'}`}></span>
-                                       {selectedEvent.title}
+                                       {selectedEvent.isDeleted && <Trash2 size={16} className="text-gray-400 mr-1" />}
+                                       <span className={selectedEvent.isDeleted ? 'line-through text-gray-500' : ''}>
+                                          {selectedEvent.title}
+                                       </span>
                                        <span className="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">
                                             {dayjs(selectedEvent.event_date).format('M월 D일')}
                                        </span>

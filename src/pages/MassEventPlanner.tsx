@@ -27,6 +27,7 @@ import FinalConfirmDrawer from './components/FinalConfirmDrawer';
 import { SendSurveyDrawer } from '@/components/SendSurveyDrawer';
 import CloseSurveyDrawer from './components/CloseSurveyDrawer';
 import AutoAssignDrawer from './components/AutoAssignDrawer';
+import MassBackupDrawer from './components/MassBackupDrawer';
 import { useMassEvents } from '@/hooks/useMassEvents';
 import { useMonthStatus } from '@/hooks/useMonthStatus';
 import type { MassEventCalendar } from '@/types/massEvent';
@@ -85,6 +86,7 @@ const MassEventPlanner: React.FC = () => {
   const [closeSurveyDrawerOpen, setCloseSurveyDrawerOpen] = useState(false);
 
   const [autoAssignDrawerOpen, setAutoAssignDrawerOpen] = useState(false);
+  const [backupDrawerOpen, setBackupDrawerOpen] = useState(false);
   const [finalConfirmDrawerOpen, setFinalConfirmDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
@@ -187,7 +189,12 @@ const MassEventPlanner: React.FC = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800">
           <ArrowLeft size={24} />
         </Button>
-        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">📅 미사 일정 관리</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+          📅 미사 일정 관리
+          <span className="ml-2 text-lg font-normal text-gray-500 dark:text-gray-400">
+            {currentMonth.format('YYYY년 M월')}
+          </span>
+        </h2>
       </div>
 
       {/* ✅ Toolbar */}
@@ -204,6 +211,7 @@ const MassEventPlanner: React.FC = () => {
         onAutoAssign={() => setAutoAssignDrawerOpen(true)}
         onFinalConfirm={() => setFinalConfirmDrawerOpen(true)}
         onOpenMonthStatus={() => setMonthStatusDrawerOpen(true)}
+        onOpenBackup={() => setBackupDrawerOpen(true)}
       />
 
       {loading && <LoadingSpinner label="전월 데이터 복사 중..." />}
@@ -274,6 +282,9 @@ const MassEventPlanner: React.FC = () => {
         open={finalConfirmDrawerOpen}
         onClose={() => setFinalConfirmDrawerOpen(false)}
         onConfirm={handleFinalConfirm}
+        serverGroupId={serverGroupId!}
+        currentMonth={currentMonth}
+        events={events}
       />
 
       {monthStatusDrawerOpen && (
@@ -284,6 +295,13 @@ const MassEventPlanner: React.FC = () => {
           currentMonth={currentMonth}
         />
       )}
+
+      <MassBackupDrawer
+          open={backupDrawerOpen}
+          onClose={() => setBackupDrawerOpen(false)}
+          serverGroupId={serverGroupId!}
+          currentMonth={currentMonth}
+      />
     </div>
   );
 };

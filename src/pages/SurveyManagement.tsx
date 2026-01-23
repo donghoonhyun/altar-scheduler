@@ -11,6 +11,7 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
+  DrawerDescription,
   DrawerFooter,
 } from '@/components/ui/drawer';
 import { toast } from 'sonner';
@@ -153,9 +154,9 @@ export default function SurveyManagement() {
                      const allMemberIds = survey.member_ids || [];
                      const responseKeys = Object.keys(survey.responses || {});
                      
-                     // Filter active
-                     const total = allMemberIds.filter(uid => memberMap[uid]?.active === true).length;
-                     const responseCount = responseKeys.filter(uid => memberMap[uid]?.active === true).length;
+                     // Filter active (Removed: show all history)
+                     const total = allMemberIds.length;
+                     const responseCount = responseKeys.length;
                      
                      const rate = total > 0 ? Math.round((responseCount / total) * 100) : 0;
                      const dateKey = survey.id; // YYYYMM
@@ -214,6 +215,9 @@ export default function SurveyManagement() {
                   <DrawerTitle className="dark:text-gray-100">
                       {selectedSurvey && `${selectedSurvey.id.slice(0,4)}년 ${parseInt(selectedSurvey.id.slice(4))}월 설문 현황`}
                   </DrawerTitle>
+                  <DrawerDescription className="text-xs text-gray-500 font-normal dark:text-gray-400 mt-1">
+                     ※ 회색으로 표시된 명단은 현재 비활동이거나 삭제된 복사입니다.
+                  </DrawerDescription>
               </DrawerHeader>
               
                <div className="p-4 overflow-y-auto flex-1">
@@ -222,21 +226,21 @@ export default function SurveyManagement() {
                   ) : selectedSurvey ? (
                       <div className="space-y-4">
                           {(() => {
-                              // Active Only Counts
+                              // Active Only Counts (Removed: show all history)
                               const targets = selectedSurvey.member_ids || [];
-                              const totalActive = targets.filter(uid => memberMap[uid]?.active === true).length;
+                              const total = targets.length;
                               
                               const responseKeys = Object.keys(selectedSurvey.responses || {});
-                              const responseActive = responseKeys.filter(uid => memberMap[uid]?.active === true).length;
+                              const responseCount = responseKeys.length;
                               
-                              const rate = totalActive > 0 ? Math.round((responseActive / totalActive) * 100) : 0;
+                              const rate = total > 0 ? Math.round((responseCount / total) * 100) : 0;
 
                               return (
                                   <div className="bg-gray-50 p-3 rounded-lg text-center dark:bg-slate-800">
                                       <div className="text-sm">
-                                          <span className="font-bold text-gray-900 dark:text-gray-100">총 대상자 {totalActive}명</span>
+                                          <span className="font-bold text-gray-900 dark:text-gray-100">총 대상자 {total}명</span>
                                           <span className="mx-2 text-gray-300 dark:text-gray-600">|</span>
-                                          <span className="font-bold text-blue-600 dark:text-blue-400">응답자 {responseActive}명</span>
+                                          <span className="font-bold text-blue-600 dark:text-blue-400">응답자 {responseCount}명</span>
                                           <span className="ml-1 text-gray-500 dark:text-gray-400">({rate}%)</span>
                                       </div>
                                   </div>
@@ -303,18 +307,20 @@ export default function SurveyManagement() {
                                           return true;
                                       });
                                       
-                                      // 분리: 정상 회원 active=true
-                                      const isDeleted = (m: any) => m.status === 'deleted' || m.name === '정보없음(삭제됨?)';
-                                      const isActive = (m: any) => m.active === true;
+                                      // Split lists
+                                      const validList: typeof list = [];
+                                      const bottomList: typeof list = [];
+                                      
+                                      list.forEach(m => {
+                                          if (m.status === 'deleted' || m.active === false || m.name === '...') {
+                                              bottomList.push(m);
+                                          } else {
+                                              validList.push(m);
+                                          }
+                                      });
 
-                                      // 1. 정상 목록: 삭제되지 않았고 Active=true 인 경우
-                                      const validList = list.filter(m => !isDeleted(m) && isActive(m));
-                                      
-                                      // 2. 하단 목록: 삭제되었거나, Active가 아니지만(active!=true) 설문 이력이 있는 경우
-                                      const bottomList = list.filter(m => isDeleted(m) || (!isActive(m) && m.hasRes));
-                                      
-                                      // Sort only valid list
-                                      validList.sort((a, b) => {
+                                      // Sort helper
+                                      const sortFn = (a: typeof list[0], b: typeof list[0]) => {
                                           if (sortBy === 'grade') {
                                               if (a.grade !== b.grade) {
                                                   return (a.grade || '').localeCompare(b.grade || '');
@@ -323,7 +329,10 @@ export default function SurveyManagement() {
                                           } else {
                                               return a.name.localeCompare(b.name);
                                           }
-                                      });
+                                      };
+                                      
+                                      validList.sort(sortFn);
+                                      bottomList.sort(sortFn);
 
                                       if (validList.length === 0 && bottomList.length === 0) {
                                           return <div className="col-span-2 text-center text-gray-400 py-4 text-xs">표시할 대상이 없습니다.</div>;
@@ -363,6 +372,7 @@ export default function SurveyManagement() {
                                                                   <span className="font-medium text-gray-500 dark:text-gray-400 truncate text-xs">
                                                                     {m.name}
                                                                     {m.baptismal_name && <span className="text-[10px] ml-1 font-normal">({m.baptismal_name})</span>}
+                                                                    <span className="text-[9px] ml-1 text-red-500 font-normal">(비활동)</span>
                                                                   </span>
                                                               </div>
                                                               {m.hasRes ? (

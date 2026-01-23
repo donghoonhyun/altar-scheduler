@@ -80,6 +80,7 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
                 required_servers: d.required_servers ?? 0,
                 member_ids: memberIds,
                 main_member_id: d.main_member_id, // ✅ 주복사 ID 매핑
+                anti_autoassign_locked: d.anti_autoassign_locked, // 🔒 Lock State
                 servers,
                 // 🔹 UI에서 바로 날짜 정렬/표시용으로도 사용 가능
                 formatted_date: formattedLabel,

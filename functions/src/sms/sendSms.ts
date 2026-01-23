@@ -38,8 +38,8 @@ export const sendSms = functions
       };
 
       // Log Success
-      await admin.firestore().collection('sms_logs').add({
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      await admin.firestore().collection('system_sms_logs').add({
+        created_at: admin.firestore.Timestamp.now(),
         sender_uid: context.auth.uid,
         sender_email: context.auth.token.email || null,
         receiver,
@@ -61,8 +61,8 @@ export const sendSms = functions
 
       // Log Failure
       try {
-        await admin.firestore().collection('sms_logs').add({
-          created_at: admin.firestore.FieldValue.serverTimestamp(),
+        await admin.firestore().collection('system_sms_logs').add({
+          created_at: admin.firestore.Timestamp.now(),
           sender_uid: context.auth.uid,
           sender_email: context.auth.token.email || null,
           receiver,

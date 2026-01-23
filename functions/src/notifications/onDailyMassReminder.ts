@@ -239,7 +239,7 @@ async function executeDailyMassReminder() {
                       if (gid) smsGroupId = gid;
 
                       // ✅ WRITE TO GLOBAL LOGS (for Admin View)
-                      await db.collection('sms_logs').add({
+                      await db.collection('system_sms_logs').add({
                           created_at: admin.firestore.Timestamp.now(),
                           sender: 'System (Reminder)',
                           sender_email: 'system@altar-scheduler',
@@ -265,7 +265,7 @@ async function executeDailyMassReminder() {
                       r.smsResult = 'fail';
 
                       // ✅ WRITE ERROR LOG
-                      await db.collection('sms_logs').add({
+                      await db.collection('system_sms_logs').add({
                           created_at: admin.firestore.Timestamp.now(),
                           sender: 'System (Reminder)',
                           sender_email: 'system@altar-scheduler',

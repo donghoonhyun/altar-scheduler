@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import MyInfoDrawer from "../../components/common/MyInfoDrawer";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getAppIconPath, getAppTitleWithEnv } from "@/lib/env";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { Download, CheckCircle2 } from "lucide-react";
@@ -32,6 +32,13 @@ export default function Layout() {
   
   // ✅ PWA 진입 시 FCM 토큰 관리 (권한 요청 및 저장)
   useFcmToken();
+
+  // ✅ 방문한 그룹 ID 기억하기 (SuperAdmin 등에서 복귀 시 사용)
+  useEffect(() => {
+    if (serverGroupId) {
+        localStorage.setItem('lastVisitedGroupId', serverGroupId);
+    }
+  }, [serverGroupId]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -52,7 +59,13 @@ export default function Layout() {
               if (serverGroupId) {
                 navigate(`/server-groups/${serverGroupId}`);
               } else {
-                navigate("/");
+                // 그룹 밖(예: SuperAdmin)에 있다면 마지막 방문 그룹으로 복귀 시도
+                const lastId = localStorage.getItem('lastVisitedGroupId');
+                if (lastId) {
+                    navigate(`/server-groups/${lastId}`);
+                } else {
+                    navigate("/");
+                }
               }
             }}
           >

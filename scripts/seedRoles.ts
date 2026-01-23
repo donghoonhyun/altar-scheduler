@@ -350,11 +350,11 @@ async function seed() {
     });
   console.log('✅ mass_presets/default 문서 생성');
 
-  // 7️⃣ sms_logs
+  // 7️⃣ system_sms_logs
   console.log('📌 SMS 로그 시드 시작...');
   const smsBatch = db.batch();
   for (const log of SMS_LOGS) {
-    const ref = db.collection('sms_logs').doc();
+    const ref = db.collection('system_sms_logs').doc();
     smsBatch.set(ref, log);
   }
   await smsBatch.commit();

@@ -40,6 +40,7 @@ interface AssignedEvent extends DocumentData {
   member_ids?: string[];
   required_servers?: number;
   event_date?: string;
+  anti_autoassign_locked?: boolean;
 }
 
 interface Member extends DocumentData {
@@ -116,7 +117,7 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
         }
       });
 
-      // 5. Calculate Previous Month Performance
+      // 5. Calculate Previous Month Performance & Last Assignment Date
       // Prev Month date range
       const prevDate = dayjs(`${year}-${month}-01`).subtract(1, 'month');
       const prevStartStr = prevDate.format('YYYYMMDD');
@@ -127,18 +128,27 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
         .where('event_date', '<=', prevEndStr)
         .get();
 
-      // Count assignments per member for prev month
-      // And initialize totalAssignmentCount with it. 
-      // This respects "Start with those who had fewer assignments last month".
-      const assignmentCountMap: Record<string, number> = {};
-      members.forEach(m => assignmentCountMap[m.id] = 0);
+      // Count assignments per member for prev month & Track Last Date
+      const prevCountMap: Record<string, number> = {};
+      const currCountMap: Record<string, number> = {};
+      const memberLastDateMap: Record<string, string> = {}; // YYYYMMDD
+      
+      members.forEach(m => {
+          prevCountMap[m.id] = 0;
+          currCountMap[m.id] = 0;
+          memberLastDateMap[m.id] = '00000000'; // Very old date
+      });
 
       prevEventsSnap.forEach(doc => {
         const d = doc.data();
         if (d.member_ids && Array.isArray(d.member_ids)) {
           d.member_ids.forEach((uid: string) => {
-            if (assignmentCountMap[uid] !== undefined) {
-              assignmentCountMap[uid]++;
+            if (prevCountMap[uid] !== undefined) {
+              prevCountMap[uid]++;
+            }
+            // Update last date if this event is later
+            if (d.event_date && d.event_date > memberLastDateMap[uid]) {
+                memberLastDateMap[uid] = d.event_date;
             }
           });
         }
@@ -150,45 +160,106 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
 
       for (const ev of events) {
         const eventId = ev.id;
-        const required = ev.required_servers || 2; // Default to 2 if not set?
+        const currentEventDateStr = ev.event_date; // YYYYMMDD (Required)
+
+        if (!currentEventDateStr) {
+            console.warn(`Skipping event ${eventId} due to missing date.`);
+            continue;
+        }
+
+        // 🔒 Check Lock (Automatic Assignment Exclusion)
+        if (ev.anti_autoassign_locked === true) {
+            console.log(`🔒 Skipped Locked Event: ${ev.title} (${ev.event_date})`);
+            
+            // Critical: Count existing members to maintain load balancing fairness
+            // Also update LastDate map
+            if (ev.member_ids && Array.isArray(ev.member_ids)) {
+                ev.member_ids.forEach(uid => {
+                    if (currCountMap[uid] !== undefined) {
+                        currCountMap[uid]++; // Update THIS month count
+                        if (currentEventDateStr > memberLastDateMap[uid]) {
+                             memberLastDateMap[uid] = currentEventDateStr;
+                        }
+                    }
+                });
+            }
+            continue; // Skip assignment logic
+        }
+
+        const required = ev.required_servers || 2; 
 
         // Filter Candidates
-        // 1. Must be Active (already filtered in members list)
-        // 2. Must NOT be unavailable for this event
-        const candidates = members.filter(m => {
+        // 1. Must be Active
+        // 2. Must NOT be unavailable
+        const baseCandidates = members.filter(m => {
            const unavailList = unavailableMap[m.id] || [];
            return !unavailList.includes(eventId);
         });
 
-        // Sort Candidates
-        // Priority 1: Current Total Assignment Count (Prev + This Month) - Ascending
-        // Priority 2: Name (Ascending)
-        candidates.sort((a, b) => {
-          const countA = assignmentCountMap[a.id];
-          const countB = assignmentCountMap[b.id];
+        // Loop to find candidates with Relaxing Gap constraints
+        // Gap Priority: >= 2 days (Best), >= 1 day, >= 0 days
+        let qualifiedCandidates: Member[] = [];
 
-          if (countA !== countB) {
-            return countA - countB;
-          }
+        // Strategy: Filter by gap, if count < required, reduce gap.
+        const checkGap = (gapCriteria: number) => {
+             return baseCandidates.filter(m => {
+                 const lastDate = memberLastDateMap[m.id];
+                 // Calculate diff in days
+                 // Note: event_date is YYYYMMDD string.
+                 const diff = dayjs(currentEventDateStr).diff(dayjs(lastDate), 'day');
+                 return diff >= gapCriteria;
+             });
+        };
+
+        // Try fit
+        let filtered = checkGap(3); // 3일 이상 간격 (이상적: 이틀 쉬기)
+        if (filtered.length < required) {
+             filtered = checkGap(2); // 2일 이상 간격 (하루 쉬기)
+        }
+        if (filtered.length < required) {
+             filtered = checkGap(1); // 1일 이상 간격
+        }
+        if (filtered.length < required) {
+             filtered = baseCandidates; // 0일 간격 (같은 날 중복 배정) -> 최후의 수단
+        }
+
+        qualifiedCandidates = filtered;
+
+        // Sort Candidates
+        // Priority 1: Current Month Count (Ascending) - Round Robin
+        // Priority 2: Prev Month Count (Ascending) - Tie Breaker
+        // Priority 3: Name (Ascending)
+        qualifiedCandidates.sort((a, b) => {
+          const currA = currCountMap[a.id];
+          const currB = currCountMap[b.id];
+          if (currA !== currB) return currA - currB;
+
+          const prevA = prevCountMap[a.id];
+          const prevB = prevCountMap[b.id];
+          if (prevA !== prevB) return prevA - prevB;
+
           return a.name_kor.localeCompare(b.name_kor); 
         });
 
         // Pick top N
-        const selected = candidates.slice(0, required);
+        const selected = qualifiedCandidates.slice(0, required);
         const selectedIds = selected.map(m => m.id);
 
-        // Update counts for selected members
+        // Update counts & Dates for selected members
         selectedIds.forEach(uid => {
-          assignmentCountMap[uid]++;
+          currCountMap[uid]++;
+          // Update Last Date
+          if (currentEventDateStr > memberLastDateMap[uid]) {
+               memberLastDateMap[uid] = currentEventDateStr;
+          }
         });
 
         // Determine Main Server (Juboksa)
-        // Rule: 1 person -> they are main.
-        // Rule: >= 2 people -> Earliest start_year (smallest string) > Name (ABC)
+        // Rule: Earliest start_year (smallest string) > Name (ABC)
         let mainMemberId = null;
         if (selected.length > 0) {
            const sortedForMain = [...selected].sort((a, b) => {
-               const yearA = a.start_year || '9999'; // Treat missing as very recent
+               const yearA = a.start_year || '9999'; 
                const yearB = b.start_year || '9999';
                
                if (yearA !== yearB) {

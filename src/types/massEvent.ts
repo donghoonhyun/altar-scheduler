@@ -23,6 +23,7 @@ export interface MassEventCalendar {
   event_date: string; // Firestore 저장용 "YYYYMMDD"
   required_servers: number;
   member_ids?: string[];
+  anti_autoassign_locked?: boolean; // 🔒 자동배정 제외 여부
   main_member_id?: string; // ✅ 추가: 주복사 ID
   servers?: string[];
   created_at?: Date;

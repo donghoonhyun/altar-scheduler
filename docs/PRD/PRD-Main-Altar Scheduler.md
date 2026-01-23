@@ -529,6 +529,17 @@
         - 매일 20시에 실행되는 '내일 미사 배정 알림' 로직을 즉시 실행.
         - `manualDailyMassReminder` Callable Function 호출.
         - 실행 중 로딩 표시 및 중복 발송 주의 문구 표시.
+        - Month Status 체크: 수동 실행 시에도 해당 월이 'FINAL-CONFIRMED' 상태인지 확인하고 발송함.
+  ④ Notification 관리 (Notification Management)
+    . 경로: `/superadmin/notifications`
+    . 기능:
+      - 전체 앱 푸시 발송 이력 조회 (`system_notification_logs` 컬렉션 기반)
+      - 테이블 표시 정보: 발송일시, 제목, 내용(말줄임), 대상 수(User/Device), 상태(성공/실패)
+      - 상세 보기(Drawer):
+        - 기본 정보: 발송일시, 제목, 내용
+        - 통계: 대상 인원, 성광/실패 수
+        - 대상 UID 목록 및 JSON 메타데이터
+      - **나에게 테스트 발송**: 관리자 본인에게 즉시 테스트 푸시 발송 및 로그 생성 검증 (시스템 공통 발송 로직 점검)
 
 ---
 

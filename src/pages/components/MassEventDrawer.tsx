@@ -22,6 +22,8 @@ import dayjs from 'dayjs';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -32,7 +34,7 @@ import {
 import type { MemberDoc } from '@/types/firestore';
 // Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
-import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -77,11 +79,17 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showUnavailableWarning, setShowUnavailableWarning] = useState(false);
+  const [locked, setLocked] = useState(false); // 🔒 Anti-AutoAssign Lock
+  const [isExpandedServerCount, setIsExpandedServerCount] = useState(false); // 🔽 Expand Server Count UI
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
-  const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
+  const [hideAssigned, setHideAssigned] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'grade' | 'count'>('count');
   const [showAllLogs, setShowAllLogs] = useState(false);
+  
+  // ✅ 전월 배정 횟수 상태
+  const [prevMonthCounts, setPrevMonthCounts] = useState<Record<string, number>>({});
 
   const GRADE_ORDER = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3', '기타'];
 
@@ -140,6 +148,42 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     fetchMembers();
   }, [fetchMembers]);
 
+  // ✅ 전월 배정 통계 불러오기
+  useEffect(() => {
+    if (!date || !serverGroupId) return;
+
+    const fetchStats = async () => {
+        try {
+            const prevMonth = dayjs(date).subtract(1, 'month');
+            const startStr = prevMonth.startOf('month').format('YYYYMMDD');
+            const endStr = prevMonth.endOf('month').format('YYYYMMDD');
+
+            const q = query(
+                collection(db, 'server_groups', serverGroupId, 'mass_events'),
+                where('event_date', '>=', startStr),
+                where('event_date', '<=', endStr)
+            );
+            
+            const snap = await getDocs(q);
+            const counts: Record<string, number> = {};
+            
+            snap.forEach(doc => {
+                const data = doc.data();
+                if (data.member_ids && Array.isArray(data.member_ids)) {
+                    data.member_ids.forEach((mid: string) => {
+                        counts[mid] = (counts[mid] || 0) + 1;
+                    });
+                }
+            });
+            setPrevMonthCounts(counts);
+        } catch (e) {
+            console.error('Failed to fetch prev month stats', e);
+        }
+    };
+    
+    fetchStats();
+  }, [date, serverGroupId, db]);
+
   // ✅ 기존 이벤트 불러오기
   // ✅ 기존 이벤트 불러오기
   const fetchEvent = useCallback(async () => {
@@ -152,6 +196,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         
         setTitle(data.title || '');
         setRequiredServers(data.required_servers || null);
+        setLocked(data.anti_autoassign_locked || false); // 🔒 Load Lock State
         const loadedMemberIds = (data.member_ids as string[]) || [];
         setMemberIds(loadedMemberIds);
         setMainMemberId(data.main_member_id || null);
@@ -235,6 +280,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     
     if (isUnavailable && !memberIds.includes(id)) {
       setShowUnavailableWarning(true);
+      toast.warning('해당 단원은 스케줄상 참석이 어렵습니다. (설문 불참)', {
+          duration: 3000,
+          description: '그래도 배정하시겠습니까?'
+      });
       setTimeout(() => setShowUnavailableWarning(false), 3000);
     }
 
@@ -322,6 +371,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             required_servers: requiredServers,
             member_ids: finalMemberIds,
             main_member_id: mainMemberId,
+            anti_autoassign_locked: locked, // 🔒 Save Lock State
             updated_at: serverTimestamp(),
           },
           { merge: true }
@@ -355,6 +405,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
              event_date: eventDateStr,
              required_servers: requiredServers,
              member_ids: [], // Initial empty
+             anti_autoassign_locked: locked, // 🔒 Save Lock State
              // status: 'MASS-NOTCONFIRMED', // ❌ DEPRECATED: Status managed by month_status
              created_at: serverTimestamp(),
              updated_at: serverTimestamp(),
@@ -535,6 +586,15 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     const filtered = members.filter(m => {
       // 설문 불가 제외 체크 시
       if (hideUnavailable && unavailableMembers.has(m.id)) return false;
+      
+      // 당월 참여 제외 체크 시 (이미 배정된 인원 제외)
+      if (hideAssigned) {
+          const isAssigned = events.some(ev => 
+              ev.id !== eventId && ev.member_ids && ev.member_ids.includes(m.id)
+          );
+          if (isAssigned) return false;
+      }
+
       // Active 상태이거나, 이미 배정된 멤버(비활성 포함)인 경우 표시
       // @ts-ignore
       return m.active === true || memberIds.includes(m.id);
@@ -544,6 +604,12 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     return filtered.sort((a, b) => {
       if (sortBy === 'name') {
         return a.name.localeCompare(b.name, 'ko');
+      } else if (sortBy === 'count') {
+          // 배정수 오름차순
+          const countA = prevMonthCounts[a.id] || 0;
+          const countB = prevMonthCounts[b.id] || 0;
+          if (countA !== countB) return countA - countB;
+          return a.name.localeCompare(b.name, 'ko');
       } else {
         // 학년순
         const idxA = GRADE_ORDER.indexOf(a.grade);
@@ -558,7 +624,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         return a.name.localeCompare(b.name, 'ko');
       }
     });
-  }, [members, hideUnavailable, unavailableMembers, memberIds, sortBy]);
+  }, [members, hideUnavailable, hideAssigned, unavailableMembers, memberIds, sortBy, prevMonthCounts, events, eventId]);
 
   // 🔴 비활성 멤버 포함 여부 확인
   const hasInactiveAssigned = memberIds.some(id => {
@@ -649,30 +715,85 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             />
           </label>
 
+
+
           {/* 필요 인원 */}
-          <label className="block">
-            <span className="font-medium text-gray-900 dark:text-gray-200">필요 인원</span>
-            <div className="flex gap-2 mt-1 flex-wrap">
-              {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
-                <label key={n} className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <input
-                    type="radio"
-                    name="requiredServers"
-                    value={n}
-                    checked={requiredServers === n}
-                    onChange={() => setRequiredServers(n)}
-                    disabled={loading || readOnly}
-                  />
-                  {n}명
-                </label>
-              ))}
+          <div className="block space-y-2">
+            <div className="flex items-center justify-between">
+                <span className="font-medium text-gray-900 dark:text-gray-200">필요 인원</span>
+                <button 
+                  type="button"
+                  onClick={() => setIsExpandedServerCount(!isExpandedServerCount)}
+                  className="p-1 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700 rounded-full transition-colors"
+                  title={isExpandedServerCount ? "접기" : "더 보기"}
+                >
+                    {isExpandedServerCount ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
             </div>
-          </label>
+            <RadioGroup 
+                value={requiredServers?.toString() || ''} 
+                onValueChange={(val) => setRequiredServers(parseInt(val))}
+                disabled={loading || readOnly}
+                className="flex flex-wrap gap-4 pt-1"
+            >
+              {Array.from({ length: isExpandedServerCount ? 10 : 4 }, (_, i) => i + 1).map((n) => (
+                <div key={n} className="flex items-center space-x-2">
+                    <RadioGroupItem value={n.toString()} id={`r-${n}`} />
+                    <Label htmlFor={`r-${n}`} className="font-normal cursor-pointer dark:text-gray-300">
+                        {n}명
+                    </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+
+          {/* 🔒 자동 배정 제외 설정 */}
+          <div className={`relative flex items-center space-x-2 p-3 rounded border transition-colors ${
+              locked 
+                ? "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/50" 
+                : "bg-gray-50 border-gray-100 dark:bg-slate-700/50 dark:border-slate-700"
+          }`}>
+            <input
+                id="chk-locked"
+                type="checkbox"
+                checked={locked}
+                onChange={(e) => setLocked(e.target.checked)}
+                disabled={loading || readOnly}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <Label htmlFor="chk-locked" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none flex flex-col flex-1">
+                <div className="flex items-center gap-1">
+                    <span>🚫 자동 배정 제외 (고정)</span>
+                </div>
+                <span className={`text-[10px] font-normal mt-0.5 ${locked ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}>
+                    체크 시, 자동 배정 기능을 실행해도 이 미사의 배정 인원은 변경되지 않습니다.
+                </span>
+            </Label>
+            {locked && (
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-md ring-2 ring-white dark:ring-slate-800 animate-in zoom-in z-10 pointer-events-none">
+                    <Lock size={14} strokeWidth={3} />
+                </div>
+            )}
+          </div>
 
           {/* 기 배정된 복사 표시 */}
           {eventId && (
             <div className="block">
-              <span className="font-medium text-gray-900 dark:text-gray-200">배정된 복사</span>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-gray-900 dark:text-gray-200">배정된 복사</span>
+                <button 
+                    onClick={() => {
+                        if (window.confirm('배정된 복사 선택을 모두 취소하시겠습니까?')) {
+                            setMemberIds([]);
+                            setMainMemberId(null);
+                        }
+                    }}
+                    className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 underline underline-offset-2 flex items-center gap-1"
+                    disabled={loading || readOnly}
+                >
+                    <XCircle size={12} /> 전체 선택취소
+                </button>
+              </div>
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-slate-700/50 dark:border-slate-600">
                 {memberIds.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">배정된 복사가 없습니다.</p>
@@ -687,16 +808,19 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                         const isMain = id === mainMemberId;
                         // @ts-ignore
                         const isActive = member ? member.active : false;
+                        const isUnavailable = unavailableMembers.has(id);
 
                         return (
                           <span
                             key={id}
                             className={`px-2 py-1 rounded text-sm border flex items-center gap-1 ${
-                              isMain
-                                ? 'bg-blue-600 text-white font-bold border-blue-600'
-                                : isActive 
-                                    ? 'bg-green-50 border-green-200 text-green-900' 
-                                    : 'bg-red-100 border-red-300 text-red-700' // 🔴 비활성: 붉은 계통
+                              !isActive 
+                                    ? 'bg-red-100 border-red-300 text-red-700' // 🔴 비활성: 전체 붉음
+                                    : isMain
+                                        ? `bg-blue-600 font-bold ${isUnavailable ? 'border-orange-400 text-orange-200' : 'border-blue-600 text-white'}` // 🔵 주복사: 배경 파랑 유지, 불참시 텍스트 경고
+                                        : isUnavailable
+                                            ? 'bg-green-50 border-orange-300 text-orange-700 font-medium' // 🟢 일반: 배경 초록 유지, 불참시 텍스트 오렌지
+                                            : 'bg-green-50 border-green-200 text-green-900'
                             }`}
                           >
                             {member
@@ -704,7 +828,11 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                   <>
                                     <span>{member.name} {isMain ? '(주복사)' : ''}</span>
                                     {member.start_year && (
-                                    <span className={`text-[10px] ml-0.5 ${isMain ? 'text-blue-100' : 'text-violet-600'}`}>
+                                    <span className={`text-[10px] ml-0.5 ${
+                                        !isActive ? 'text-red-800' :
+                                        isMain ? (isUnavailable ? 'text-orange-200' : 'text-blue-100') :
+                                        isUnavailable ? 'text-orange-800' : 'text-violet-600'
+                                    }`}>
                                         {member.start_year.length === 4 ? member.start_year.slice(2) : member.start_year}년
                                       </span>
                                     )}
@@ -748,51 +876,78 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                 </Button>
               </div>
 
-              {/* Row 2: Checkbox (Left) & Sort Buttons (Right) */}
-              <div className="flex items-center justify-between mb-2">
-                 <div className="flex items-center gap-2">
-                    {/* 🔹 설문 불가 제외 체크박스 */}
-                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
-                      <input 
-                        id="chk-unavailable"
-                        type="checkbox" 
-                        checked={hideUnavailable}
-                        onChange={(e) => setHideUnavailable(e.target.checked)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <label htmlFor="chk-unavailable" className="text-xs text-gray-600 dark:text-gray-300 font-medium cursor-pointer select-none">
-                        설문 불가 제외
-                      </label>
-                    </div>
+               {/* Row 2: Controls (Two Rows now) */}
+               <div className="flex flex-col gap-2 mb-2">
+                  {/* Line 1: Checkboxes */}
+                  <div className="flex items-center gap-2">
+                     {/* 🔹 설문제외 체크박스 */}
+                     <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
+                       <input 
+                         id="chk-unavailable"
+                         type="checkbox" 
+                         checked={hideUnavailable}
+                         onChange={(e) => setHideUnavailable(e.target.checked)}
+                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                       />
+                       <label htmlFor="chk-unavailable" className="text-xs text-orange-600 font-bold cursor-pointer select-none">
+                         설문제외
+                       </label>
+                     </div>
 
-                    {showUnavailableWarning && (
-                      <span className="text-xs text-orange-600 font-medium animate-pulse">
+                     {/* 🔹 당월참여제외 체크박스 */}
+                     <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
+                       <input 
+                         id="chk-assigned"
+                         type="checkbox" 
+                         checked={hideAssigned}
+                         onChange={(e) => setHideAssigned(e.target.checked)}
+                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                       />
+                       <label htmlFor="chk-assigned" className="text-xs text-gray-600 dark:text-gray-300 font-medium cursor-pointer select-none">
+                         당월참여제외
+                       </label>
+                     </div>
+
+                     {showUnavailableWarning && (
+                      <span className="text-xs text-orange-600 font-medium animate-pulse ml-1">
                           ⚠️ 불참
                       </span>
                     )}
-                 </div>
-
-                  <div className="flex items-center bg-gray-100 dark:bg-slate-700 p-0.5 rounded-lg text-xs font-medium">
-                    <button
-                      onClick={() => setSortBy('name')} 
-                      className={cn(
-                        "px-2.5 py-1 rounded-md transition-all",
-                        sortBy === 'name' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                      )}
-                    >
-                      이름
-                    </button>
-                    <button
-                      onClick={() => setSortBy('grade')} 
-                      className={cn(
-                        "px-2.5 py-1 rounded-md transition-all",
-                        sortBy === 'grade' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                      )}
-                    >
-                      학년
-                    </button>
                   </div>
-              </div>
+
+                  {/* Line 2: Sort Buttons */}
+                  <div className="flex items-center justify-end">
+                      <div className="flex items-center bg-gray-100 dark:bg-slate-700 p-0.5 rounded-lg text-xs font-medium">
+                        <button
+                          onClick={() => setSortBy('count')} 
+                          className={cn(
+                            "px-2.5 py-1 rounded-md transition-all",
+                            sortBy === 'count' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          )}
+                        >
+                          배정
+                        </button>
+                        <button
+                          onClick={() => setSortBy('name')} 
+                          className={cn(
+                            "px-2.5 py-1 rounded-md transition-all",
+                            sortBy === 'name' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          )}
+                        >
+                          이름
+                        </button>
+                        <button
+                          onClick={() => setSortBy('grade')} 
+                          className={cn(
+                            "px-2.5 py-1 rounded-md transition-all",
+                            sortBy === 'grade' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          )}
+                        >
+                          학년
+                        </button>
+                      </div>
+                  </div>
+               </div>
               <div className="mt-2 border rounded p-3 max-h-[600px] overflow-y-auto dark:border-slate-600">
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                   {sortedMembers.map((m, idx) => {
@@ -801,18 +956,29 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     const isMain = m.id === mainMemberId;
                     const isActive = m.active;
 
-                    // Header Separator for Grade Sort
-                    const prev = sortedMembers[idx - 1];
-                    const showSeparator = sortBy === 'grade' && (!prev || prev.grade !== m.grade);
+                     // Header Separator for Grade or Count Sort
+                     const prev = sortedMembers[idx - 1];
+                     let showSeparator = false;
+                     let separatorLabel = '';
+
+                     if (sortBy === 'grade') {
+                         showSeparator = !prev || prev.grade !== m.grade;
+                         separatorLabel = m.grade;
+                     } else if (sortBy === 'count') {
+                         const currCount = prevMonthCounts[m.id] || 0;
+                         const prevCount = prev ? (prevMonthCounts[prev.id] || 0) : -1;
+                         showSeparator = !prev || prevCount !== currCount;
+                         separatorLabel = `${currCount}회`;
+                     }
 
                     return (
                       <React.Fragment key={m.id}>
                          {showSeparator && (
-                           <div className="col-span-2 border-t border-dashed border-gray-300 dark:border-slate-600 my-2 pt-1 relative h-6">
-                             <span className="absolute top-[-8px] left-2 bg-white dark:bg-slate-800 px-2 text-xs text-gray-500 dark:text-gray-400 font-bold">
-                                {m.grade}
-                             </span>
-                           </div>
+                            <div className="col-span-2 border-t border-dashed border-gray-300 dark:border-slate-600 my-2 pt-1 relative h-6">
+                              <span className="absolute top-[-8px] left-2 bg-white dark:bg-slate-800 px-2 text-xs text-gray-500 dark:text-gray-400 font-bold">
+                                 {separatorLabel}
+                              </span>
+                            </div>
                          )}
 
                         <div className="flex items-center justify-between p-1 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded">
@@ -842,19 +1008,20 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                           {/* Right Controls */}
                           <div className="flex items-center gap-2 shrink-0">
                               {/* Count Badge */}
+                              {/* Count Badge (Prev Month) */}
                               {isActive && (() => {
-                                const count = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length + (isSelected ? 1 : 0);
-                                const otherEventsCount = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length;
-                                const totalCount = otherEventsCount + (isSelected ? 1 : 0);
-                                
-                                return totalCount > 0 ? (
+                                  const prevCount = prevMonthCounts[m.id] || 0;
+                                  const otherEventsCount = events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length;
+                                  const currCount = otherEventsCount + (isSelected ? 1 : 0);
+
+                                  return (
                                     <span 
-                                      className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-bold cursor-help border border-blue-100"
-                                      title="이번 달 미사에 배정된 총 횟수"
+                                      className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-medium cursor-help border border-slate-200"
+                                      title={`전월: ${prevCount}회 / 금월: ${currCount}회`}
                                     >
-                                        {totalCount}회
+                                        {prevCount}{currCount > 0 ? `+${currCount}` : ''}
                                     </span>
-                                ) : null;
+                                  );
                               })()}
 
                               {/* Main Member Radio */}

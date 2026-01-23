@@ -51,13 +51,17 @@ export function useFcmToken() {
                           fcm_tokens: arrayUnion(currentToken),
                           last_fcm_update: new Date()
                       }, { merge: true });
-                      console.log('✅ FCM Token saved:', currentToken);
+                      if (import.meta.env.DEV) {
+                          console.log('✅ FCM Token saved:', currentToken);
+                      }
                   } else {
                       await setDoc(userRef, {
                           fcm_tokens: arrayRemove(currentToken),
                           last_fcm_update: new Date()
                       }, { merge: true });
-                      console.log('🚫 FCM Token removed:', currentToken);
+                      if (import.meta.env.DEV) {
+                          console.log('🚫 FCM Token removed:', currentToken);
+                      }
                   }
               }
           }
@@ -94,7 +98,9 @@ export function useFcmToken() {
     try {
         const messaging = getMessaging();
         const unsubscribe = onMessage(messaging, (payload) => {
-            console.log('Foreground Message:', payload);
+            if (import.meta.env.DEV) {
+                console.log('Foreground Message:', payload);
+            }
             const { title, body } = payload.notification || {};
             if (title) {
                 // Show in-app toast
