@@ -158,12 +158,13 @@ const MassEventPlanner: React.FC = () => {
     const autoAssignFn = httpsCallable(functions, 'autoAssignMassEvents');
     
     try {
-      await autoAssignFn({
+      const result = await autoAssignFn({
         serverGroupId,
         year: currentMonth.year(),
         month: currentMonth.month() + 1 // 0-indexed to 1-indexed
       });
-      toast.success('✅ 자동 배정이 완료되었습니다.');
+      const data = result.data as any;
+      toast.success(`✅ 자동 배정 완료 (신입기준: ${data.maxStartYear || '?'}년)`);
       // Force refresh (update currentMonth trigger or useMassEvents should pick up changes via snapshot)
       // Since useMassEvents is likely snapshot listener, it should update automatically.
     } catch (error: any) {

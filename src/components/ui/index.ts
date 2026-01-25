@@ -9,3 +9,4 @@ export * from "./label";
 export * from "./info-box";
 
 export * from "./badge";
+export * from "./user-role-icon";

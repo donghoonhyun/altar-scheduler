@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useSession } from '@/state/session';
 import { getAppTitleWithEnv, getAppIconPath } from '@/lib/env';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -62,8 +62,13 @@ const Login: React.FC = () => {
          // ✅ 가입 여부 확인 (users 컬렉션 조회)
          const userDoc = await getDoc(doc(db, 'users', user.uid));
          
+         const providerId = user.providerData[0]?.providerId || 'google.com';
+
          if (userDoc.exists()) {
            console.log('Google 로그인 성공 (기존 회원):', user);
+           // Provider 정보 업데이트
+           await setDoc(doc(db, 'users', user.uid), { provider: providerId }, { merge: true });
+           
            navigate('/', { replace: true });
          } else {
            console.log('미가입 회원 -> 회원가입 페이지로 이동');
@@ -93,6 +98,13 @@ const Login: React.FC = () => {
       await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithEmailAndPassword(auth, email, password);
       console.log('Email 로그인 성공:', result.user);
+      
+      // Provider 정보 저장
+      if (result.user) {
+        const providerId = result.user.providerData[0]?.providerId || 'password';
+        await setDoc(doc(db, 'users', result.user.uid), { provider: providerId }, { merge: true });
+      }
+
       navigate('/', { replace: true });
     } catch (error) {
       console.error('Email 로그인 실패:', error);
@@ -222,19 +234,24 @@ const Login: React.FC = () => {
             alt="Google"
             className="w-5 h-5"
           />
-          구글 계정으로 시작하기
+          구글 계정으로 로그인
         </Button>
 
 
 
-        <div className="mt-8 text-center text-sm text-gray-500 dark:text-slate-400">
-          아직 계정이 없나요?{' '}
-          <button
-            onClick={() => navigate('/signup')}
-            className="text-[#8b5cf6] dark:text-indigo-400 font-semibold hover:underline ml-1"
-          >
-            회원가입
-          </button>
+        <div className="mt-8">
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 text-center border border-blue-100 dark:border-blue-800/50">
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-3 font-medium">
+              처음 오셨나요?
+            </p>
+            <Button
+              type="button"
+              onClick={() => navigate('/signup')}
+              className="w-full bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 font-bold shadow-sm transition-all h-11"
+            >
+              회원 가입
+            </Button>
+          </div>
         </div>
 
         <div className="mt-8">

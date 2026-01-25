@@ -28,6 +28,7 @@ if (!admin.apps.length) {
 
 // 📌 ServerGroups
 export { createServerGroup } from './serverGroups/createServerGroup';
+export { onRoleRequestUpdated } from './serverGroups/onRoleRequestUpdated';
 
 // 📌 MassEvents
 export { autoAssignMassEvents } from './massEvents/autoAssignMassEvents';
@@ -41,6 +42,8 @@ export { onUserCreated } from './notifications/onUserCreated';
 export { onMemberCreated, onRoleRequestCreated } from './notifications/onMemberEvents';
 export { onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
 export { onDailyMassReminder, manualDailyMassReminder } from './notifications/onDailyMassReminder';
+
+
 
 // 📌 SMS
 export { sendSms } from './sms/sendSms';

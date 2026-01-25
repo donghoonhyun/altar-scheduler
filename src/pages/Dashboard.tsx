@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useSession } from '../state/session';
-import { Container, Card, Heading } from '@/components/ui';
+import { Container, Card, Heading, UserRoleIcon } from '@/components/ui';
 import ServerStats from './components/ServerStats';
 import NextMonthPlan from './components/NextMonthPlan';
 import MassCalendar from './components/MassCalendar';
@@ -86,7 +86,8 @@ const Dashboard: React.FC = () => {
 
         <div className="mb-6 text-center">
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-            <span className="text-blue-600 dark:text-blue-400 font-extrabold">
+            <span className="text-blue-600 dark:text-blue-400 font-extrabold inline-flex items-center justify-center gap-1">
+              <UserRoleIcon category={session.userInfo?.userCategory} size={18} />
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
             {serverGroupId && (() => {

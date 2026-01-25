@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import dayjs from 'dayjs';
 import { cn } from '@/lib/utils';
 import AddServerDrawer from '@/pages/components/AddServerDrawer';
+import { UserRoleIcon } from '@/components/ui';
 
 interface Member {
   id: string;
@@ -40,6 +41,8 @@ interface UserInfo {
   baptismal_name?: string;
   email: string;
   phone?: string;
+  roles?: string[]; // 'admin', 'planner'
+  user_category?: string;
 }
 
 interface AssignmentStats {
@@ -79,8 +82,8 @@ export default function ServerList() {
   const [isEditingName, setIsEditingName] = useState(false); // 이름 수정 모드 토글
   const [isSaving, setIsSaving] = useState(false);
 
-  // ✅ 정렬 상태: 'name' | 'grade'
-  const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
+  // ✅ 정렬 상태: 'name' | 'grade' | 'start_year'
+  const [sortBy, setSortBy] = useState<'name' | 'grade' | 'start_year'>('name');
   
   // ✅ 배정 로그 확장 상태
   const [expandedMonth, setExpandedMonth] = useState<'last' | 'this' | 'next' | null>(null);
@@ -165,11 +168,29 @@ export default function ServerList() {
             const snap = await getDoc(doc(db, 'users', uid));
             if (snap.exists()) {
               const data = snap.data();
+              // Check membership for roles
+              let roles: string[] = [];
+              if (serverGroupId) {
+                 try {
+                    const memSnap = await getDoc(doc(db, 'memberships', `${uid}_${serverGroupId}`));
+                    if (memSnap.exists()) {
+                        const memData = memSnap.data();
+                        if (Array.isArray(memData.role)) {
+                            roles = memData.role;
+                        } else if (typeof memData.role === 'string') {
+                            roles = [memData.role];
+                        }
+                    }
+                 } catch (e) { console.error('Membership check failed', e); }
+              }
+
               newInfos[uid] = {
                 user_name: data.user_name,
                 baptismal_name: data.baptismal_name,
                 email: data.email,
                 phone: data.phone,
+                roles,
+                user_category: data.user_category,
               };
             }
           } catch (e) {
@@ -425,12 +446,36 @@ export default function ServerList() {
     selectedMember.baptismal_name !== editBaptismalName
   ) : false;
 
+  // ✅ [New] 신입(막내) 연도 계산
+  const maxStartYear = useMemo(() => {
+    let max = 0;
+    const currentYear = dayjs().year();
+    activeMembers.forEach(m => {
+       const y = parseInt(String(m.start_year || '0').trim(), 10);
+       if (!isNaN(y) && y <= currentYear && y > max) {
+           max = y;
+       }
+    });
+    return max;
+  }, [activeMembers]);
+
   // ✅ 정렬된 리스트 계산 (useMemo)
   const sortedActiveMembers = useMemo(() => {
     const list = [...activeMembers];
     if (sortBy === 'name') {
        // 이미 load시 정렬됨
        return list;
+    } else if (sortBy === 'start_year') {
+        // 입단년도 정렬 (ASC) -> Name
+        return list.sort((a, b) => {
+            const yA = a.start_year || '9999';
+            const yB = b.start_year || '9999';
+            if (yA !== yB) return yA.localeCompare(yB);
+            
+            const keyA = (a.name_kor || '') + (a.baptismal_name || '');
+            const keyB = (b.name_kor || '') + (b.baptismal_name || '');
+            return keyA.localeCompare(keyB);
+        });
     } else {
        // 학년별 정렬: Grade Index (ASC) -> Name
        return list.sort((a, b) => {
@@ -465,6 +510,8 @@ export default function ServerList() {
         </Button>
         <h1 className="text-2xl font-bold dark:text-white">복사단원 관리</h1>
       </div>
+
+
 
       {/* ✅ 승인 대기중 */}
       <Card className="p-4 bg-pink-50 border-pink-100 dark:bg-pink-900/20 dark:border-pink-900/50">
@@ -521,7 +568,20 @@ export default function ServerList() {
                   <div className="flex-1 border-l border-gray-100 dark:border-slate-700 pl-4 flex flex-col justify-center items-end min-w-0 text-right">
                     {parent ? (
                        <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1 w-full flex flex-col items-end">
-                          <div className="flex items-center justify-end gap-2">
+                           <div className="flex items-center justify-end gap-1.5">
+                            {parent.roles && (
+                                <div className="flex gap-0.5">
+                                    {(parent.roles.includes('admin') || parent.roles.includes('planner')) && (
+                                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded border leading-none ${
+                                            parent.roles.includes('admin') && parent.roles.includes('planner') ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' :
+                                            parent.roles.includes('admin') ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' :
+                                            'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                                        }`}>
+                                            {parent.roles.includes('admin') && parent.roles.includes('planner') ? 'AP' : parent.roles.includes('admin') ? 'A' : 'P'}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                             <span className="font-bold text-gray-700 dark:text-gray-200">신청: {parent.user_name}</span>
                           </div>
                           <div className="flex flex-wrap items-center justify-end gap-x-2 text-gray-500 dark:text-gray-400">
@@ -582,6 +642,15 @@ export default function ServerList() {
                         이름
                       </button>
                       <button
+                        onClick={() => setSortBy('start_year')} 
+                        className={cn(
+                          "px-2.5 py-1 rounded-md transition-all",
+                          sortBy === 'start_year' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        )}
+                      >
+                        입단년도
+                      </button>
+                      <button
                         onClick={() => setSortBy('grade')} 
                         className={cn(
                           "px-2.5 py-1 rounded-md transition-all",
@@ -589,6 +658,7 @@ export default function ServerList() {
                         )}
                       >
                         학년
+
                       </button>
                    </div>
     
@@ -619,14 +689,23 @@ export default function ServerList() {
 
               // Check separator logic
               const prev = sortedActiveMembers[idx - 1];
-              const showSeparator = sortBy === 'grade' && (!prev || prev.grade !== m.grade);
+              let showSeparator = false;
+              let separatorLabel = '';
+
+              if (sortBy === 'grade') {
+                  showSeparator = !prev || prev.grade !== m.grade;
+                  separatorLabel = m.grade;
+              } else if (sortBy === 'start_year') {
+                  showSeparator = !prev || prev.start_year !== m.start_year;
+                  separatorLabel = m.start_year ? `${m.start_year}년` : '미입력';
+              }
 
               return (
                 <React.Fragment key={m.id}>
                   {showSeparator && (
                      <div className="col-span-2 border-t border-dashed border-gray-300 dark:border-gray-600 my-1 relative h-4">
                        <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-2 text-[10px] text-gray-400 font-medium">
-                          {m.grade}
+                          {separatorLabel}
                        </span>
                      </div>
                   )}
@@ -640,7 +719,26 @@ export default function ServerList() {
                   >
                     {/* Left: Server Info (Prioritized) */}
                     <div className="flex-1 min-w-0 mr-1">
-                      <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate">{m.name_kor}</p>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate flex items-center gap-1">
+                        <span title={`입단: ${m.start_year || '-'}년`}>
+                           {m.name_kor}
+                        </span>
+                        {/* 🐣 Novice Badge */}
+                        {(() => {
+                            const myYear = parseInt(String(m.start_year || '0').trim(), 10);
+                            if (maxStartYear > 0 && myYear === maxStartYear) {
+                                return (
+                                    <span 
+                                        className="text-[10px] bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 px-1 rounded cursor-help animate-in zoom-in" 
+                                        title={`신입 복사 (${myYear}년)`}
+                                    >
+                                        🐣
+                                    </span>
+                                );
+                            }
+                            return null;
+                        })()}
+                      </p>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                         {m.baptismal_name} · {m.grade} {m.start_year && `· ${m.start_year}년`}
                       </p>
@@ -649,9 +747,21 @@ export default function ServerList() {
                     {/* Right: Parent Info (Secondary, Truncatable) */}
                     {parent && (
                       <div className="text-right shrink-0 max-w-[40%]">
-                        <p className="text-[10px] text-gray-600 dark:text-gray-400 font-medium truncate">
-                          <span className="text-gray-400 dark:text-gray-600 mr-1 hidden sm:inline">신청:</span>
-                          <span className="text-gray-400 dark:text-gray-600 mr-1 sm:hidden">부:</span>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400 font-medium truncate flex items-center justify-end gap-1">
+                          <span className="text-gray-400 dark:text-gray-600 hidden sm:inline">신청:</span>
+                          <span className="text-gray-400 dark:text-gray-600 sm:hidden">부:</span>
+                          
+                          {/* Role Badge */}
+                          {parent.roles && (parent.roles.includes('admin') || parent.roles.includes('planner')) && (
+                             <span className={`text-[8px] font-bold px-1 py-0.5 rounded border leading-none mr-0.5 ${
+                                parent.roles.includes('admin') && parent.roles.includes('planner') ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' :
+                                parent.roles.includes('admin') ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' :
+                                'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                             }`}>
+                                {parent.roles.includes('admin') && parent.roles.includes('planner') ? 'AP' : parent.roles.includes('admin') ? 'A' : 'P'}
+                             </span>
+                          )}
+                          
                           {parent.user_name}
                         </p>
                         {dateStr && (
@@ -709,9 +819,21 @@ export default function ServerList() {
                   {/* Right: Parent Info & Action */}
                   <div className="text-right shrink-0 max-w-[40%] flex flex-col items-end gap-0.5">
                     {parent ? (
-                        <p className="text-[10px] text-gray-400 font-medium truncate">
+                        <p className="text-[10px] text-gray-400 font-medium truncate flex items-center justify-end gap-1">
                           <span className="text-gray-300 mr-1 hidden sm:inline">신청:</span>
                           <span className="text-gray-300 mr-1 sm:hidden">부:</span>
+                          
+                          {/* Role Badge */}
+                          {parent.roles && (parent.roles.includes('admin') || parent.roles.includes('planner')) && (
+                             <span className={`text-[8px] font-bold px-1 py-0.5 rounded border leading-none mr-0.5 ${
+                                parent.roles.includes('admin') && parent.roles.includes('planner') ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' :
+                                parent.roles.includes('admin') ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' :
+                                'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                             }`}>
+                                {parent.roles.includes('admin') && parent.roles.includes('planner') ? 'AP' : parent.roles.includes('admin') ? 'A' : 'P'}
+                             </span>
+                          )}
+
                           {parent.user_name}
                         </p>
                     ) : (
@@ -939,7 +1061,19 @@ export default function ServerList() {
                           </h4>
                           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl text-sm space-y-1">
                              <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm">
-                               <span className="font-bold text-gray-900 dark:text-gray-100">{pInfo.user_name}</span>
+                               <span className="flex items-center gap-1">
+                                    <UserRoleIcon category={pInfo.user_category} size={14} />
+                                    {pInfo.roles && (pInfo.roles.includes('admin') || pInfo.roles.includes('planner')) && (
+                                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded border leading-none ${
+                                            pInfo.roles.includes('admin') && pInfo.roles.includes('planner') ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' :
+                                            pInfo.roles.includes('admin') ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' :
+                                            'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                                        }`}>
+                                            {pInfo.roles.includes('admin') && pInfo.roles.includes('planner') ? 'AP' : pInfo.roles.includes('admin') ? 'A' : 'P'}
+                                        </span>
+                                    )}
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">{pInfo.user_name}</span>
+                                </span>
                                {pInfo.baptismal_name && (
                                  <span className="text-gray-600 dark:text-gray-400">({pInfo.baptismal_name})</span>
                                )}

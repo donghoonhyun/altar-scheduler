@@ -7,7 +7,7 @@ import { doc, writeBatch, serverTimestamp, collection, getDocs, onSnapshot, quer
 import { Upload } from 'lucide-react';
 
 import { useNavigate, useParams } from 'react-router-dom';
-import { Container, Card, Heading } from '@/components/ui';
+import { Container, Card, Heading, UserRoleIcon } from '@/components/ui';
 import { useSession } from '@/state/session';
 import { Users, Settings, UserPlus, LayoutDashboard, Info } from 'lucide-react';
 
@@ -257,6 +257,9 @@ const AdminMain: React.FC = () => {
   };
 
 
+
+
+
   const [isSG00001JanScheduleMigrating, setIsSG00001JanScheduleMigrating] = React.useState(false);
 
   const handleSG00001JanScheduleMigration = async () => {
@@ -334,14 +337,16 @@ const AdminMain: React.FC = () => {
 
         <div className="mb-6 text-center">
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-            <span className="text-purple-600 dark:text-purple-400 font-extrabold">
+            <span className="text-purple-600 dark:text-purple-400 font-extrabold inline-flex items-center justify-center gap-1">
+              <UserRoleIcon category={session.userInfo?.userCategory} size={18} />
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
             {serverGroupId && (() => {
               const roles = session.groupRoles[serverGroupId] || [];
               if (roles.includes('admin')) return '어드민';
               if (roles.includes('planner')) return '플래너';
-              return '복사';
+              if (roles.includes('server')) return '복사';
+              return '역할없음';
             })()}님 반갑습니다.
           </h2>
         </div>
@@ -473,6 +478,7 @@ const AdminMain: React.FC = () => {
                       </>
                     )}
                   </button>
+
                 </div>
               </div>
             </Card>

@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Container, Card, Heading, Button, InfoBox } from '@/components/ui';
-import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info, Trash2, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -30,6 +30,7 @@ interface MembershipWithUser {
   baptismal_name?: string;
   email?: string;
   active?: boolean;
+  provider?: string;
 }
 
 const MemberRoleManagement: React.FC = () => {
@@ -67,6 +68,7 @@ const MemberRoleManagement: React.FC = () => {
             user_name: userData.user_name || 'Unknown',
             baptismal_name: userData.baptismal_name || '',
             email: userData.email || '',
+            provider: userData.provider || '',
           } as MembershipWithUser;
         })
       );
@@ -220,8 +222,23 @@ const MemberRoleManagement: React.FC = () => {
             >
               <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 min-w-0 pr-8">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 border border-blue-100 dark:border-blue-900/50">
-                      <User size={18} />
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 border border-blue-100 dark:border-blue-900/50">
+                        <User size={18} />
+                      </div>
+                      {/* Provider Badge */}
+                      {m.provider && (
+                        <div 
+                          className="absolute -bottom-1 -right-1 w-5 h-5 bg-white dark:bg-slate-700 rounded-full border border-gray-100 dark:border-slate-600 shadow-sm flex items-center justify-center p-0.5" 
+                          title={m.provider === 'google.com' ? 'Google로 로그인' : m.provider === 'password' ? 'ID/Password로 로그인' : ''}
+                        >
+                            {m.provider === 'google.com' ? (
+                              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google" className="w-3 h-3" />
+                            ) : (
+                              <Mail size={10} className="text-gray-400 dark:text-gray-300" />
+                            )}
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center flex-wrap gap-1.5 mb-0.5">

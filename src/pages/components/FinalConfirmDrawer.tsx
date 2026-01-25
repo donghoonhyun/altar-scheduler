@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Bell } from 'lucide-react';
@@ -32,6 +32,8 @@ interface AssignedMemberStat {
     prevCount: number;
     currCount: number;
     assignedDates: AssignedDate[];
+    startYear: string;
+    isNovice: boolean;
 }
 
 interface MiniNotificationLog {
@@ -50,6 +52,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
   events,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [sortBy, setSortBy] = useState<'currCount' | 'prevCount' | 'name'>('currCount');
   const [dataLoading, setDataLoading] = useState(false);
   const [stats, setStats] = useState<AssignedMemberStat[]>([]);
   const [notiLogs, setNotiLogs] = useState<MiniNotificationLog[]>([]);
@@ -59,6 +62,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
     dayjs.locale('ko');
     
     if (open && serverGroupId) {
+        setSortBy('currCount');
         fetchData();
         fetchNotiLogs();
     }
@@ -183,32 +187,34 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
         });
 
         // 5. Combine
+        // Novice Logic
+        const currentYear = dayjs().year();
+        let maxStartYear = 0;
+        memberSnap.docs.forEach(d => {
+             const m = d.data();
+             if (m.active !== false) {
+                 const y = parseInt(String(m.start_year||'0').trim(), 10);
+                 if (y <= currentYear && y > maxStartYear) maxStartYear = y;
+             }
+        });
+
         const list = memberSnap.docs.map(doc => {
             const m = doc.data();
-            
-            // Filter inactive members
             if (m.active === false) return null;
 
-            const id = doc.id; // or m.uid
+            const id = doc.id;
             const prev = prevCounts[id] || 0;
             const curr = currCounts[id] || 0;
             
-            // Sort dates chronologically
-            // dateStr is like "3(Tue)". We can't simply sort by string.
-            // But 'assignedDatesMap' was built iterating 'events'.
-            // If 'events' was sorted by date, then this list is sorted.
-            // Events passed from props (useMassEvents) are usually sorted?
-            // Let's ensure sort.
-            
             const dates = (assignedDatesMap[id] || []).sort((a, b) => {
-                 // Sort by Day number using regex or parsing
-                 // "3(화)" -> 3
                  const extractDay = (s: string) => {
                      const match = s.match(/^(\d+)/);
                      return match ? parseInt(match[1], 10) : 0;
                  };
                  return extractDay(a.dateStr) - extractDay(b.dateStr);
             });
+
+            const myYear = parseInt(String(m.start_year || '0').trim(), 10);
 
             return {
                 id,
@@ -217,13 +223,18 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
                 grade: m.grade || '',
                 prevCount: prev,
                 currCount: curr,
-                assignedDates: dates
+                assignedDates: dates,
+                startYear: m.start_year || '',
+                isNovice: (maxStartYear > 0 && myYear === maxStartYear)
             };
         })
-        .filter((m): m is AssignedMemberStat => m !== null && !!m.name); // Filter invalid
+        .filter((m): m is AssignedMemberStat => m !== null && !!m.name);
 
-        // Sort by Name
-        list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        // Sort by CurrCount (ASC), then Name
+        list.sort((a, b) => {
+             if (a.currCount !== b.currCount) return a.currCount - b.currCount;
+             return a.name.localeCompare(b.name, 'ko');
+        });
         
         setStats(list);
 
@@ -256,6 +267,25 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
       return dayjs(ts.toDate ? ts.toDate() : ts).format('MM.DD HH:mm');
   }
 
+  const sortedStats = useMemo(() => {
+      const list = [...stats];
+      if (sortBy === 'name') {
+          list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      } else if (sortBy === 'prevCount') {
+          list.sort((a, b) => {
+              if (a.prevCount !== b.prevCount) return a.prevCount - b.prevCount;
+              return a.currCount - b.currCount;
+          });
+      } else {
+          // currCount
+          list.sort((a, b) => {
+              if (a.currCount !== b.currCount) return a.currCount - b.currCount;
+              return a.name.localeCompare(b.name, 'ko');
+          });
+      }
+      return list;
+  }, [stats, sortBy]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl p-0 flex flex-col h-[85vh] bg-white dark:bg-slate-900 dark:border-slate-700">
@@ -271,7 +301,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
                         ⚠️ 확정 후에는 단원들에게 알림(Push)되며 배정을 다시 할 수 없습니다.
                     </span>
                     <span className="block text-red-500 font-normal">
-                         * 붉은색 날짜는 설문 불가 날짜와 겹치는 배정입니다.
+                         * 주의: 붉은색 날짜는 설문 불가 날짜와 겹치는 배정입니다.
                     </span>
                 </DialogDescription>
             </div>
@@ -287,46 +317,86 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
             ) : (
                 <div className="min-w-full pb-4">
                     {/* Header */}
-                    <div className="grid grid-cols-12 bg-gray-100/80 dark:bg-slate-800/80 border-b dark:border-slate-700 text-xs font-semibold text-gray-600 dark:text-gray-300 py-2 px-4 sticky top-0 backdrop-blur-sm z-10">
-                        <div className="col-span-5">이름 (세례명)</div>
-                        <div className="col-span-1 text-center">전달</div>
-                        <div className="col-span-1 text-center text-blue-600 dark:text-blue-400">금월</div>
-                        <div className="col-span-5 text-center">배정 날짜</div>
+                    <div className="grid grid-cols-10 bg-gray-100/80 dark:bg-slate-800/80 border-b dark:border-slate-700 text-xs font-semibold text-gray-600 dark:text-gray-300 py-2 px-4 sticky top-0 backdrop-blur-sm z-10">
+                        <div 
+                           className={`col-span-4 cursor-pointer hover:text-blue-600 flex items-center gap-1 ${sortBy === 'name' ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                           onClick={() => setSortBy('name')}
+                        >
+                           이름 (세례명) {sortBy === 'name' && '↓'}
+                        </div>
+                        <div 
+                           className={`col-span-1 text-center cursor-pointer hover:text-blue-600 ${sortBy === 'prevCount' ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                           onClick={() => setSortBy('prevCount')}
+                        >
+                           전달 {sortBy === 'prevCount' && '↓'}
+                        </div>
+                        <div 
+                           className={`col-span-1 text-center cursor-pointer hover:text-blue-600 ${sortBy === 'currCount' ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                           onClick={() => setSortBy('currCount')}
+                        >
+                           금월 {sortBy === 'currCount' && '↓'}
+                        </div>
+                        <div className="col-span-4 text-center">배정 날짜</div>
                     </div>
                     {/* Rows */}
-                    {stats.map((member) => (
-                        <div key={member.id} className="grid grid-cols-12 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 py-2.5 px-4 text-sm hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors items-center">
-                            <div className="col-span-5 flex items-center gap-1.5 overflow-hidden">
-                                <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{member.name}</span>
-                                <span className="text-xs text-gray-400 dark:text-gray-500 truncate hidden sm:inline">({member.baptismalName})</span>
+                    {sortedStats.map((member, idx) => {
+                        const prev = sortedStats[idx-1];
+                        
+                        let showSeparator = false;
+                        let separatorLabel = '';
+                        if (sortBy === 'currCount') {
+                             showSeparator = !prev || prev.currCount !== member.currCount;
+                             separatorLabel = `${member.currCount}회 배정`;
+                        } else if (sortBy === 'prevCount') {
+                             showSeparator = !prev || prev.prevCount !== member.prevCount;
+                             separatorLabel = `전달 ${member.prevCount}회 배정`;
+                        }
+
+                        return (
+                        <React.Fragment key={member.id}>
+                            {showSeparator && (
+                                <div className="col-span-10 bg-gray-50/80 dark:bg-slate-800/50 border-y border-gray-100 dark:border-slate-700 px-4 py-1.5 text-xs font-bold text-gray-500 dark:text-gray-400">
+                                    {separatorLabel}
+                                </div>
+                            )}
+                            <div className="grid grid-cols-10 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 py-1.5 px-4 text-sm hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors items-center">
+                                <div className="col-span-4 flex items-center gap-1.5 overflow-hidden">
+                                     <span className="font-medium text-gray-900 dark:text-gray-100 truncate shrink-0">{member.name}</span>
+                                     <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 overflow-hidden">
+                                        {member.isNovice && <span title="신입 복사">🐣</span>}
+                                        <span className="truncate">({member.baptismalName})</span>
+                                        {member.startYear && <span className="shrink-0">{member.startYear}</span>}
+                                     </div>
+                                </div>
+                                <div className="col-span-1 text-center text-gray-500 dark:text-gray-400 text-xs">
+                                    {member.prevCount}
+                                </div>
+                                <div className="col-span-1 text-center font-bold text-blue-600 dark:text-blue-400">
+                                    {member.currCount}
+                                </div>
+                                <div className="col-span-4 flex flex-wrap gap-1 pl-2 justify-start">
+                                    {member.assignedDates.length > 0 ? (
+                                        member.assignedDates.map((item, i) => (
+                                            <span 
+                                                key={i} 
+                                                className={`text-[11px] px-1.5 py-0.5 rounded border cursor-help ${
+                                                    item.isUnavailable
+                                                    ? "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800 font-bold"
+                                                    : "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800"
+                                                }`}
+                                                title={`${item.massTitle}${item.isUnavailable ? ' (설문 불가 날짜)' : ''}`}
+                                            >
+                                                {item.dateStr}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
+                                    )}
+                                </div>
                             </div>
-                            <div className="col-span-1 text-center text-gray-500 dark:text-gray-400 text-xs">
-                                {member.prevCount}
-                            </div>
-                            <div className="col-span-1 text-center font-bold text-blue-600 dark:text-blue-400">
-                                {member.currCount}
-                            </div>
-                            <div className="col-span-5 flex flex-wrap gap-1 pl-2 justify-center">
-                                {member.assignedDates.length > 0 ? (
-                                    member.assignedDates.map((item, i) => (
-                                        <span 
-                                            key={i} 
-                                            className={`text-[11px] px-1.5 py-0.5 rounded border cursor-help ${
-                                                item.isUnavailable
-                                                  ? "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800 font-bold"
-                                                  : "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800"
-                                            }`}
-                                            title={`${item.massTitle}${item.isUnavailable ? ' (설문 불가 날짜)' : ''}`}
-                                        >
-                                            {item.dateStr}
-                                        </span>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        </React.Fragment>
+                        );
+                    })}
                 </div>
             )}
         </div>

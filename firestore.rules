@@ -17,6 +17,10 @@ service cloud.firestore {
       let membershipPath = /databases/$(database)/documents/memberships/$(request.auth.uid + '_' + groupId);
       return isSignedIn() && exists(membershipPath) && get(membershipPath).data.role.hasAny(['admin']);
     }
+    function isGroupPlanner(groupId) {
+      let membershipPath = /databases/$(database)/documents/memberships/$(request.auth.uid + '_' + groupId);
+      return isSignedIn() && exists(membershipPath) && get(membershipPath).data.role.hasAny(['admin', 'planner']);
+    }
 
     // 1️⃣ Users: 프로필은 누구나 읽기 가능, 수정은 본인 또는 슈퍼어드민
     match /users/{userId} {
@@ -44,17 +48,17 @@ service cloud.firestore {
         allow update: if isSignedIn();
       }
 
-      // 하위 컬렉션 기본 규칙
+      // 하위 컬렉션 기본 규칙 (운영 데이터: 멤버, 미사 등) -> Planner도 접근 허용
       match /{document=**} {
         allow read: if isSignedIn();
-        allow write: if isGroupAdmin(groupId) || isSuperAdmin();
+        allow write: if isGroupPlanner(groupId) || isSuperAdmin();
       }
 
-      // 복사단원(members) 등록은 로그인한 사용자면 누구나 가능 (승인 대기 상태로 생성)
+      // 복사단원(members) 등록(신청)은 로그인한 사용자면 누구나 가능
       match /members/{memberId} {
         allow create: if isSignedIn() && request.resource.data.parent_uid == request.auth.uid;
-        // 본인(parent)이 신청한 건은 삭제(취소) 가능
-        allow delete: if isSignedIn() && resource.data.parent_uid == request.auth.uid;
+        // 생성자(부모) 또는 운영진(Planner/Admin) 삭제 가능
+        allow delete: if (isSignedIn() && resource.data.parent_uid == request.auth.uid) || isGroupPlanner(groupId) || isSuperAdmin();
       }
     }
     

@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Container, Heading, Card } from '@/components/ui';
 import { useSession } from '@/state/session';
-import { ArrowLeft, ChevronDown, Baby } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Baby, Mail } from 'lucide-react';
 
 interface RoleRequest {
   uid: string;
@@ -34,6 +34,7 @@ interface RoleRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: any;
   updated_at?: any;
+  provider?: string;
 }
 
 export default function PlannerRoleApproval() {
@@ -86,7 +87,19 @@ export default function PlannerRoleApproval() {
         where('status', '==', 'pending')
       );
       const snap = await getDocs(q);
-      const list: RoleRequest[] = snap.docs.map((d) => d.data() as RoleRequest);
+      
+      // Fetch User Provider for each request
+      const list = await Promise.all(snap.docs.map(async (d) => {
+          const reqData = d.data() as RoleRequest;
+          try {
+              const userSnap = await getDoc(doc(db, 'users', reqData.uid));
+              if (userSnap.exists()) {
+                  reqData.provider = userSnap.data().provider;
+              }
+          } catch(e) { console.error('Failed to fetch user provider', e); }
+          return reqData;
+      }));
+
       list.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0));
       setRequests(list);
     } catch (e) {
@@ -119,7 +132,17 @@ export default function PlannerRoleApproval() {
       }
 
       const snap = await getDocs(q);
-      const list: RoleRequest[] = snap.docs.map((d) => d.data() as RoleRequest);
+      
+      const list = await Promise.all(snap.docs.map(async (d) => {
+          const reqData = d.data() as RoleRequest;
+          try {
+              const userSnap = await getDoc(doc(db, 'users', reqData.uid));
+              if (userSnap.exists()) {
+                  reqData.provider = userSnap.data().provider;
+              }
+          } catch(e) { console.error('Failed to fetch user provider for history', e); }
+          return reqData;
+      }));
       
       setLastDoc(snap.docs[snap.docs.length - 1] || null);
       setHasMore(snap.docs.length === HISTORY_PAGE_SIZE);
@@ -198,14 +221,6 @@ export default function PlannerRoleApproval() {
           });
         }
 
-        // 4. Update User Profile
-        const userRef = doc(db, 'users', req.uid);
-        transaction.set(userRef, {
-          user_name: req.user_name,
-          baptismal_name: req.baptismal_name,
-          phone: req.phone,
-          updated_at: serverTimestamp(),
-        }, { merge: true });
       });
 
       toast.success('승인 완료되었습니다.');
@@ -268,7 +283,21 @@ export default function PlannerRoleApproval() {
                        {session.serverGroups[serverGroupId || '']?.groupName}
                     </div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{req.user_name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{req.user_name}</span>
+                        {req.provider && (
+                            <div 
+                                className="w-5 h-5 bg-white dark:bg-slate-700 rounded-full border border-gray-100 dark:border-slate-600 shadow-sm flex items-center justify-center p-0.5" 
+                                title={req.provider === 'google.com' ? 'Google로 로그인' : req.provider === 'password' ? 'ID/Password로 로그인' : ''}
+                            >
+                                {req.provider === 'google.com' ? (
+                                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google" className="w-3 h-3" />
+                                ) : (
+                                    <Mail size={10} className="text-gray-400 dark:text-gray-300" />
+                                )}
+                            </div>
+                        )}
+                      </div>
                       <span className="text-sm text-gray-600 dark:text-gray-400">({req.baptismal_name})</span>
                       <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800">
                         플래너 신청
@@ -327,6 +356,18 @@ export default function PlannerRoleApproval() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="font-bold text-gray-800 dark:text-gray-200 text-sm truncate">{req.user_name}</span>
+                            {req.provider && (
+                                <div 
+                                    className="w-4 h-4 bg-white dark:bg-slate-700 rounded-full border border-gray-100 dark:border-slate-600 shadow-sm flex items-center justify-center p-0.5" 
+                                    title={req.provider === 'google.com' ? 'Google로 로그인' : req.provider === 'password' ? 'ID/Password로 로그인' : ''}
+                                >
+                                    {req.provider === 'google.com' ? (
+                                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google" className="w-2.5 h-2.5" />
+                                    ) : (
+                                        <Mail size={8} className="text-gray-400 dark:text-gray-300" />
+                                    )}
+                                </div>
+                            )}
                             <span className="text-xs text-gray-500 dark:text-gray-400 truncate">({req.baptismal_name})</span>
                           </div>
                           {childrenMap[req.uid] && childrenMap[req.uid].length > 0 && (

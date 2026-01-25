@@ -73,21 +73,25 @@ const AutoAssignDrawer: React.FC<AutoAssignDrawerProps> = ({ open, onClose, onCo
                   <span className="font-bold shrink-0 text-blue-600">3.</span>
                   <div>
                     <span className="font-bold">배정 간격 조정</span>
-                    <p className="text-gray-500 mt-0.5">최근 배정일로부터 최소 2~3일 간격을 두어 배정합니다. (대상자 부족 시 간격 자동 완화)</p>
+                    <p className="text-gray-500 mt-0.5">최근 배정일 및 고정 미사일정으로부터 최소 2~3일 간격을 두어 배정합니다. (대상자 부족 시 간격 자동 완화)</p>
                   </div>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold shrink-0 text-blue-600">4.</span>
                   <div>
-                    <span className="font-bold">균등 배정 (1회 우선)</span>
-                    <p className="text-gray-500 mt-0.5">이번 달 배정 횟수가 적은 인원을 최우선으로 배정합니다. (횟수 동일 시 전월 실적 반영)</p>
+                    <span className="font-bold">균등 배정 (최소 1회 의무)</span>
+                    <p className="text-gray-500 mt-0.5">
+                      이번 달 배정 횟수가 적은 인원을 최우선으로 배정하며, 
+                      특히 <b className="text-gray-700">미배정 인원은 배정 간격을 완화해서라도 우선 배정</b>합니다.
+                      (단, 전원 신입 구성을 피하기 위해 선배가 우선될 수 있습니다)
+                    </p>
                   </div>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold shrink-0 text-blue-600">5.</span>
                   <div>
-                    <span className="font-bold">이름순 배정</span>
-                    <p className="text-gray-500 mt-0.5">실적이 동일한 경우, 이름 가나다순으로 순차 배정합니다.</p>
+                    <span className="font-bold">랜덤 배정</span>
+                    <p className="text-gray-500 mt-0.5">실적이 동일한 경우, 무작위로 추첨하여 배정합니다.</p>
                   </div>
                 </li>
                 <li className="flex gap-2">

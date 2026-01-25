@@ -70,7 +70,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const db = getFirestore();
 
   const [title, setTitle] = useState('');
-  const [requiredServers, setRequiredServers] = useState<number | null>(null);
+  const [requiredServers, setRequiredServers] = useState<number | null>(2);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [mainMemberId, setMainMemberId] = useState<string | null>(null);
   const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
@@ -85,8 +85,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
-  const [hideAssigned, setHideAssigned] = useState(false);
-  const [sortBy, setSortBy] = useState<'name' | 'grade' | 'count'>('count');
+  const [filterUnassigned, setFilterUnassigned] = useState(false); // ✅ [New] 미배정 필터 (구 당월참여제외 대체)
+  const [sortBy, setSortBy] = useState<'name' | 'count' | 'curr_count' | 'grade'>('curr_count');
   const [showAllLogs, setShowAllLogs] = useState(false);
   
   // ✅ 전월 배정 횟수 상태
@@ -196,7 +196,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         const data = snap.data() as DocumentData;
         
         setTitle(data.title || '');
-        setRequiredServers(data.required_servers || null);
+        const reqVal = parseInt(String(data.required_servers ?? 2), 10);
+        setRequiredServers(!isNaN(reqVal) ? reqVal : 2);
         setLocked(data.anti_autoassign_locked || false); // 🔒 Load Lock State
         const loadedMemberIds = (data.member_ids as string[]) || [];
         setMemberIds(loadedMemberIds);
@@ -314,7 +315,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
   // ✅ 저장 처리
   const handleSave = async () => {
-    if (!title || !requiredServers || (!eventId && !date)) {
+    if (!title || requiredServers === null || (!eventId && !date)) {
       setErrorMsg('모든 필드를 입력해주세요.');
       return;
     }
@@ -581,21 +582,65 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
+  // ✅ [New] 신입 식별을 위한 Max Start Year 계산
+  const maxStartYear = React.useMemo(() => {
+      let max = 0;
+      const currentYear = dayjs().year();
+      members.forEach(m => {
+          if (!m.active) return;
+          const y = parseInt(String(m.start_year || '0').trim(), 10);
+          if (!isNaN(y) && y <= currentYear && y > max) {
+              max = y;
+          }
+      });
+      return max;
+  }, [members]);
+
+  // ✅ [New] 이번 달 배정 횟수 계산 (현재 이벤트 제외)
+  const currentMonthCounts = React.useMemo(() => {
+      const map: Record<string, number> = {};
+      if (!events) return map;
+
+      events.forEach(ev => {
+          // Exclude current event
+          if (ev.id === eventId) return;
+
+          if (ev.member_ids && Array.isArray(ev.member_ids)) {
+              ev.member_ids.forEach(mid => {
+                  map[mid] = (map[mid] || 0) + 1;
+              });
+          }
+      });
+      return map;
+  }, [events, eventId]);
+
   // ✅ 정렬 및 필터링된 멤버 리스트
   const sortedMembers = React.useMemo(() => {
     // 1. 필터링
-    const filtered = members.filter(m => {
-      // 설문 불가 제외 체크 시
-      if (hideUnavailable && unavailableMembers.has(m.id)) return false;
-      
-      // 당월 참여 제외 체크 시 (이미 배정된 인원 제외)
-      if (hideAssigned) {
-          const isAssigned = events.some(ev => 
-              ev.id !== eventId && ev.member_ids && ev.member_ids.includes(m.id)
-          );
-          if (isAssigned) return false;
+    const filtered = members.filter((m) => {
+      // (1) 설문에서 '불가능'으로 체크된 멤버 숨기기
+      if (hideUnavailable && unavailableMembers.has(m.id)) {
+        return false;
       }
-
+      
+      // 구 'hideAssigned' 로직 제거됨. 아래 'filterUnassigned'가 대체함.
+      
+      // (3) 미배정 필터 (이번 달 배정이 0인 경우만 표시)
+      if (filterUnassigned) {
+          // 뱃지에 표시되는 뒤쪽 숫자(이번 달 배정 횟수)가 0이어야 함.
+          // events prop이 최신 상태일 때 정확히 계산하기 위해 인라인 필터 사용.
+          const otherEventsCount = events 
+              ? events.filter(ev => ev.id !== eventId && ev.member_ids?.includes(m.id)).length
+              : 0;
+          
+          // 사용자가 '미배정'을 체크했을 때, 이미 선택된(배정된) 사람은 목록에서 사라져야 한다고 기대함.
+          // 따라서 현재 선택 여부(isSelected)도 카운트에 포함.
+          const isSelected = memberIds.includes(m.id);
+          const totalAssignCount = otherEventsCount + (isSelected ? 1 : 0);
+              
+          if (totalAssignCount > 0) return false;
+      }
+      
       // Active 상태이거나, 이미 배정된 멤버(비활성 포함)인 경우 표시
       // @ts-ignore
       return m.active === true || memberIds.includes(m.id);
@@ -606,15 +651,25 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
       if (sortBy === 'name') {
         return a.name.localeCompare(b.name, 'ko');
       } else if (sortBy === 'count') {
-          // 배정수 오름차순
+          // 전월 배정수 오름차순
           const countA = prevMonthCounts[a.id] || 0;
           const countB = prevMonthCounts[b.id] || 0;
           if (countA !== countB) return countA - countB;
           return a.name.localeCompare(b.name, 'ko');
+      } else if (sortBy === 'curr_count') {
+          // 당월 배정수 오름차순 (현재 선택 여부 포함)
+          const isSelectedA = memberIds.includes(a.id) ? 1 : 0;
+          const isSelectedB = memberIds.includes(b.id) ? 1 : 0;
+          const countA = (currentMonthCounts[a.id] || 0) + isSelectedA;
+          const countB = (currentMonthCounts[b.id] || 0) + isSelectedB;
+          
+          if (countA !== countB) return countA - countB;
+          return a.name.localeCompare(b.name, 'ko');
       } else {
-        // 학년순
-        const idxA = GRADE_ORDER.indexOf(a.grade);
-        const idxB = GRADE_ORDER.indexOf(b.grade);
+        // 학년별 정렬
+        const gradeOrder = ['M1','M2','M3','H1','H2','H3'];
+        const idxA = gradeOrder.indexOf(a.grade);
+        const idxB = gradeOrder.indexOf(b.grade);
         
         if (idxA !== idxB) {
           if (idxA === -1) return 1;
@@ -625,7 +680,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         return a.name.localeCompare(b.name, 'ko');
       }
     });
-  }, [members, hideUnavailable, hideAssigned, unavailableMembers, memberIds, sortBy, prevMonthCounts, events, eventId]);
+      }, [members, hideUnavailable, unavailableMembers, memberIds, sortBy, prevMonthCounts, events, eventId, filterUnassigned]);
 
   // 🔴 비활성 멤버 포함 여부 확인
   const hasInactiveAssigned = memberIds.some(id => {
@@ -750,21 +805,40 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     {isExpandedServerCount ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
             </div>
-            <RadioGroup 
-                value={requiredServers?.toString() || ''} 
-                onValueChange={(val) => setRequiredServers(parseInt(val))}
-                disabled={loading || readOnly}
-                className="flex flex-wrap gap-4 pt-1"
-            >
-              {Array.from({ length: isExpandedServerCount ? 10 : 4 }, (_, i) => i + 1).map((n) => (
-                <div key={n} className="flex items-center space-x-2">
-                    <RadioGroupItem value={n.toString()} id={`r-${n}`} />
-                    <Label htmlFor={`r-${n}`} className="font-normal cursor-pointer dark:text-gray-300">
-                        {n}명
-                    </Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <div className="flex flex-wrap gap-3 pt-1">
+              {(isExpandedServerCount 
+                  ? [...Array.from({ length: 10 }, (_, i) => i + 1), 0] 
+                  : [1, 2, 3, 4, 5]
+              ).map((n) => {
+                 const isChecked = requiredServers === n;
+                 return (
+                    <div 
+                        key={n} 
+                        className="flex items-center space-x-2 cursor-pointer group"
+                        onClick={() => {
+                            setRequiredServers(n);
+                            if (n === 0) {
+                                setMemberIds([]);
+                                setMainMemberId(null);
+                            }
+                        }}
+                    >
+                        <div className={`
+                            w-4 h-4 rounded-full border flex items-center justify-center transition-all
+                            ${isChecked 
+                                ? 'border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900' 
+                                : 'border-gray-400 group-hover:border-gray-500 dark:border-gray-500 dark:group-hover:border-gray-400'
+                            }
+                        `}>
+                            {isChecked && <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
+                        </div>
+                        <Label className={`font-normal cursor-pointer select-none ${isChecked ? 'text-blue-700 font-bold dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                            {n}명
+                        </Label>
+                    </div>
+                 );
+              })}
+            </div>
           </div>
 
           {/* 🔒 자동 배정 제외 설정 */}
@@ -847,6 +921,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                               ? (
                                   <>
                                     <span>{member.name} {isMain ? '(주복사)' : ''}</span>
+                                    {isActive && maxStartYear > 0 && member.start_year && parseInt(String(member.start_year).trim(), 10) === maxStartYear && (
+                                        <span className="text-xs ml-0.5" title="신입 복사">🐣</span>
+                                    )}
                                     {member.start_year && (
                                     <span className={`text-[10px] ml-0.5 ${
                                         !isActive ? 'text-red-800' :
@@ -896,48 +973,67 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                 </Button>
               </div>
 
-               {/* Row 2: Controls (Two Rows now) */}
-               <div className="flex flex-col gap-2 mb-2">
-                  {/* Line 1: Checkboxes */}
-                  <div className="flex items-center gap-2">
-                     {/* 🔹 설문제외 체크박스 */}
-                     <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
-                       <input 
-                         id="chk-unavailable"
-                         type="checkbox" 
-                         checked={hideUnavailable}
-                         onChange={(e) => setHideUnavailable(e.target.checked)}
-                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                       />
-                       <label htmlFor="chk-unavailable" className="text-xs text-orange-600 font-bold cursor-pointer select-none">
-                         설문제외
-                       </label>
-                     </div>
 
-                     {/* 🔹 당월참여제외 체크박스 */}
-                     <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
-                       <input 
-                         id="chk-assigned"
-                         type="checkbox" 
-                         checked={hideAssigned}
-                         onChange={(e) => setHideAssigned(e.target.checked)}
-                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                       />
-                       <label htmlFor="chk-assigned" className="text-xs text-gray-600 dark:text-gray-300 font-medium cursor-pointer select-none">
-                         당월참여제외
-                       </label>
-                     </div>
+                   {/* Row 2: Controls (Two Rows now) */}
+                   <div className="flex flex-col gap-2 mb-2">
+                      {/* Line 1: Checkboxes & Legend */}
+                      <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                             {/* 🔹 설문제외 체크박스 */}
+                             <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded border border-gray-100 dark:border-slate-600 hover:border-gray-200 transition-colors">
+                               <input 
+                                 id="chk-unavailable"
+                                 type="checkbox" 
+                                 checked={hideUnavailable}
+                                 onChange={(e) => setHideUnavailable(e.target.checked)}
+                                 className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                               />
+                               <label htmlFor="chk-unavailable" className="text-xs text-orange-600 font-bold cursor-pointer select-none">
+                                 설문제외
+                               </label>
+                             </div>
+        
+                              {/* 🔹 미배정 필터 (New) - 구 당월참여제외 대체 */}
+                              <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-800 hover:border-blue-200 transition-colors">
+                                <input 
+                                  id="chk-unassigned"
+                                  type="checkbox" 
+                                  checked={filterUnassigned}
+                                  onChange={(e) => setFilterUnassigned(e.target.checked)}
+                                  className="w-3.5 h-3.5 rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                                <label htmlFor="chk-unassigned" className="text-xs text-blue-700 dark:text-blue-300 font-bold cursor-pointer select-none">
+                                  당월미배정
+                                </label>
+                              </div>
+        
+                             {showUnavailableWarning && (
+                              <span className="text-xs text-orange-600 font-medium animate-pulse ml-1">
+                                  ⚠️ 불참
+                              </span>
+                            )}
+                         </div>
 
-                     {showUnavailableWarning && (
-                      <span className="text-xs text-orange-600 font-medium animate-pulse ml-1">
-                          ⚠️ 불참
-                      </span>
-                    )}
-                  </div>
+                         {/* 신입 기준 범례 (Moved Here) */}
+                         {maxStartYear > 0 && (
+                            <span className="text-[10px] text-yellow-900 dark:text-yellow-100 bg-yellow-200 dark:bg-yellow-700/80 px-2 py-0.5 rounded select-none font-medium" title="자동 배정 시 해당 연도 입단자를 신입으로 간주합니다.">
+                               신입기준: {maxStartYear}년
+                            </span>
+                         )}
+                      </div>
 
                   {/* Line 2: Sort Buttons */}
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end w-full">
                       <div className="flex items-center bg-gray-100 dark:bg-slate-700 p-0.5 rounded-lg text-xs font-medium">
+                        <button
+                          onClick={() => setSortBy('curr_count')} 
+                          className={cn(
+                            "px-2.5 py-1 rounded-md transition-all",
+                            sortBy === 'curr_count' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          )}
+                        >
+                          당월
+                        </button>
                         <button
                           onClick={() => setSortBy('count')} 
                           className={cn(
@@ -945,7 +1041,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                             sortBy === 'count' ? "bg-white dark:bg-slate-600 shadow text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                           )}
                         >
-                          배정
+                          전월
                         </button>
                         <button
                           onClick={() => setSortBy('name')} 
@@ -975,6 +1071,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     const isSelected = memberIds.includes(m.id);
                     const isMain = m.id === mainMemberId;
                     const isActive = m.active;
+                    
+                    // ✅ 신입 여부 계산 (Row Highlighting용)
+                    const myYear = parseInt(String(m.start_year || '0').trim(), 10);
+                    const isNovice = isActive && maxStartYear > 0 && myYear === maxStartYear;
 
                      // Header Separator for Grade or Count Sort
                      const prev = sortedMembers[idx - 1];
@@ -985,11 +1085,20 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                          showSeparator = !prev || prev.grade !== m.grade;
                          separatorLabel = m.grade;
                      } else if (sortBy === 'count') {
-                         const currCount = prevMonthCounts[m.id] || 0;
-                         const prevCount = prev ? (prevMonthCounts[prev.id] || 0) : -1;
-                         showSeparator = !prev || prevCount !== currCount;
-                         separatorLabel = `${currCount}회`;
-                     }
+                          const currCount = prevMonthCounts[m.id] || 0;
+                          const prevCount = prev ? (prevMonthCounts[prev.id] || 0) : -1;
+                          showSeparator = !prev || prevCount !== currCount;
+                          separatorLabel = `${currCount}회`;
+                      } else if (sortBy === 'curr_count') {
+                          const isSelectedCurr = memberIds.includes(m.id) ? 1 : 0;
+                          const isSelectedPrev = prev && memberIds.includes(prev.id) ? 1 : 0;
+                          
+                          const countCurr = (currentMonthCounts[m.id] || 0) + isSelectedCurr;
+                          const countPrev = prev ? ((currentMonthCounts[prev.id] || 0) + isSelectedPrev) : -1;
+                          
+                          showSeparator = !prev || countPrev !== countCurr;
+                          separatorLabel = `${countCurr}회`;
+                      }
 
                     return (
                       <React.Fragment key={m.id}>
@@ -1000,7 +1109,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                               </span>
                             </div>
                          )}
-
+                        
                         <div className="flex items-center justify-between p-1 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded">
                           <div className="flex items-center gap-1.5 overflow-hidden">
                              <input
@@ -1014,9 +1123,36 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                              
                              <div className="flex flex-col truncate">
                                 <div className="flex items-center gap-1">
-                                    <span className={`text-sm ${isUnavailable ? 'text-orange-600 font-medium' : !isActive ? 'text-red-600 font-bold line-through' : 'text-gray-700 dark:text-gray-200 font-medium'}`}>
+                                    <span 
+                                      className={`text-sm cursor-help ${
+                                          isUnavailable ? 'text-orange-600 font-medium' 
+                                          : !isActive ? 'text-red-600 font-bold line-through' 
+                                          : 'text-gray-700 dark:text-gray-200 font-medium'
+                                      } ${
+                                          isNovice ? 'bg-yellow-200 dark:bg-yellow-700/80 px-1 rounded' : ''
+                                      }`}
+                                      title={`${m.name}${isNovice ? ' (신입)' : ''} / 입단: ${m.start_year || '-'}년 / 학년: ${m.grade} / 상태: ${m.active ? '활동' : '비활동'}`}
+                                    >
                                       {m.name}
                                     </span>
+                                    {m.start_year && <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1">{m.start_year}</span>}
+                                    {/* 신입 배지 */}
+                                    {isActive && (() => {
+                                        const myYear = parseInt(String(m.start_year || '0').trim(), 10);
+                                        const isNovice = maxStartYear > 0 && myYear === maxStartYear;
+                                        
+                                        if (isNovice) {
+                                            return (
+                                                <span 
+                                                    className="text-[10px] bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 px-1 rounded ml-1 cursor-help"
+                                                    title="신입 복사 (막내)"
+                                                >
+                                                    🐣
+                                                </span>
+                                            );
+                                        }
+                                        return null; 
+                                     })()}
                                     {sortBy === 'name' && (
                                        <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-slate-700 px-1 rounded-sm">{m.grade}</span>
                                     )}
