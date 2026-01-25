@@ -23,7 +23,7 @@ const DrawerOverlay = React.forwardRef<
   <DrawerPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm',
+      'fixed inset-0 z-50 bg-black/30 backdrop-blur-[0.5px]',
       'data-[state=open]:animate-in data-[state=closed]:animate-out',
       className
     )}

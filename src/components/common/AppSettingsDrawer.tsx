@@ -53,7 +53,7 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
     }
   };
 
-  const handleTestNotification = () => {
+  const handleTestNotification = async () => {
     if (permission !== 'granted') {
       toast.error('브라우저 알림 권한이 필요합니다.');
       return;
@@ -64,16 +64,35 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
         return;
     }
 
-    // Local Test Notification
+    // Use Service Worker for mobile compatibility
     try {
-      new Notification('🔔 알림 테스트', {
-        body: '알림이 정상적으로 수신됩니다! (로컬 테스트)',
-        icon: '/icons/icon-192x192.png', // Adjust path if needed
-      });
-      toast.success('테스트 알림을 발송했습니다.');
+      // Check if Service Worker is available
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Use Service Worker's showNotification (works on mobile)
+        await registration.showNotification('🔔 알림 테스트', {
+          body: '알림이 정상적으로 수신됩니다! (로컬 테스트)',
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/icon-192x192.png',
+          tag: 'test-notification',
+          requireInteraction: false,
+        });
+        
+        toast.success('테스트 알림을 발송했습니다.');
+      } else {
+        // Fallback for non-PWA environments (desktop browsers)
+        new Notification('🔔 알림 테스트', {
+          body: '알림이 정상적으로 수신됩니다! (로컬 테스트)',
+          icon: '/icons/icon-192x192.png',
+        });
+        toast.success('테스트 알림을 발송했습니다.');
+      }
     } catch (e) {
-      console.error(e);
-      toast.error('알림 발송에 실패했습니다.');
+      console.error('Test notification error:', e);
+      toast.error('알림 발송에 실패했습니다.', {
+        description: e instanceof Error ? e.message : '알 수 없는 오류'
+      });
     }
   };
 

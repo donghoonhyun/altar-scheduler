@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Download } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Download, CalendarDays } from 'lucide-react';
 import dayjs from 'dayjs';
 import { utils, writeFile } from 'xlsx';
 import {
@@ -50,7 +50,9 @@ export default function ServerAssignmentStatus() {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'by-member' | 'by-date'>('by-member');
+  const [viewDetailMode, setViewDetailMode] = useState<'daily' | 'monthly'>('monthly');
   const [monthlyStatus, setMonthlyStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
+  const [extraStatuses, setExtraStatuses] = useState<Record<string, MassStatus>>({});
 
   // Sync with global session changes
   useEffect(() => {
@@ -87,9 +89,16 @@ export default function ServerAssignmentStatus() {
         });
         setMembers(memList);
 
-        // 2. Fetch Mass Events for Month
-        const startStr = currentMonth.startOf('month').format('YYYYMMDD');
-        const endStr = currentMonth.endOf('month').format('YYYYMMDD');
+        // 2. Fetch Mass Events logic
+        // If monthly view, fetch prev/curr/next months. If daily, just current.
+        let startStr: string, endStr: string;
+        if (viewDetailMode === 'monthly') {
+          startStr = currentMonth.subtract(1, 'month').startOf('month').format('YYYYMMDD');
+          endStr = currentMonth.add(1, 'month').endOf('month').format('YYYYMMDD');
+        } else {
+          startStr = currentMonth.startOf('month').format('YYYYMMDD');
+          endStr = currentMonth.endOf('month').format('YYYYMMDD');
+        }
         const evRef = collection(db, `server_groups/${serverGroupId}/mass_events`);
         const evQ = query(evRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr), orderBy('event_date', 'asc'));
         const evSnap = await getDocs(evQ);
@@ -99,18 +108,28 @@ export default function ServerAssignmentStatus() {
         // 3. (Removed) Fetch Survey Responses logic was here
         // The user requested to show ONLY assigned info, regardless of survey status.
 
-        // 4. Fetch Monthly Status
-        try {
-            const mStatRef = doc(db, `server_groups/${serverGroupId}/month_status/${yyyymm}`);
-            const mStatSnap = await getDoc(mStatRef);
-            if (mStatSnap.exists()) {
-                setMonthlyStatus(mStatSnap.data().status as MassStatus);
-            } else {
-                setMonthlyStatus('MASS-NOTCONFIRMED');
+        // 4. Fetch Monthly Status (Current & Neighbors)
+        const fetchStatus = async (m: dayjs.Dayjs) => {
+            try {
+                const ym = m.format('YYYYMM');
+                const ref = doc(db, `server_groups/${serverGroupId}/month_status/${ym}`);
+                const snap = await getDoc(ref);
+                return { key: ym, status: snap.exists() ? (snap.data().status as MassStatus) : 'MASS-NOTCONFIRMED' as MassStatus };
+            } catch {
+                return { key: m.format('YYYYMM'), status: 'MASS-NOTCONFIRMED' as MassStatus };
             }
-        } catch (e) {
-            setMonthlyStatus('MASS-NOTCONFIRMED');
-        }
+        };
+
+        const statusResults = await Promise.all([
+            fetchStatus(currentMonth.subtract(1, 'month')),
+            fetchStatus(currentMonth),
+            fetchStatus(currentMonth.add(1, 'month'))
+        ]);
+
+        const newStatusMap: Record<string, MassStatus> = {};
+        statusResults.forEach(r => newStatusMap[r.key] = r.status);
+        setExtraStatuses(newStatusMap);
+        setMonthlyStatus(newStatusMap[yyyymm]);
 
       } catch (err) {
         console.error(err);
@@ -120,7 +139,7 @@ export default function ServerAssignmentStatus() {
     };
 
     fetchData();
-  }, [serverGroupId, yyyymm, db, currentMonth]);
+  }, [serverGroupId, yyyymm, db, currentMonth, viewDetailMode]);
 
   const handlePrevMonth = () => {
     const newMonth = currentMonth.subtract(1, 'month');
@@ -310,17 +329,33 @@ export default function ServerAssignmentStatus() {
                 </button>
             </div>
 
-            {/* Center: Legend */}
-            <div className="hidden md:flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
-                <div className="flex items-center gap-1">
-                    <div className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold">주</div>
-                    <span>주복사</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className="w-5 h-5 flex items-center justify-center bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 rounded text-[10px] font-bold">부</div>
-                    <span>부복사</span>
-                </div>
-            </div>
+            {/* ✅ Sub Toggle for By-Member View */}
+            {viewMode === 'by-member' && (
+                 <div className="flex bg-white dark:bg-slate-800 p-1 rounded-md border dark:border-slate-600 shadow-sm ml-2">
+                    <button
+                        onClick={() => setViewDetailMode('monthly')}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all",
+                            viewDetailMode === 'monthly' ? "bg-gray-100 text-gray-900 dark:bg-slate-700 dark:text-gray-100 font-bold" : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                        )}
+                    >
+                        <CalendarDays size={14} />
+                        월별
+                    </button>
+                    <button
+                        onClick={() => setViewDetailMode('daily')}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all",
+                            viewDetailMode === 'daily' ? "bg-gray-100 text-gray-900 dark:bg-slate-700 dark:text-gray-100 font-bold" : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                        )}
+                    >
+                        일별
+                    </button>
+                 </div>
+            )}
+
+            {/* Center: Legend (Removed) */}
+
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
@@ -346,89 +381,169 @@ export default function ServerAssignmentStatus() {
       <div className="flex-1 overflow-auto relative p-4">
           <div className="inline-block min-w-full align-middle border dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 shadow-sm overflow-hidden min-h-[500px]">
               {viewMode === 'by-member' ? (
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-600">
                   <thead className="bg-gray-50 dark:bg-slate-800 sticky top-0 z-10">
                       <tr>
                           <th scope="col" className="sticky left-0 z-20 bg-gray-50 dark:bg-slate-800 px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[100px] border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                               성명
                           </th>
-                          {events.map((ev, idx) => {
-                            const dateObj = dayjs(ev.event_date);
-                            const dateStr = dateObj.format('M/D');
-                            const dayOfWeek = dateObj.format('(dd)');
-                            const dayNum = dateObj.day(); // 0(Sun) ... 6(Sat)
-                            
-                            const nextEv = events[idx + 1];
-                            const isSameDateAsNext = nextEv && nextEv.event_date === ev.event_date;
-                            const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r dark:border-slate-700';
-                            
-                            let bgClass = "bg-white dark:bg-slate-900";
-                            if (dayNum === 0) bgClass = "bg-red-50 dark:bg-red-900/10"; // Sunday
-                            if (dayNum === 6) bgClass = "bg-blue-50 dark:bg-blue-900/10"; // Saturday
+                          
+                          {/* Daily Header */}
+                          {viewDetailMode === 'daily' && events.map((ev, idx) => {
+                             const dateObj = dayjs(ev.event_date);
+                             const dateStr = dateObj.format('M/D');
+                             const dayOfWeek = dateObj.format('(dd)');
+                             const dayNum = dateObj.day(); // 0(Sun) ... 6(Sat)
+                             
+                             const nextEv = events[idx + 1];
+                             const isSameDateAsNext = nextEv && nextEv.event_date === ev.event_date;
+                             const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r dark:border-slate-700';
+                             
+                             let bgClass = "bg-white dark:bg-slate-900";
+                             if (dayNum === 0) bgClass = "bg-red-50 dark:bg-red-900/10"; // Sunday
+                             if (dayNum === 6) bgClass = "bg-blue-50 dark:bg-blue-900/10"; // Saturday
 
-                            // Header bg needs to be solid to cover scroll
-                            const headerBgClass = dayNum === 0 ? "bg-red-50 dark:bg-red-900/10" : (dayNum === 6 ? "bg-blue-50 dark:bg-blue-900/10" : "bg-gray-50 dark:bg-slate-800");
+                             // Header bg needs to be solid to cover scroll
+                             const headerBgClass = dayNum === 0 ? "bg-red-50 dark:bg-red-900/10" : (dayNum === 6 ? "bg-blue-50 dark:bg-blue-900/10" : "bg-gray-50 dark:bg-slate-800");
 
-                            return (
-                              <th key={ev.id} scope="col" className={`px-1 py-1 text-center min-w-[60px] ${borderClass} ${headerBgClass} last:border-r-0`}>
-                                  <div className="flex flex-col items-center gap-1">
-                                      <span className={`text-[10px] font-semibold ${dayNum === 0 ? "text-red-500 dark:text-red-400" : (dayNum === 6 ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}`}>
-                                          {dateStr} {dayOfWeek}
-                                      </span>
-                                      <div className="bg-white dark:bg-slate-700 border dark:border-slate-600 rounded px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-200 font-medium truncate max-w-[70px] shadow-sm" title={ev.title}>
-                                          {ev.title}
-                                      </div>
-                                  </div>
-                              </th>
-                            );
+                             return (
+                               <th key={ev.id} scope="col" className={`px-1 py-1 text-center min-w-[60px] ${borderClass} ${headerBgClass} last:border-r-0`}>
+                                   <div className="flex flex-col items-center gap-1">
+                                       <span className={`text-[10px] font-semibold ${dayNum === 0 ? "text-red-500 dark:text-red-400" : (dayNum === 6 ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}`}>
+                                           {dateStr} {dayOfWeek}
+                                       </span>
+                                       <div className="bg-white dark:bg-slate-700 border dark:border-slate-600 rounded px-1.5 py-0.5 text-xs text-gray-700 dark:text-gray-200 font-medium truncate max-w-[70px] shadow-sm" title={ev.title}>
+                                           {ev.title}
+                                       </div>
+                                   </div>
+                               </th>
+                             );
                           })}
+
+                          {/* Monthly Header */}
+                          {viewDetailMode === 'monthly' && (
+                             <>
+                                <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r dark:border-slate-700 w-[30%] bg-gray-50 dark:bg-slate-800">
+                                    <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
+                                      <span>{currentMonth.subtract(1, 'month').format('YY년 M월')}</span>
+                                      <StatusBadge status={extraStatuses[currentMonth.subtract(1, 'month').format('YYYYMM')]} size="sm" />
+                                    </div>
+                                </th>
+                                <th scope="col" className="px-3 py-3 text-center text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider border-r dark:border-slate-700 w-[30%] bg-blue-50/30 dark:bg-blue-900/10">
+                                    <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
+                                      <span>{currentMonth.format('YY년 M월')}</span>
+                                      <StatusBadge status={extraStatuses[currentMonth.format('YYYYMM')]} size="sm" />
+                                    </div>
+                                </th>
+                                <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[30%] bg-gray-50 dark:bg-slate-800">
+                                    <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
+                                      <span>{currentMonth.add(1, 'month').format('YY년 M월')}</span>
+                                      <StatusBadge status={extraStatuses[currentMonth.add(1, 'month').format('YYYYMM')]} size="sm" />
+                                    </div>
+                                </th>
+                             </>
+                          )}
                       </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
-                      {members.map(member => {
-                          const count = events.filter(ev => ev.member_ids?.includes(member.id)).length;
-                          return (
-                           <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
-                               <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 whitespace-nowrap text-sm border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
-                                   <div className="flex items-center">
-                                       <span className="font-medium text-gray-900 dark:text-gray-100">{member.name_kor}</span>
-                                       <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5">{member.baptismal_name}</span>
-                                       <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold ml-1.5 bg-blue-50 dark:bg-blue-900/30 px-1 rounded">({count}회)</span>
-                                   </div>
-                               </td>
-                               {events.map((ev, idx) => {
-                                  const dateObj = dayjs(ev.event_date);
-                                  const dayNum = dateObj.day();
-                                  const nextEv = events[idx + 1];
-                                  const isSameDateAsNext = nextEv && nextEv.event_date === ev.event_date;
-                                  const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r dark:border-slate-700';
-                                  
-                                  let bgClass = "";
-                                  if (dayNum === 0) bgClass = "bg-red-50/50 dark:bg-red-900/10"; // Sunday (lighter)
-                                  if (dayNum === 6) bgClass = "bg-blue-50/50 dark:bg-blue-900/10"; // Saturday (lighter)
-                                  
-                                  return (
-                                    <td key={`${member.id}-${ev.id}`} className={`px-1 py-1 whitespace-nowrap text-center h-[34px] ${borderClass} ${bgClass} last:border-r-0`}>
-                                        {renderCell(member, ev)}
-                                    </td>
-                                  );
-                              })}
+                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-600">
+                       {members.map(member => {
+                           // Count only current month for display consistency, or total? Let's show current month count.
+                           const count = events.filter(ev => ev.member_ids?.includes(member.id) && dayjs(ev.event_date).isSame(currentMonth, 'month')).length;
+                           return (
+                            <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                                <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 whitespace-nowrap text-sm border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50 align-top">
+                                    <div className="flex items-center h-full pt-1">
+                                        <span className="font-medium text-gray-900 dark:text-gray-100">{member.name_kor}</span>
+                                        <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5">{member.baptismal_name}</span>
+                                        <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold ml-1.5 bg-blue-50 dark:bg-blue-900/30 px-1 rounded">({count}회)</span>
+                                    </div>
+                                </td>
+                                
+                                {/* Daily Body */}
+                                {viewDetailMode === 'daily' && events.map((ev, idx) => {
+                                   const dateObj = dayjs(ev.event_date);
+                                   const dayNum = dateObj.day();
+                                   const nextEv = events[idx + 1];
+                                   const isSameDateAsNext = nextEv && nextEv.event_date === ev.event_date;
+                                   const borderClass = isSameDateAsNext ? 'border-r-0' : 'border-r dark:border-slate-700';
+                                   
+                                   let bgClass = "";
+                                   if (dayNum === 0) bgClass = "bg-red-50/50 dark:bg-red-900/10"; // Sunday (lighter)
+                                   if (dayNum === 6) bgClass = "bg-blue-50/50 dark:bg-blue-900/10"; // Saturday (lighter)
+                                   
+                                   return (
+                                     <td key={`${member.id}-${ev.id}`} className={`px-1 py-1 whitespace-nowrap text-center h-[34px] ${borderClass} ${bgClass} last:border-r-0`}>
+                                         {renderCell(member, ev)}
+                                     </td>
+                                   );
+                               })}
 
+                                {/* Monthly Body */}
+                                {viewDetailMode === 'monthly' && (
+                                   [
+                                     currentMonth.subtract(1, 'month'),
+                                     currentMonth,
+                                     currentMonth.add(1, 'month')
+                                   ].map((targetM, mIdx) => {
+                                      const mEvents = events.filter(ev => 
+                                        dayjs(ev.event_date).isSame(targetM, 'month') && 
+                                        ev.member_ids?.includes(member.id)
+                                      );
+                                      
+                                      const isCurr = mIdx === 1;
+                                      
+                                      return (
+                                        <td key={mIdx} className={cn("px-2 py-2 align-top border-r dark:border-slate-700 last:border-r-0", isCurr && "bg-blue-50/10 dark:bg-blue-900/5")}>
+                                          <div className="flex flex-wrap gap-1.5">
+                                               {mEvents.length === 0 ? (
+                                                  <span className="text-gray-300 dark:text-slate-700 text-[10px]">-</span>
+                                               ) : (
+                                                  mEvents.map(ev => {
+                                                      const dateObj = dayjs(ev.event_date);
+                                                      const isMain = ev.main_member_id === member.id;
+                                                      return (
+                                                        <div key={ev.id} className={cn(
+                                                            "flex items-center gap-1 border rounded px-1.5 py-1 text-[11px]",
+                                                            isMain 
+                                                              ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/40 dark:border-blue-800 dark:text-blue-200"
+                                                              : "bg-white border-gray-200 text-gray-600 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300"
+                                                        )}>
+                                                            <div className={cn(
+                                                                "w-4 h-4 flex items-center justify-center rounded text-[9px] font-bold text-white shrink-0",
+                                                                isMain ? "bg-blue-600" : "bg-slate-400"
+                                                            )}>
+                                                                {isMain ? '주' : '부'}
+                                                            </div>
+                                                            <span className="font-medium">
+                                                                {dateObj.format('D(dd)')}
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[60px]" title={ev.title}>
+                                                                {ev.title}
+                                                            </span>
+                                                        </div>
+                                                      );
+                                                  })
+                                               )}
+                                          </div>
+                                        </td>
+                                      )
+                                   })
+                                )}
+                            </tr>
+                           );
+                        })}
+                       {members.length === 0 && (
+                           <tr>
+                               <td colSpan={viewDetailMode === 'daily' ? events.length + 1 : 4} className="px-6 py-10 text-center text-gray-500 text-sm">
+                                   등록된 복사가 없습니다.
+                               </td>
                            </tr>
-                          );
-                       })}
-                      {members.length === 0 && (
-                          <tr>
-                              <td colSpan={events.length + 1} className="px-6 py-10 text-center text-gray-500 text-sm">
-                                  등록된 복사가 없습니다.
-                              </td>
-                          </tr>
-                      )}
-                  </tbody>
+                       )}
+                   </tbody>
               </table>
               ) : (
                 // By Date View
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-600">
                     <thead className="bg-gray-50 dark:bg-slate-800 sticky top-0">
                         <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[150px] border-r dark:border-slate-700">
@@ -439,7 +554,7 @@ export default function ServerAssignmentStatus() {
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
+                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-600">
                         {eventsByDate.map(([dateStr, dayEvents]) => {
                             const dateObj = dayjs(dateStr);
                             const dayNum = dateObj.day();

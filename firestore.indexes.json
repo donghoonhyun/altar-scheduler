@@ -27,6 +27,38 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "system_notification_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "server_group_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "trigger_status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mass_backups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "month_key",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

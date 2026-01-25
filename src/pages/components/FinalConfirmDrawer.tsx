@@ -69,30 +69,35 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
         const db = getFirestore();
         const monthKey = currentMonth.format('YYYYMM');
 
-        // Query specific logs
-        // Note: 'trigger_status' and 'month_id' were added in recent Cloud Function update.
-        // Old logs won't appear, which is expected.
+        // Simplified query - only use server_group_id to avoid composite index requirement
+        // Filter month_id and trigger_status on client side
         const q = query(
             collection(db, 'system_notification_logs'),
             where('server_group_id', '==', serverGroupId),
-            where('month_id', '==', monthKey),
-            where('trigger_status', '==', 'FINAL-CONFIRMED')
+            limit(50) // Get more to filter client-side
         );
         
         const snap = await getDocs(q);
-        const logs = snap.docs.map(d => ({
+        let logs = snap.docs.map(d => ({
             id: d.id,
             ...d.data()
         })) as MiniNotificationLog[];
         
-        // Sort DESC client-side (avoid building composite index for now)
+        // Client-side filtering
+        logs = logs.filter(log => {
+            const data = log as any;
+            return data.month_id === monthKey && data.trigger_status === 'FINAL-CONFIRMED';
+        });
+        
+        // Sort DESC client-side
         logs.sort((a, b) => {
              const tA = a.created_at?.toDate ? a.created_at.toDate().getTime() : 0;
              const tB = b.created_at?.toDate ? b.created_at.toDate().getTime() : 0;
              return tB - tA;
         });
         
-        setNotiLogs(logs);
+        // Limit to 5 after filtering
+        setNotiLogs(logs.slice(0, 5));
     } catch(e) {
         console.error('Failed to fetch logs', e);
     }

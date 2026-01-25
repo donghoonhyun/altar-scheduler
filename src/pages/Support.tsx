@@ -80,16 +80,10 @@ export default function Support() {
                             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">플래너 활동 가이드</h3>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">플래너와 관리자를 위한 스케줄링 및 관리 매뉴얼입니다.</p>
                             <a 
-                                href="#" 
+                                href="https://thankful-newsprint-eaf.notion.site/2f15c7438dc480dd86fedb4e0ce08a82?source=copy_link" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                                onClick={(e) => {
-                                   if (e.currentTarget.getAttribute('href') === '#') {
-                                       e.preventDefault();
-                                       alert('준비 중인 페이지입니다.');
-                                   }
-                                }}
                             >
                                 플래너 활동 가이드 보기 <ExternalLink size={14} />
                             </a>

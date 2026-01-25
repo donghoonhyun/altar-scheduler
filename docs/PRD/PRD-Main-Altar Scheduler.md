@@ -196,6 +196,12 @@
   . [거절] 버튼 → 해당 멤버 문서 삭제.
 - 일괄 기능:
   . [일괄 진급] : 전체 단원(활동/비활동 포함)의 학년을 +1씩 일괄 상향 조정 (예: M1 → M2). 최고 학년(H3)은 유지.
+- 복사 상세 정보 (Drawer UI):
+  . 구성 순서 변경: 복사단원 상세 정보(상단) → 신청자 정보 → 복사 배정 현황(하단)
+  . 복사 배정 현황:
+    - 전월/당월/차월 3개월 배정 횟수 요약 카드 제공.
+    - 횟수 클릭 시 해당 월의 상세 배정 내역(날짜, 미사명) Expandable List로 표시.
+    - Drawer 닫을 때 배정 현황 상태 자동 초기화.
 
 #### 2.3.6 복사 명단 등록
 
@@ -817,5 +823,49 @@
 
 - 다국어 지원 (한국어/영어/스페인어 등)
 - 교구 단위 통계/리포트
+
+---
+
+## 🎯5. 변경 이력 (Changelog)
+
+### 2026-01-23: 최종 확정(Final Confirmation) 기능 개선
+
+#### Frontend (FinalConfirmDrawer.tsx)
+- **배정 현황 상세 표시**:
+  - 복사별 이름순 정렬 목록 표시
+  - 전달/금월 배정 횟수 비교 표시
+  - 배정된 날짜 목록 표시 (요일 포함, 예: "3(화)")
+  - 날짜 hover 시 미사명 툴팁 표시
+  
+- **설문 충돌 감지 및 경고**:
+  - 설문에서 '불참'으로 표시한 날짜와 배정이 겹치는 경우 붉은색으로 강조 표시
+  - 툴팁에 충돌 경고 메시지 추가
+  
+- **알림 발송 이력 표시**:
+  - 최종 확정 관련 Push 알림 발송 이력을 Drawer 하단에 표시
+  - 해당 복사단, 해당 월의 최종 확정 알림만 필터링하여 표시
+  
+- **사용자 확인 강화**:
+  - 최종 확정 버튼 클릭 시 확인 다이얼로그 추가
+  - 설명 문구 개선 및 경고 메시지 명확화
+  
+- **UI/UX 개선**:
+  - 다크모드 완전 지원
+  - HTML 유효성 검증 오류 수정 (p/div 중첩 문제)
+  - 반응형 레이아웃 개선
+
+#### Backend (Cloud Functions)
+- **onMonthlyStatusChanged 개선**:
+  - 감지 경로 수정: `server_groups/{groupId}/months/{monthId}` → `server_groups/{groupId}/month_status/{monthId}`
+  - `FINAL-CONFIRMED` 상태 감지 및 Push 알림 자동 발송
+  - 알림 발송 이력을 `system_notification_logs` 컬렉션에 기록
+  - 필터링을 위한 메타데이터 추가: `server_group_id`, `month_id`, `trigger_status`
+
+#### Data Model
+- **system_notification_logs 컬렉션 확장**:
+  - `server_group_id`: 복사단 ID (필터링용)
+  - `month_id`: 월 ID (YYYYMM 형식)
+  - `trigger_status`: 트리거된 상태 (예: 'FINAL-CONFIRMED')
+  - `feature`: 기능 구분 ('MONTH_STATUS')
 
 ---

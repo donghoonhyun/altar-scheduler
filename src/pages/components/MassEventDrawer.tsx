@@ -34,7 +34,7 @@ import {
 import type { MemberDoc } from '@/types/firestore';
 // Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
-import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock } from 'lucide-react';
+import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Pencil } from 'lucide-react';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -81,6 +81,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [showUnavailableWarning, setShowUnavailableWarning] = useState(false);
   const [locked, setLocked] = useState(false); // 🔒 Anti-AutoAssign Lock
   const [isExpandedServerCount, setIsExpandedServerCount] = useState(false); // 🔽 Expand Server Count UI
+  const [isTitleEditMode, setIsTitleEditMode] = useState(false); // ✏️ Title Edit Mode
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
@@ -703,17 +704,36 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         {/* Body */}
         <div className="flex flex-col gap-4 text-sm text-gray-700">
           {/* 미사 제목 */}
-          <label className="block">
-            <span className="font-medium text-gray-900 dark:text-gray-200">미사 제목</span>
+          <div className="block">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium text-gray-900 dark:text-gray-200">미사 제목</span>
+              {eventId && !readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsTitleEditMode(!isTitleEditMode)}
+                  className={cn(
+                    "p-1.5 rounded-full transition-colors",
+                    isTitleEditMode 
+                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
+                      : "text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-slate-700"
+                  )}
+                  title={isTitleEditMode ? "수정 완료" : "제목 수정"}
+                  disabled={loading}
+                >
+                  <Pencil size={14} />
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full border rounded px-2 py-1 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+              className="w-full border rounded px-2 py-1 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 read-only:bg-gray-50 read-only:text-gray-700 dark:read-only:bg-slate-800 dark:read-only:text-gray-300"
               placeholder="예: 주일 11시 미사"
               disabled={loading || readOnly}
+              readOnly={eventId ? !isTitleEditMode : false}
             />
-          </label>
+          </div>
 
 
 
@@ -766,7 +786,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                     <span>🚫 자동 배정 제외 (고정)</span>
                 </div>
                 <span className={`text-[10px] font-normal mt-0.5 ${locked ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}>
-                    체크 시, 자동 배정 기능을 실행해도 이 미사의 배정 인원은 변경되지 않습니다.
+                    체크 시, 자동배정에서 제외됩니다.
                 </span>
             </Label>
             {locked && (
@@ -1169,7 +1189,13 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                   </Button>
                 </DialogClose>
                 {!readOnly && (
-                  <Button onClick={handleSave} disabled={loading}>
+                  <Button 
+                    onClick={handleSave} 
+                    disabled={loading || monthStatus === 'FINAL-CONFIRMED'}
+                    className={cn(
+                      monthStatus === 'FINAL-CONFIRMED' && "bg-gray-200 text-gray-400 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-500 opacity-100"
+                    )}
+                  >
                     {loading ? '저장 중...' : eventId ? '수정' : '저장'}
                   </Button>
                 )}

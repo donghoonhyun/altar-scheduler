@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { openConfirm } from '@/components/common/ConfirmDialog';
 import {
-  Drawer,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, Pencil } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Switch } from '@/components/ui/switch';
@@ -81,6 +81,10 @@ export default function ServerList() {
 
   // ✅ 정렬 상태: 'name' | 'grade'
   const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
+  
+  // ✅ 배정 로그 확장 상태
+  const [expandedMonth, setExpandedMonth] = useState<'last' | 'this' | 'next' | null>(null);
+  const [assignmentDetails, setAssignmentDetails] = useState<{eventId: string; title: string; date: string; rawDate: string}[]>([]);
 
   // ✅ 선택된 멤버 변경 시 상태 동기화
   useEffect(() => {
@@ -189,14 +193,14 @@ export default function ServerList() {
     const thisMonth = base.format('YYYY-MM');
     const nextMonth = base.add(1, 'month').format('YYYY-MM');
     
-    // 쿼리 범위: 지난달 1일 ~ 다음달 말일
-    const start = base.subtract(1, 'month').startOf('month').toDate();
-    const end = base.add(1, 'month').endOf('month').toDate();
+    // 쿼리 범위: 지난달 1일 ~ 다음달 말일 (YYYYMMDD 형식)
+    const startStr = base.subtract(1, 'month').startOf('month').format('YYYYMMDD');
+    const endStr = base.add(1, 'month').endOf('month').format('YYYYMMDD');
     
     const q = query(
       collection(db, 'server_groups', serverGroupId, 'mass_events'),
-      where('event_date', '>=', start.toISOString()), 
-      where('event_date', '<=', end.toISOString())
+      where('event_date', '>=', startStr), 
+      where('event_date', '<=', endStr)
     );
 
     try {
@@ -205,7 +209,8 @@ export default function ServerList() {
         
         snap.docs.forEach(doc => {
             const data = doc.data();
-            const date = dayjs(data.event_date);
+            // event_date는 YYYYMMDD 문자열이므로 dayjs로 파싱
+            const date = dayjs(data.event_date, 'YYYYMMDD');
             const members = data.member_ids || [];
             
             if (members.includes(memberId)) {
@@ -219,6 +224,54 @@ export default function ServerList() {
         console.error("Failed to fetch assignments", e);
     }
   };
+
+  // ✅ 배정 상세 정보 가져오기
+  const fetchAssignmentDetails = async (memberId: string, monthType: 'last' | 'this' | 'next') => {
+    if (!serverGroupId) return;
+    
+    const base = statsBaseDate;
+    let targetMonth: dayjs.Dayjs;
+    
+    if (monthType === 'last') targetMonth = base.subtract(1, 'month');
+    else if (monthType === 'this') targetMonth = base;
+    else targetMonth = base.add(1, 'month');
+    
+    const startStr = targetMonth.startOf('month').format('YYYYMMDD');
+    const endStr = targetMonth.endOf('month').format('YYYYMMDD');
+    
+    const q = query(
+      collection(db, 'server_groups', serverGroupId, 'mass_events'),
+      where('event_date', '>=', startStr),
+      where('event_date', '<=', endStr)
+    );
+    
+    try {
+      const snap = await getDocs(q);
+      const details: {eventId: string; title: string; date: string; rawDate: string}[] = [];
+      
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        const members = data.member_ids || [];
+        
+        if (members.includes(memberId)) {
+          const date = dayjs(data.event_date, 'YYYYMMDD');
+          details.push({
+            eventId: doc.id,
+            title: data.title || '미사',
+            date: date.format('M월 D일 (ddd)'),
+            rawDate: data.event_date
+          });
+        }
+      });
+      
+      // 날짜순 정렬 (YYYYMMDD 기준)
+      details.sort((a, b) => a.rawDate.localeCompare(b.rawDate));
+      setAssignmentDetails(details);
+    } catch(e) {
+      console.error("Failed to fetch assignment details", e);
+    }
+  };
+
 
 
   // ✅ 승인 처리
@@ -348,6 +401,12 @@ export default function ServerList() {
 
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
+    
+    // ✅ 배정 현황 상태 초기화
+    setExpandedMonth(null);
+    setAssignmentDetails([]);
+    setStatsBaseDate(dayjs());
+    
     if (selectedMember) {
       setEditActive(selectedMember.active);
       setEditGrade(selectedMember.grade || 'M1');
@@ -743,15 +802,14 @@ export default function ServerList() {
         </div>
       </Card>
 
-      {/* ✅ Member Detail Drawer */}
-      <Drawer open={isDrawerOpen} onOpenChange={(open) => {
+      {/* ✅ Member Detail Sheet */}
+      <Sheet open={isDrawerOpen} onOpenChange={(open) => {
         if (!open) handleCloseDrawer();
         else setIsDrawerOpen(true);
       }}>
-        <DrawerContent>
-          <div className="mx-auto w-full max-w-sm">
-            <DrawerHeader className="pb-2">
-              <DrawerTitle className="text-xl font-bold flex flex-col gap-2 dark:text-gray-100">
+        <SheetContent className="w-[310px] sm:w-[360px] sm:max-w-[360px] overflow-y-auto">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="text-xl font-bold flex flex-col gap-2 dark:text-gray-100">
 
                  {isEditingName ? (
                    <div className="flex items-center gap-3 w-full">
@@ -784,176 +842,239 @@ export default function ServerList() {
                      </button>
                    </div>
                  )}
-              </DrawerTitle>
-            </DrawerHeader>
-            <div className="p-4 space-y-6 pt-0">
-               {/* 1. 복사 배정 정보 */}
-               <div className="space-y-3">
+              </SheetTitle>
+            </SheetHeader>
+            <div className="space-y-6 pt-0">
+               {/* 1. 복사단원 상세 정보 */}
+               <div className="space-y-3 text-sm">
                  <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm mb-3">
-                   복사 배정 현황
+                    복사단원 상세 정보
                  </h4>
-                 <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
-                      {/* Left Arrow */}
-                      <button onClick={() => setStatsBaseDate(prev => prev.subtract(1, 'month'))} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400">
-                          <ChevronLeft size={16} />
+                 {/* 학년 정보 (Dropdown) */}
+                 <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
+                   <span className="font-medium text-gray-500 dark:text-gray-400">학년</span>
+                    <Select value={editGrade} onValueChange={setEditGrade} disabled={isSaving}>
+                       <SelectTrigger className="w-[80px] h-8 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent className="z-[9999] dark:bg-gray-800 dark:border-gray-700">
+                         {ALL_GRADES.map(g => (
+                           <SelectItem key={g} value={g} className="dark:text-gray-200 dark:focus:bg-gray-700">{g}</SelectItem>
+                         ))}
+                       </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">입단년도</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        onClick={() => {
+                          const current = parseInt(editStartYear) || new Date().getFullYear();
+                          setEditStartYear((current - 1).toString());
+                        }}
+                        disabled={isSaving}
+                      >
+                        <ChevronLeft size={14} />
                       </button>
-
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-3 gap-2 text-center flex-1">
-                          <div className="flex flex-col">
-                             <span className="text-xs font-bold text-gray-500 mb-1">{statsBaseDate.subtract(1, 'month').format('YY년 M월')}</span>
-                             <span className="font-bold text-lg dark:text-gray-200">{assignmentStats.lastMonth}회</span>
-                          </div>
-                          <div className="flex flex-col border-x border-gray-200 dark:border-gray-700">
-                             <span className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">{statsBaseDate.format('YY년 M월')}</span>
-                             <span className="font-bold text-lg text-blue-600 dark:text-blue-400">{assignmentStats.thisMonth}회</span>
-                          </div>
-                          <div className="flex flex-col">
-                             <span className="text-xs font-bold text-gray-500 mb-1">{statsBaseDate.add(1, 'month').format('YY년 M월')}</span>
-                             <span className="font-bold text-lg dark:text-gray-200">{assignmentStats.nextMonth}회</span>
-                          </div>
-                      </div>
-
-                      {/* Right Arrow */}
-                      <button onClick={() => setStatsBaseDate(prev => prev.add(1, 'month'))} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400">
-                          <ChevronRight size={16} />
+                      <input 
+                        type="text" 
+                        className="w-[50px] text-center border-b border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm dark:bg-transparent dark:text-white"
+                        value={editStartYear}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                          setEditStartYear(val);
+                        }}
+                        placeholder="YYYY"
+                        disabled={isSaving}
+                      />
+                      <button
+                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        onClick={() => {
+                          const current = parseInt(editStartYear) || new Date().getFullYear();
+                          setEditStartYear((current + 1).toString());
+                        }}
+                        disabled={isSaving}
+                      >
+                        <ChevronRight size={14} />
                       </button>
-                  </div>
+                    </div>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
+                   <span className="font-medium text-gray-500 dark:text-gray-400">상태</span>
+                   <div className="flex items-center gap-2">
+                      <Switch 
+                         checked={editActive} 
+                         onCheckedChange={setEditActive} 
+                      />
+                      <span className={editActive ? "text-green-600 font-bold dark:text-green-400" : "text-gray-600 dark:text-gray-400"}>
+                        {editActive ? '활동중' : '비활동'}
+                      </span>
+                   </div>
+                 </div>
                </div>
 
+               {/* 2. 신청자 정보 (Compact) */}
+               {(() => {
+                  const pUid = selectedMember?.parent_uid;
+                  const pInfo = pUid ? parentInfos[pUid] : null;
 
-              {/* 2. 복사단원 상세 정보 */}
-              <div className="space-y-3 text-sm">
-                <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm mb-3">
-                   복사단원 상세 정보
-                </h4>
-                {/* 학년 정보 삭제됨 (Title 옆으로 이동) */}
-                {/* 학년 정보 (Dropdown) */}
-                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
-                  <span className="font-medium text-gray-500 dark:text-gray-400">학년</span>
-                   <Select value={editGrade} onValueChange={setEditGrade} disabled={isSaving}>
-                      <SelectTrigger className="w-[80px] h-8 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="z-[9999] dark:bg-gray-800 dark:border-gray-700">
-                        {ALL_GRADES.map(g => (
-                          <SelectItem key={g} value={g} className="dark:text-gray-200 dark:focus:bg-gray-700">{g}</SelectItem>
-                        ))}
-                      </SelectContent>
-                   </Select>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
-                   <span className="font-medium text-gray-500 dark:text-gray-400">입단년도</span>
-                   <div className="flex items-center gap-1">
-                     <button
-                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                       onClick={() => {
-                         const current = parseInt(editStartYear) || new Date().getFullYear();
-                         setEditStartYear((current - 1).toString());
-                       }}
-                       disabled={isSaving}
-                     >
-                       <ChevronLeft size={14} />
-                     </button>
-                     <input 
-                       type="text" 
-                       className="w-[50px] text-center border-b border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm dark:bg-transparent dark:text-white"
-                       value={editStartYear}
-                       onChange={(e) => {
-                         const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                         setEditStartYear(val);
-                       }}
-                       placeholder="YYYY"
-                       disabled={isSaving}
-                     />
-                     <button
-                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                       onClick={() => {
-                         const current = parseInt(editStartYear) || new Date().getFullYear();
-                         setEditStartYear((current + 1).toString());
-                       }}
-                       disabled={isSaving}
-                     >
-                       <ChevronRight size={14} />
-                     </button>
-                   </div>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-800 pb-2">
-                  <span className="font-medium text-gray-500 dark:text-gray-400">상태</span>
-                  <div className="flex items-center gap-2">
-                     <Switch 
-                        checked={editActive} 
-                        onCheckedChange={setEditActive} 
-                     />
-                     <span className={editActive ? "text-green-600 font-bold dark:text-green-400" : "text-gray-600 dark:text-gray-400"}>
-                       {editActive ? '활동중' : '비활동'}
-                     </span>
+                  // Format created_at
+                  let createdAtStr = '-';
+                  if (selectedMember?.created_at?.toDate) {
+                     const d = selectedMember.created_at.toDate();
+                     const year = d.getFullYear();
+                     const month = String(d.getMonth() + 1).padStart(2, '0');
+                     const day = String(d.getDate()).padStart(2, '0');
+                     const hour = String(d.getHours()).padStart(2, '0');
+                     const min = String(d.getMinutes()).padStart(2, '0');
+                     createdAtStr = `${year}.${month}.${day} ${hour}:${min}`;
+                  }
+
+                  if (pInfo) {
+                    return (
+                       <div className="space-y-3 pt-2">
+                          <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm">
+                            신청자 정보
+                          </h4>
+                          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl text-sm space-y-1">
+                             <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm">
+                               <span className="font-bold text-gray-900 dark:text-gray-100">{pInfo.user_name}</span>
+                               {pInfo.baptismal_name && (
+                                 <span className="text-gray-600 dark:text-gray-400">({pInfo.baptismal_name})</span>
+                               )}
+                               
+                               <div className="flex items-center gap-2 text-gray-500 text-xs">
+                                 <span className="text-gray-300">|</span>
+                                 <span>{pInfo.email}</span>
+                                 {pInfo.phone && (
+                                    <>
+                                      <span className="text-gray-300">|</span>
+                                      <span>{pInfo.phone}</span>
+                                    </>
+                                 )}
+                               </div>
+                             </div>
+
+                             {/* 신청일시 */}
+                             <div className="text-[10px] text-gray-400">
+                               신청: {createdAtStr}
+                             </div>
+                          </div>
+                       </div>
+                    );
+                  }
+                  return null;
+               })()}
+
+               {/* 3. 복사 배정 현황 */}
+               <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm">
+                      복사 배정 현황
+                    </h4>
+                    <span className="text-[10px] text-gray-400">* 횟수 클릭 시 상세 내역</span>
                   </div>
+                  <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
+                       {/* Left Arrow */}
+                       <button onClick={() => {
+                         setStatsBaseDate(prev => prev.subtract(1, 'month'));
+                         setExpandedMonth(null);
+                       }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400">
+                           <ChevronLeft size={16} />
+                       </button>
+
+                       {/* Stats Grid */}
+                       <div className="grid grid-cols-3 gap-2 text-center flex-1">
+                           <button 
+                             onClick={() => {
+                               if (expandedMonth === 'last') {
+                                 setExpandedMonth(null);
+                               } else {
+                                 setExpandedMonth('last');
+                                 if (selectedMember) fetchAssignmentDetails(selectedMember.id, 'last');
+                               }
+                             }}
+                             className={cn(
+                               "flex flex-col hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors",
+                               expandedMonth === 'last' && "bg-gray-100 dark:bg-gray-700 ring-1 ring-blue-200 dark:ring-blue-800"
+                             )}
+                           >
+                              <span className="text-xs font-bold text-gray-500 mb-1">{statsBaseDate.subtract(1, 'month').format('YY년 M월')}</span>
+                              <span className="font-bold text-lg dark:text-gray-200">{assignmentStats.lastMonth}회</span>
+                           </button>
+                           <button 
+                             onClick={() => {
+                               if (expandedMonth === 'this') {
+                                 setExpandedMonth(null);
+                               } else {
+                                 setExpandedMonth('this');
+                                 if (selectedMember) fetchAssignmentDetails(selectedMember.id, 'this');
+                               }
+                             }}
+                             className={cn(
+                               "flex flex-col border-x border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors",
+                               expandedMonth === 'this' && "bg-gray-100 dark:bg-gray-700 ring-1 ring-blue-200 dark:ring-blue-800"
+                             )}
+                           >
+                              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">{statsBaseDate.format('YY년 M월')}</span>
+                              <span className="font-bold text-lg text-blue-600 dark:text-blue-400">{assignmentStats.thisMonth}회</span>
+                           </button>
+                           <button 
+                             onClick={() => {
+                               if (expandedMonth === 'next') {
+                                 setExpandedMonth(null);
+                               } else {
+                                 setExpandedMonth('next');
+                                 if (selectedMember) fetchAssignmentDetails(selectedMember.id, 'next');
+                               }
+                             }}
+                             className={cn(
+                               "flex flex-col hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors",
+                               expandedMonth === 'next' && "bg-gray-100 dark:bg-gray-700 ring-1 ring-blue-200 dark:ring-blue-800"
+                             )}
+                           >
+                              <span className="text-xs font-bold text-gray-500 mb-1">{statsBaseDate.add(1, 'month').format('YY년 M월')}</span>
+                              <span className="font-bold text-lg dark:text-gray-200">{assignmentStats.nextMonth}회</span>
+                           </button>
+                       </div>
+
+                       {/* Right Arrow */}
+                       <button onClick={() => {
+                         setStatsBaseDate(prev => prev.add(1, 'month'));
+                         setExpandedMonth(null);
+                       }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-400">
+                           <ChevronRight size={16} />
+                       </button>
+                   </div>
+                   
+                   {/* Assignment Details */}
+                   {expandedMonth && (
+                     <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 rounded-lg p-3 space-y-1 animate-in slide-in-from-top-2 fade-in mt-2">
+                       {assignmentDetails.length === 0 ? (
+                            <p className="text-xs text-gray-400 text-center py-2">배정 내역이 없습니다.</p>
+                       ) : (
+                           assignmentDetails.map((detail, idx) => (
+                             <div key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2 py-1">
+                               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                               <span className="font-medium min-w-[70px]">{detail.date}</span>
+                               <span className="text-gray-300">|</span>
+                               <span className="truncate">{detail.title}</span>
+                             </div>
+                           ))
+                       )}
+                     </div>
+                   )}
                 </div>
-              </div>
-
-              {/* 3. 신청자 정보 (Compact) */}
-              {(() => {
-                 const pUid = selectedMember?.parent_uid;
-                 const pInfo = pUid ? parentInfos[pUid] : null;
-
-                 // Format created_at
-                 let createdAtStr = '-';
-                 if (selectedMember?.created_at?.toDate) {
-                    const d = selectedMember.created_at.toDate();
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const hour = String(d.getHours()).padStart(2, '0');
-                    const min = String(d.getMinutes()).padStart(2, '0');
-                    createdAtStr = `${year}.${month}.${day} ${hour}:${min}`;
-                 }
-
-                 if (pInfo) {
-                   return (
-                      <div className="space-y-3 pt-2">
-                         <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm">
-                           신청자 정보
-                         </h4>
-                         <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl text-sm space-y-1">
-                            <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm">
-                              <span className="font-bold text-gray-900 dark:text-gray-100">{pInfo.user_name}</span>
-                              {pInfo.baptismal_name && (
-                                <span className="text-gray-600 dark:text-gray-400">({pInfo.baptismal_name})</span>
-                              )}
-                              
-                              <div className="flex items-center gap-2 text-gray-500 text-xs">
-                                <span className="text-gray-300">|</span>
-                                <span>{pInfo.email}</span>
-                                {pInfo.phone && (
-                                   <>
-                                     <span className="text-gray-300">|</span>
-                                     <span>{pInfo.phone}</span>
-                                   </>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* 신청일시 */}
-                            <div className="text-[10px] text-gray-400">
-                              신청: {createdAtStr}
-                            </div>
-                         </div>
-                      </div>
-                   );
-                 }
-                 return null;
-              })()}
             </div>
-            <DrawerFooter className="flex-row gap-2">
+            <SheetFooter className="flex-row gap-2 mt-6">
               <Button variant="secondary" className="flex-1" onClick={handleCloseDrawer}>닫기</Button>
               <Button className="flex-1" onClick={handleSaveStatus} disabled={isSaving || !hasChanges}>
                 {isSaving ? '저장 중...' : '저장'}
               </Button>
-            </DrawerFooter>
-          </div>
-        </DrawerContent>
-      </Drawer>
+            </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* ✅ Add Server Drawer */}
       <AddServerDrawer 
