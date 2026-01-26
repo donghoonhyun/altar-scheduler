@@ -171,8 +171,8 @@ export default function MassCalendar({
                     "border-amber-500 ring-2 ring-amber-200 dark:border-amber-400"
                 )}
               >
-                {/* 🔒 Lock Icon (Only if locked AND not Final Confirmed) */}
-                {ev.anti_autoassign_locked && monthStatus !== 'FINAL-CONFIRMED' && (
+                {/* 🔒 Lock Icon (Always visible if locked) */}
+                {ev.anti_autoassign_locked && (
                     <div className="absolute -top-1 -right-1 z-20 bg-red-500 text-white rounded-full p-1 shadow-md ring-2 ring-white dark:ring-slate-800">
                         <Lock size={10} strokeWidth={3} />
                     </div>

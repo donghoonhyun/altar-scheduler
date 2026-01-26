@@ -11,10 +11,11 @@ import { MassEventCalendar } from '@/types/massEvent';
 interface FinalConfirmDrawerProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void>;
+  onConfirm?: () => Promise<void>;
   serverGroupId: string;
   currentMonth: Dayjs;
   events: MassEventCalendar[];
+  isReadOnly?: boolean;
 }
 
 interface AssignedDate {
@@ -50,6 +51,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
   serverGroupId,
   currentMonth,
   events,
+  isReadOnly = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState<'currCount' | 'prevCount' | 'name'>('currCount');
@@ -246,6 +248,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
   };
 
   const handleConfirm = async () => {
+    if (!onConfirm) return; // Guard clause
     if (!window.confirm('정말로 최종 확정하시겠습니까?\n확정 후에는 단원들에게 알림이 발송됩니다.')) {
         return;
     }
@@ -406,17 +409,19 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
             {/* Action Buttons */}
             <div className="p-4 flex items-center justify-end gap-2">
                 <Button variant="outline" onClick={onClose} disabled={loading} className="dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-800">
-                    취소
+                    {isReadOnly ? '닫기' : '취소'}
                 </Button>
-                <Button
-                    variant="destructive"
-                    onClick={handleConfirm}
-                    disabled={loading || dataLoading}
-                    className="flex items-center gap-2 px-6"
-                >
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {loading ? '확정 중...' : '최종 확정'}
-                </Button>
+                {!isReadOnly && (
+                    <Button
+                        variant="destructive"
+                        onClick={handleConfirm}
+                        disabled={loading || dataLoading}
+                        className="flex items-center gap-2 px-6"
+                    >
+                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {loading ? '확정 중...' : '최종 확정'}
+                    </Button>
+                )}
             </div>
             
             {/* Notification History Log */}

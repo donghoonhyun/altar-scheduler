@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getFirestore, doc, getDoc, collection, query, getDocs, Timestamp, where } from 'firebase/firestore';
 import { Container } from '@/components/ui';
@@ -8,8 +8,9 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MassStatus } from '@/types/firestore';
-import { ArrowLeft, Loader2, Download, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Download, Trash2, User } from 'lucide-react';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 
@@ -59,6 +60,7 @@ export default function SurveyCalendar() {
   const [viewMode, setViewMode] = useState<'available' | 'unavailable'>('available');
   const [displayMode, setDisplayMode] = useState<'count' | 'name'>('available' === 'available' ? 'count' : 'count'); 
   const [showDeleted, setShowDeleted] = useState(false); 
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('all'); 
 
   // Toggle defaults:
   // "가능보기" (default)
@@ -184,6 +186,13 @@ export default function SurveyCalendar() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Sorted Members for Dropdown
+  const sortedMembers = useMemo(() => {
+      return Object.values(memberMap)
+          .filter(m => m.active !== false)
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [memberMap]);
 
   const handleDownloadExcel = () => {
     if (!survey || events.length === 0) return;
@@ -323,6 +332,26 @@ export default function SurveyCalendar() {
                            삭제된 미사 포함
                        </Label>
                   </div>
+
+                  {/* Member ID Filtering */}
+                  <div className="flex items-center gap-2 border-l pl-4 dark:border-slate-700">
+                      <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                         <SelectTrigger className="w-[140px] h-8 text-xs bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600">
+                             <div className="flex items-center gap-1 truncate">
+                                 <User size={12} className="text-gray-500" />
+                                 <SelectValue placeholder="복사 선택" />
+                             </div>
+                         </SelectTrigger>
+                         <SelectContent className="bg-white dark:bg-slate-800">
+                             <SelectItem value="all" className="text-xs">전체 복사</SelectItem>
+                             {sortedMembers.map(m => (
+                                 <SelectItem key={m.id} value={m.id} className="text-xs">
+                                     {m.name} {m.baptismal_name && `(${m.baptismal_name})`}
+                                 </SelectItem>
+                             ))}
+                         </SelectContent>
+                      </Select>
+                  </div>
               </div>
 
               <div className="flex items-center gap-2 mt-2 sm:mt-0">
@@ -445,9 +474,22 @@ export default function SurveyCalendar() {
 
                                                             const rawTargetUids = viewMode === 'available' ? availableUids : unavailableUids;
                                                             // Filter Active
-                                                            const targetUids = rawTargetUids.filter(uid => memberMap[uid]?.active === true);
+                                                            let targetUids = rawTargetUids.filter(uid => memberMap[uid]?.active === true);
                                                             
+                                                            // 🟢 Member Filtering Logic
+                                                            let isVisible = true;
+                                                            if (selectedMemberId !== 'all') {
+                                                                isVisible = targetUids.includes(selectedMemberId);
+                                                                
+                                                                if (isVisible) {
+                                                                    // Show only that member's presence in the list
+                                                                    targetUids = [selectedMemberId];
+                                                                }
+                                                            }
+
                                                             const count = targetUids.length;
+
+                                                            if (selectedMemberId !== 'all' && !isVisible) return null;
 
                                                             const isEventSelected = selectedEvent?.id === ev.id;
                                                             

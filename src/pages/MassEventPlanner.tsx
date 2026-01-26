@@ -282,10 +282,11 @@ const MassEventPlanner: React.FC = () => {
       <FinalConfirmDrawer
         open={finalConfirmDrawerOpen}
         onClose={() => setFinalConfirmDrawerOpen(false)}
-        onConfirm={handleFinalConfirm}
+        onConfirm={monthStatus === 'FINAL-CONFIRMED' ? undefined : handleFinalConfirm}
         serverGroupId={serverGroupId!}
         currentMonth={currentMonth}
         events={events}
+        isReadOnly={monthStatus === 'FINAL-CONFIRMED'}
       />
 
       {monthStatusDrawerOpen && (

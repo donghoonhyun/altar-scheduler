@@ -117,14 +117,16 @@ export const MassEventToolbar: React.FC<MassEventToolbarProps> = ({
         variant="outline"
         size="sm"
         className={cn(
-          'h-7 text-[12px] px-2 py-1 border border-red-500 text-red-700 dark:text-red-400 dark:border-red-600',
-          'hover:bg-red-50 hover:border-red-600 hover:text-red-800 dark:hover:bg-red-900/30 dark:hover:text-red-300',
+          'h-7 text-[12px] px-2 py-1 border',
+          monthStatus === 'FINAL-CONFIRMED' 
+            ? 'border-gray-400 text-gray-700 hover:bg-gray-50 hover:border-gray-500 hover:text-gray-900 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800'
+            : 'border-red-500 text-red-700 dark:text-red-400 dark:border-red-600 hover:bg-red-50 hover:border-red-600 hover:text-red-800 dark:hover:bg-red-900/30 dark:hover:text-red-300',
           'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-800/40 dark:disabled:text-gray-500 dark:disabled:border-gray-600'
         )}
-        disabled={monthStatus !== 'SURVEY-CONFIRMED'}
+        disabled={monthStatus !== 'SURVEY-CONFIRMED' && monthStatus !== 'FINAL-CONFIRMED'}
         onClick={onFinalConfirm}
       >
-        <Check className="w-3.5 h-3.5 mr-1" /> 최종확정
+        <Check className="w-3.5 h-3.5 mr-1" /> {monthStatus === 'FINAL-CONFIRMED' ? '최종확정보기' : '최종확정'}
       </Button>
 
       </div>

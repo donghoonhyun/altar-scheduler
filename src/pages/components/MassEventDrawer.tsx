@@ -34,9 +34,10 @@ import {
 import type { MemberDoc } from '@/types/firestore';
 // Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
-import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Pencil } from 'lucide-react';
+import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Pencil, Copy, Database } from 'lucide-react';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import { useSession } from '@/state/session';
 
 interface MassEventDrawerProps {
   eventId?: string;
@@ -68,6 +69,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   readOnly = false,
 }) => {
   const db = getFirestore();
+  const { isSuperAdmin } = useSession();
 
   const [title, setTitle] = useState('');
   const [requiredServers, setRequiredServers] = useState<number | null>(2);
@@ -88,6 +90,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [filterUnassigned, setFilterUnassigned] = useState(false); // ✅ [New] 미배정 필터 (구 당월참여제외 대체)
   const [sortBy, setSortBy] = useState<'name' | 'count' | 'curr_count' | 'grade'>('curr_count');
   const [showAllLogs, setShowAllLogs] = useState(false);
+  const [showDebugId, setShowDebugId] = useState(false); // 🐛 Debug ID Dialog State
   
   // ✅ 전월 배정 횟수 상태
   const [prevMonthCounts, setPrevMonthCounts] = useState<Record<string, number>>({});
@@ -690,6 +693,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   });
 
   return (
+    <>
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md h-full fixed right-0 top-0 p-0 flex flex-col bg-white dark:bg-slate-800 shadow-2xl overflow-hidden fade-in">
         {/* ✅ Fixed Header */}
@@ -700,6 +704,19 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
               <span className="ml-2 text-base font-bold text-blue-600 dark:text-blue-400">
                 ({dayjs(date).format('M월 D일 (ddd)')})
               </span>
+            )}
+            {/* Superadmin Debug Icon */}
+            {isSuperAdmin && eventId && (
+               <span 
+                 onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDebugId(true);
+                 }}
+                 className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-gray-400 border border-gray-300 rounded cursor-pointer hover:text-blue-600 hover:border-blue-600 opacity-30 hover:opacity-100 transition-all select-none bg-transparent"
+                 title="Doc ID 보기"
+               >
+                 S
+               </span>
             )}
           </DialogTitle>
           <DialogDescription>
@@ -1299,8 +1316,15 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
           {/* 하단 버튼 */}
           {/* 하단 버튼 */}
+          {monthStatus === 'FINAL-CONFIRMED' && !readOnly && (
+              <div className="mt-6 mb-2 p-1.5 bg-red-100 border-l-4 border-red-500 text-red-700 font-bold flex items-center justify-center gap-1.5 rounded shadow-sm dark:bg-red-900/30 dark:text-red-400 dark:border-red-600">
+                  <span className="animate-pulse">⚠️</span>
+                  <span className="text-xs">최종확정 상태입니다. 주의하여 수정하세요.</span>
+              </div>
+          )}
+
           {/* 하단 버튼 */}
-          <div className="flex justify-between items-center mt-6">
+          <div className="flex justify-between items-center mt-4">
             {/* 좌측: 삭제 버튼 */}
             <div>
                 {!readOnly && eventId && (
@@ -1327,10 +1351,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                 {!readOnly && (
                   <Button 
                     onClick={handleSave} 
-                    disabled={loading || monthStatus === 'FINAL-CONFIRMED'}
-                    className={cn(
-                      monthStatus === 'FINAL-CONFIRMED' && "bg-gray-200 text-gray-400 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-500 opacity-100"
-                    )}
+                    disabled={loading}
                   >
                     {loading ? '저장 중...' : eventId ? '수정' : '저장'}
                   </Button>
@@ -1341,6 +1362,82 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* 🐛 Debug ID Dialog */}
+    <Dialog open={showDebugId} onOpenChange={setShowDebugId}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border-none shadow-2xl">
+            <div className="flex flex-col gap-6">
+                {/* Header */}
+                <div className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl shrink-0">
+                        <Database className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="space-y-1">
+                        <DialogTitle className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                            관리자 데이터 뷰어
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-gray-500 dark:text-gray-400">
+                             현재 미사 일정의 시스템 내부 데이터입니다.<br/>
+                             개발자 및 관리자 전용 정보입니다.
+                        </DialogDescription>
+                    </div>
+                </div>
+
+                {/* Body Content */}
+                <div className="space-y-4">
+                    {/* Section: Standard Info */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                             <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Basic Information</span>
+                             <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                        </div>
+
+                        {/* Field: Document ID */}
+                        <div className="group relative bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 transition-all hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm">
+                            <Label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">
+                                Document ID (DocId)
+                            </Label>
+                            <div className="flex items-center justify-between gap-2">
+                                <code className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200 break-all">
+                                    {eventId || 'N/A'}
+                                </code>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 hover:bg-white dark:hover:bg-slate-700 rounded-lg shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-600 opacity-0 group-hover:opacity-100 transition-all"
+                                    onClick={() => {
+                                        if (eventId) {
+                                            navigator.clipboard.writeText(eventId);
+                                            toast.success('문서 ID가 복사되었습니다.');
+                                        }
+                                    }}
+                                    title="ID 복사"
+                                >
+                                    <Copy size={14} className="text-slate-500" />
+                                </Button>
+                            </div>
+                        </div>
+
+                         {/* Placeholder for Future Fields */}
+                         {/* <div className="...">...</div> */}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end pt-2">
+                    <Button 
+                        variant="secondary" 
+                        onClick={() => setShowDebugId(false)}
+                        className="px-6 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                        닫기
+                    </Button>
+                </div>
+            </div>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 };
 
