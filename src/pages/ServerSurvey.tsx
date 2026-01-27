@@ -413,6 +413,28 @@ export default function ServerSurvey() {
             </div>
         )}
 
+        {/* Orphaned Events Warning */}
+        {(() => {
+            const currentEventIds = new Set(events.map(e => e.id));
+            const orphaned = unavailableIds.filter(id => !currentEventIds.has(id)).length;
+            
+            if (orphaned > 0 && !surveyClosed) {
+                return (
+                    <div className="mb-4 p-3 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-sm rounded border border-amber-200 dark:border-amber-800 flex items-start gap-2">
+                        <span className="text-lg">📢</span>
+                        <div>
+                            <strong>일정 변경 알림</strong>
+                            <p>
+                                기존에 '불가능'으로 체크했던 항목 중 <strong>{orphaned}건</strong>의 일정이 삭제되거나 변경(재생성)되었습니다.<br/>
+                                <span className="underline decoration-wavy">혹시 다시 생성된 미사가 없는지</span> 달력을 꼼꼼히 확인해주세요.
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
+        })()}
+
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border dark:border-slate-800 p-4">
             {/* 요일 헤더 */}
             <div className="grid grid-cols-7 mb-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">

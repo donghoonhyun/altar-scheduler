@@ -30,7 +30,7 @@ export default function Support() {
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="dark:text-gray-200">
                 <ArrowLeft size={24} />
             </Button>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">고객지원 & 도움말</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">사용자 지원 & 도움말</h1>
         </div>
 
         <div className="space-y-6">

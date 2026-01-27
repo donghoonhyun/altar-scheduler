@@ -66,8 +66,14 @@ const Login: React.FC = () => {
 
          if (userDoc.exists()) {
            console.log('Google 로그인 성공 (기존 회원):', user);
-           // Provider 정보 업데이트
-           await setDoc(doc(db, 'users', user.uid), { provider: providerId }, { merge: true });
+           
+           // Provider 정보 및 이름(없을 경우) 업데이트
+           const updates: any = { provider: providerId };
+           if (!userDoc.data().user_name && user.displayName) {
+               updates.user_name = user.displayName;
+           }
+           
+           await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
            
            navigate('/', { replace: true });
          } else {

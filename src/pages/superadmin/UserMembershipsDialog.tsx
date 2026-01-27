@@ -125,7 +125,17 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
             <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             {userName}님의 멤버십 정보
           </DialogTitle>
-          <DialogDescription className="text-gray-500 dark:text-gray-400">
+          <div 
+            className="text-xs text-gray-400 font-mono mt-1 cursor-pointer hover:text-blue-500 transition-colors flex items-center gap-1"
+            onClick={() => {
+                navigator.clipboard.writeText(uid);
+                toast.success('UID가 복사되었습니다.');
+            }}
+            title="클릭하여 UID 복사"
+          >
+            UID: {uid}
+          </div>
+          <DialogDescription className="text-gray-500 dark:text-gray-400 mt-1">
              사용자가 소속된 복사단 및 역할 정보입니다.
           </DialogDescription>
         </DialogHeader>

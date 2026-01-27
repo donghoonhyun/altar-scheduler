@@ -309,12 +309,26 @@ export default function ServerList() {
     if (!ok) return;
 
     try {
+      const batch = writeBatch(db);
+
+      // (1) server_groups/.../members 업데이트
       const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
-      await updateDoc(memberRef, { 
+      batch.update(memberRef, { 
         active: true, 
         request_confirmed: true, // 승인 확정
         updated_at: new Date() 
       });
+
+      // (2) memberships 컬렉션 업데이트 (active: true)
+      const membershipRef = doc(db, 'memberships', `${uid}_${serverGroupId}`);
+      // memberships 문서가 반드시 존재한다고 가정 (AddMember에서 생성됨)
+      batch.update(membershipRef, {
+        active: true,
+        updated_at: new Date()
+      });
+
+      await batch.commit();
+
       toast.success('✅ 회원이 승인되었습니다.');
     } catch (err) {
       console.error(err);

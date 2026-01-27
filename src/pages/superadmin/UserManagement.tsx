@@ -14,15 +14,17 @@ import {
   where,
   QueryDocumentSnapshot,
   DocumentData,
-  serverTimestamp
+  serverTimestamp,
+  documentId
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
 import { Container, Heading, Button, Input, UserRoleIcon } from '@/components/ui';
-import { ArrowLeft, Search, Edit2, Trash2, Check, X, ChevronDown, Heart, Shield, Download, Mail } from 'lucide-react';
+import { ArrowLeft, Search, Edit2, Trash2, Check, X, ChevronDown, Heart, Shield, Download, Mail, UserCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import UserSupportDrawer from './UserSupportDrawer';
+import UserServerInfoDialog from './UserServerInfoDialog';
 import UserMembershipsDialog from './UserMembershipsDialog';
 
 interface UserData {
@@ -54,6 +56,7 @@ export default function UserManagement() {
   const [editForm, setEditForm] = useState<Partial<UserData>>({});
   const [supportTarget, setSupportTarget] = useState<UserData | null>(null);
   const [membershipTarget, setMembershipTarget] = useState<UserData | null>(null);
+  const [serverInfoTarget, setServerInfoTarget] = useState<UserData | null>(null);
 
   const PAGE_SIZE = 20;
 
@@ -68,13 +71,39 @@ export default function UserManagement() {
       let q;
 
       if (search) {
-        q = query(
+        // 이름 검색과 이메일 검색을 병렬로 실행
+        const qName = query(
           collection(db, 'users'),
           where('user_name', '>=', search),
           where('user_name', '<=', search + '\uf8ff'),
           limit(PAGE_SIZE)
         );
+        const qEmail = query(
+          collection(db, 'users'),
+          where('email', '>=', search),
+          where('email', '<=', search + '\uf8ff'),
+          limit(PAGE_SIZE)
+        );
+        const qUid = query(
+          collection(db, 'users'),
+          where(documentId(), '>=', search),
+          where(documentId(), '<=', search + '\uf8ff'),
+          limit(PAGE_SIZE)
+        );
+
+        const [snapName, snapEmail, snapUid] = await Promise.all([getDocs(qName), getDocs(qEmail), getDocs(qUid)]);
+        
+        // 중복 제거하며 병합
+        const mergedMap = new Map();
+        snapName.docs.forEach(d => mergedMap.set(d.id, { uid: d.id, ...d.data() }));
+        snapEmail.docs.forEach(d => mergedMap.set(d.id, { uid: d.id, ...d.data() }));
+        snapUid.docs.forEach(d => mergedMap.set(d.id, { uid: d.id, ...d.data() }));
+        
+        const list = Array.from(mergedMap.values()) as UserData[];
+        setUsers(list);
+        setHasMore(false); // 검색 모드에서는 더보기 비활성화 (간소화)
       } else {
+        let q;
         if (isInitial || !lastDoc) {
           q = query(
             collection(db, 'users'),
@@ -89,22 +118,18 @@ export default function UserManagement() {
             limit(PAGE_SIZE)
           );
         }
-      }
+        
+        const snap = await getDocs(q);
+        const list = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserData));
 
-      const snap = await getDocs(q);
-      const list = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserData));
-
-      if (isInitial || search) {
-        setUsers(list);
-      } else {
-        setUsers(prev => [...prev, ...list]);
-      }
-
-      if (!search) {
+        if (isInitial) {
+            setUsers(list);
+        } else {
+            setUsers(prev => [...prev, ...list]);
+        }
+        
         setLastDoc(snap.docs[snap.docs.length - 1] || null);
         setHasMore(snap.docs.length === PAGE_SIZE);
-      } else {
-        setHasMore(false); 
       }
     } catch (e) {
       console.error(e);
@@ -117,30 +142,55 @@ export default function UserManagement() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setLastDoc(null);
-    fetchUsers(true, searchTerm);
+    fetchUsers(true, searchTerm.trim());
   };
 
   const handleExcelDownload = async () => {
     try {
       toast.info('엑셀 다운로드를 준비 중입니다...');
       let q;
+      const term = searchTerm.trim();
       
+      let snapDocs: any[] = [];
+
       // 검색 조건이 있으면 해당 조건으로 전체 조회, 없으면 전체 조회 (limit 없음)
-      if (searchTerm) {
-        q = query(
+      if (term) {
+        const qName = query(
           collection(db, 'users'),
-          where('user_name', '>=', searchTerm),
-          where('user_name', '<=', searchTerm + '\uf8ff')
+          where('user_name', '>=', term),
+          where('user_name', '<=', term + '\uf8ff')
         );
+        const qEmail = query(
+          collection(db, 'users'),
+          where('email', '>=', term),
+          where('email', '<=', term + '\uf8ff')
+        );
+        const qUid = query(
+          collection(db, 'users'),
+          where(documentId(), '>=', term),
+          where(documentId(), '<=', term + '\uf8ff')
+        );
+        
+        const [snapName, snapEmail, snapUid] = await Promise.all([getDocs(qName), getDocs(qEmail), getDocs(qUid)]);
+        
+        // 중복 제거 로직 필요
+        const mergedDocs = new Map();
+        snapName.docs.forEach(d => mergedDocs.set(d.id, d));
+        snapEmail.docs.forEach(d => mergedDocs.set(d.id, d));
+        snapUid.docs.forEach(d => mergedDocs.set(d.id, d));
+        
+        // Map values iterator to array
+        snapDocs = Array.from(mergedDocs.values()); 
       } else {
-        q = query(
+        const q = query(
           collection(db, 'users'),
           orderBy('updated_at', 'desc')
         );
+        const snap = await getDocs(q);
+        snapDocs = snap.docs;
       }
 
-      const snap = await getDocs(q);
-      const allUsers = snap.docs.map(doc => {
+      const allUsers = snapDocs.map((doc: any) => {
         const data = doc.data() as UserData;
         return {
           'UID': doc.id,
@@ -232,13 +282,34 @@ export default function UserManagement() {
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Toolbar */}
         <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between gap-4 bg-gray-50/50 dark:bg-slate-800/50">
-            <form onSubmit={handleSearch} className="flex gap-2 w-full sm:w-auto">
-                <Input 
-                    placeholder="이름으로 검색..." 
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="h-9 min-w-[200px] dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                />
+            <form onSubmit={handleSearch} className="flex gap-2 w-full sm:w-auto items-center">
+                <div className="relative w-full sm:w-auto">
+                    <Input 
+                        placeholder="이름, 이메일, UID 검색..." 
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                handleSearch(e);
+                            }
+                        }}
+                        enterKeyHint="search"
+                        className="h-9 min-w-[200px] sm:w-[260px] dark:bg-slate-800 dark:border-slate-700 dark:text-white pr-8"
+                    />
+                    {searchTerm && (
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                setSearchTerm('');
+                                setLastDoc(null);
+                                fetchUsers(true, '');
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                            <XCircle size={15} />
+                        </button>
+                    )}
+                </div>
                 <Button type="submit" size="sm" variant="outline" className="h-9 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-700">
                     <Search size={16} />
                 </Button>
@@ -260,10 +331,18 @@ export default function UserManagement() {
             <table className="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
                 <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">이름 / 세례명</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">이메일 / 전화번호</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">구분</th>
-                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">관리</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[35%]">
+                            사용자 정보 (이름/세례명)
+                        </th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[20%]">
+                            연락처 (이메일/전화번호)
+                        </th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[10%]">
+                            구분
+                        </th>
+                        <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[35%]">
+                            관리
+                        </th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -336,29 +415,48 @@ export default function UserManagement() {
                                 </>
                             ) : (
                                 <>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
-                                                <UserRoleIcon category={user.user_category} />
-                                                {user.user_name}
-                                            </div>
+                                    <td className="px-3 py-2 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <UserRoleIcon category={user.user_category} />
+                                            <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                                                {user.user_name || user.email?.split('@')[0] || <span className="text-gray-400 italic font-normal text-xs">(이름 없음)</span>}
+                                            </span>
+                                            
+                                            {user.baptismal_name && (
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {user.baptismal_name}
+                                                </span>
+                                            )}
+
+                                            <span 
+                                                className="text-[10px] text-gray-400 font-mono bg-gray-100 dark:bg-slate-800 px-1 py-0.5 rounded border border-gray-200 dark:border-slate-700 select-all cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors ml-1" 
+                                                title="클릭하여 UID 복사"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(user.uid);
+                                                    toast.success('UID가 복사되었습니다.');
+                                                }}
+                                            >
+                                                {user.uid.slice(0, 5)}
+                                            </span>
+
                                             {user.provider && (
                                                 <div 
-                                                    className="w-5 h-5 bg-white dark:bg-slate-700 rounded-full border border-gray-100 dark:border-slate-600 shadow-sm flex items-center justify-center p-0.5" 
+                                                    className="w-4 h-4 bg-white dark:bg-slate-700 rounded-full border border-gray-100 dark:border-slate-600 shadow-sm flex items-center justify-center p-0.5" 
                                                     title={user.provider === 'google.com' ? 'Google로 로그인' : user.provider === 'password' ? 'ID/Password로 로그인' : ''}
                                                 >
                                                     {user.provider === 'google.com' ? (
-                                                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google" className="w-3 h-3" />
+                                                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google" className="w-full h-full" />
                                                     ) : (
-                                                        <Mail size={10} className="text-gray-400 dark:text-gray-300" />
+                                                        <Mail size={8} className="text-gray-400 dark:text-gray-300" />
                                                     )}
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">{user.baptismal_name}</div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm text-gray-900 dark:text-gray-200">{user.email}</div>
+                                    <td className="px-3 py-2 whitespace-nowrap">
+                                        <div className="text-xs text-gray-900 dark:text-gray-200">
+                                            {user.email || <span className="text-gray-400 text-xs italic">(이메일 정보 없음)</span>}
+                                        </div>
                                         <div className="text-xs text-gray-500 dark:text-gray-400">{user.phone}</div>
                                         {user.updated_at && (
                                             <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
@@ -366,7 +464,7 @@ export default function UserManagement() {
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                         <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${
                                             user.user_category === 'Father' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-900/50' :
                                             user.user_category === 'Sister' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/50' :
@@ -376,32 +474,42 @@ export default function UserManagement() {
                                              user.user_category === 'Sister' ? '수녀님' : '평신도'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
+                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                        <div className="flex items-center justify-end gap-1">
                                             <Button 
-                                                size="sm"
-                                                variant="edit"
+                                                size="icon"
+                                                variant="outline"
                                                 onClick={() => startEdit(user)}
-                                                className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                className="h-8 w-8 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                title="수정"
                                             >
-                                                수정
+                                                <Edit2 size={18} />
                                             </Button>
                                             <Button 
                                                 size="sm"
-                                                className="bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200 ml-2 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-900/50 dark:hover:bg-purple-900/30"
+                                                className="h-8 bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200 ml-1 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-900/50 dark:hover:bg-purple-900/30 text-xs px-2"
                                                 variant="outline"
                                                 onClick={() => setMembershipTarget(user)}
                                             >
-                                                <Shield size={14} className="mr-1" />
+                                                <Shield size={12} className="mr-1" />
                                                 멤버십
                                             </Button>
                                             <Button 
                                                 size="sm"
-                                                className="bg-pink-50 text-pink-600 hover:bg-pink-100 border-pink-200 ml-2 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-900/50 dark:hover:bg-pink-900/30"
+                                                className="h-8 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-200 ml-1 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-900/50 dark:hover:bg-indigo-900/30 text-xs px-2"
+                                                variant="outline"
+                                                onClick={() => setServerInfoTarget(user)}
+                                            >
+                                                <UserCircle size={12} className="mr-1" />
+                                                복사
+                                            </Button>
+                                            <Button 
+                                                size="sm"
+                                                className="h-8 bg-pink-50 text-pink-600 hover:bg-pink-100 border-pink-200 ml-1 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-900/50 dark:hover:bg-pink-900/30 text-xs px-2"
                                                 variant="outline"
                                                 onClick={() => setSupportTarget(user)}
                                             >
-                                                <Heart size={14} className="mr-1" />
+                                                <Heart size={12} className="mr-1" />
                                                 지원
                                             </Button>
                                         </div>
@@ -482,13 +590,30 @@ export default function UserManagement() {
                         <div>
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                                    <div className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5 wrap">
                                         <UserRoleIcon category={user.user_category} />
-                                        {user.user_name}
-                                    </span>
-                                    {user.baptismal_name && (
-                                        <span className="text-sm text-gray-600 dark:text-gray-400">({user.baptismal_name})</span>
-                                    )}
+                                        <span>
+                                            {user.user_name || user.email?.split('@')[0] || <span className="text-gray-400 italic font-normal text-xs">(이름 없음)</span>}
+                                        </span>
+                                        
+                                        {user.baptismal_name && (
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 font-normal">
+                                                ({user.baptismal_name})
+                                            </span>
+                                        )}
+
+                                        <span 
+                                            className="text-[10px] text-gray-400 font-mono bg-gray-100 dark:bg-slate-800 px-1 py-0.5 rounded border border-gray-200 dark:border-slate-700 select-all cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors ml-1" 
+                                            title="클릭하여 UID 복사"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(user.uid);
+                                                toast.success('UID가 복사되었습니다.');
+                                            }}
+                                        >
+                                            {user.uid.slice(0, 6)}
+                                        </span>
+                                    </div>
+                                    
                                     {user.provider && (
                                         <div 
                                             className="w-5 h-5 bg-white dark:bg-slate-700 rounded-full border border-gray-100 dark:border-slate-600 shadow-sm flex items-center justify-center p-0.5 ml-1" 
@@ -512,10 +637,10 @@ export default function UserManagement() {
                                 </span>
                             </div>
                             
-
-                            
                             <div className="space-y-0.5 mb-3">
-                                <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    {user.email || <span className="text-gray-400 text-xs italic">(이메일 정보 없음)</span>}
+                                </div>
                                 <div className="text-sm text-gray-700 dark:text-gray-300">{user.phone || '-'}</div>
                                 {user.updated_at && (
                                     <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
@@ -526,12 +651,13 @@ export default function UserManagement() {
                             
                             <div className="flex justify-end pt-2 border-t border-gray-50 dark:border-slate-800">
                                 <Button 
-                                    size="sm"
-                                    variant="edit"
+                                    size="icon"
+                                    variant="outline"
                                     onClick={() => startEdit(user)}
-                                    className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                                    className="h-8 w-8 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                                    title="수정"
                                 >
-                                    수정
+                                    <Edit2 size={18} />
                                 </Button>
                                 <Button 
                                     size="sm"
@@ -541,6 +667,15 @@ export default function UserManagement() {
                                 >
                                     <Shield size={14} className="mr-1" />
                                     멤버십
+                                </Button>
+                                <Button 
+                                    size="sm"
+                                    className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-200 ml-2 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-900/50 dark:hover:bg-indigo-900/30"
+                                    variant="outline"
+                                    onClick={() => setServerInfoTarget(user)}
+                                >
+                                    <UserCircle size={14} className="mr-1" />
+                                    복사
                                 </Button>
                                 <Button 
                                     size="sm"
@@ -567,6 +702,15 @@ export default function UserManagement() {
         )}
       </div>
       
+      {serverInfoTarget && (
+        <UserServerInfoDialog 
+            open={!!serverInfoTarget} 
+            onOpenChange={(open) => !open && setServerInfoTarget(null)}
+            uid={serverInfoTarget.uid}
+            userName={serverInfoTarget.user_name}
+        />
+      )}
+
       {membershipTarget && (
         <UserMembershipsDialog 
             open={!!membershipTarget} 

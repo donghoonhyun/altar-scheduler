@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { MessageSquare, RefreshCw, Send, AlertTriangle, Trash2, Smartphone, ChevronDown, ChevronRight } from 'lucide-react';
@@ -62,15 +62,12 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
     }
   };
 
-  // Note: This relies on a backend Cloud Function named 'sendTestNotification'.
-  // If not implemented, this will fail or we need to stub it / use alternate method
-  // like creating a document in a trigger collection.
   const handleSendTestMessage = async () => {
     try {
+        // ... (existing logic)
       setSending(true);
       const sendTest = httpsCallable(functions, 'sendTestNotification');
       
-      // ✅ Pass absolute icon URL to ensure it renders correctly in background
       const iconUrl = new URL('/pwa-icon.png', window.location.origin).href;
       const result = await sendTest({ targetUid: uid, iconUrl });
       
@@ -81,11 +78,6 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
       }
     } catch (e: any) {
       console.error(e);
-      // For demo purposes, we will simulate success if function is missing or fails in dev,
-      // but clearly mark it as simulation if possible or just show error.
-      // However, user ASKED for the feature.
-      // Let's assume we can write to a 'notifications' collection which triggers a function.
-      // Or just try the function call.
       toast.error(`발송 실패: ${e.message}`);
     } finally {
       setSending(false);
@@ -93,26 +85,25 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[340px] sm:w-[540px] overflow-y-auto bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800">
-        <SheetHeader className="mb-6">
-          <SheetTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-gray-100">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800">
+        <DialogHeader className="mb-2">
+          <DialogTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-gray-100">
              <span className="bg-pink-100 text-pink-600 p-1.5 rounded-lg dark:bg-pink-900/20 dark:text-pink-300">
                 <MessageSquare size={20} />
              </span>
              사용자 지원
-          </SheetTitle>
+          </DialogTitle>
           <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
              <span className="font-bold text-gray-900 dark:text-gray-200">{userName}</span> ({email})님에 대한 지원 도구
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="space-y-8">
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
             {/* 1. Message Test Section */}
-            <section className="space-y-4">
+            <section className="space-y-3">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-gray-200 border-b border-gray-100 dark:border-slate-800 pb-2 flex items-center justify-between">
                     메세지 발송 테스트
-                    {/* <span className="text-[10px] font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Admin Only</span> */}
                 </h3>
                 
                 <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
@@ -127,8 +118,7 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
                         <Button 
                             onClick={handleSendTestMessage} 
                             disabled={sending}
-                            variant="primary" // Assuming primary is the standard blue/brand color
-                            className="gap-2"
+                            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                         >
                             {sending ? <RefreshCw className="animate-spin" size={16}/> : <Send size={16} />}
                             테스트 메세지 발송
@@ -138,7 +128,7 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
             </section>
 
             {/* Device Token Management */}
-            <section className="space-y-4">
+            <section className="space-y-3">
                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-gray-200">
                         기기 토큰 관리
@@ -169,7 +159,7 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
                                         <Smartphone size={16} />
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[180px]">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
                                             {token.substring(0, 10)}...{token.substring(token.length - 10)}
                                         </span>
                                         <span className="text-[10px] text-gray-400 dark:text-gray-500">
@@ -209,16 +199,21 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
                     {showTokenHelp && (
                         <div className="px-3 pb-3 pt-0">
                             <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-snug pl-6 border-l-2 border-blue-200 dark:border-blue-800">
-                                1. 사용자가 기기를 변경했거나 더 이상 사용하지 않는 기기가 목록에 남아있을 때<br/>
-                                2. 알림이 특정 기기로만 오지 않거나, 중복으로 발송될 때<br/>
-                                3. 너무 많은 토큰이 쌓여 발송 오류가 발생할 때
+                                1. 사용자가 기기를 변경했거나<br/>더 이상 사용하지 않는 기기가 목록에 남아있을 때<br/>
+                                2. 알림이 특정 기기로만 오지 않거나<br/>중복으로 발송될 때<br/>
                             </p>
                         </div>
                     )}
                 </div>
             </section>
         </div>
-      </SheetContent>
-    </Sheet>
+
+        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700">
+                닫기
+            </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
