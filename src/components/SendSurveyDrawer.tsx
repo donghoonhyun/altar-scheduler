@@ -1,5 +1,6 @@
 // src/components/SendSurveyDrawer.tsx
 import { useEffect, useState, useCallback } from 'react';
+import { useSession } from '@/state/session';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
@@ -90,6 +92,7 @@ export function SendSurveyDrawer({
   timezone = 'Asia/Seoul',
 }: SendSurveyDrawerProps) {
   const db = getFirestore();
+  const session = useSession();
   const [members, setMembers] = useState<MemberDoc[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<Date>(dayjs().toDate());
@@ -202,6 +205,60 @@ export function SendSurveyDrawer({
     return () => unsub();
   }, [open, serverGroupId, currentMonth, db, fetchBasics]);
 
+  // ---------- 🔹 Manual Notification ----------
+  const [isSendingNoti, setIsSendingNoti] = useState(false);
+
+  const handleManualNotification = async () => {
+    if (!existingSurvey || !serverGroupId) return;
+
+    // Determine type based on month status (User Rule)
+    // - "미사확정(MASS-CONFIRMED)" => "설문시작 알림발송"
+    // - "설문확정(SURVEY-CONFIRMED)" => "설문종료 알림발송"
+    // - Others => Disabled
+    let type = '';
+    let confirmMsg = '';
+
+    if (monthStatus === 'MASS-CONFIRMED') {
+        type = 'SURVEY_OPENED';
+        confirmMsg = '📢 설문 시작 알림을 발송하시겠습니까?';
+    } else if (monthStatus === 'SURVEY-CONFIRMED') {
+        type = 'SURVEY_CLOSED';
+        confirmMsg = '🔒 설문 마감 알림을 발송하시겠습니까?';
+    } else {
+        toast.error('현재 월 상태에서는 알림을 발송할 수 없습니다.');
+        return;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        setIsSendingNoti(true);
+        const functions = getFunctions(undefined, 'asia-northeast3');
+        if (import.meta.env.DEV) {
+             connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+        }
+        const sendFn = httpsCallable(functions, 'sendSurveyNotification');
+        
+        const result = await sendFn({
+            serverGroupId,
+            month: currentMonth,
+            type: type
+        });
+        
+        const data = result.data as any;
+        if (data.success) {
+            toast.success(`알림이 발송되었습니다. (성공: ${data.sent_count}건)`);
+        } else {
+            toast.error(`알림 발송 실패: ${data.message}`);
+        }
+    } catch (e: any) {
+        console.error(e);
+        toast.error(`오류 발생: ${e.message}`);
+    } finally {
+        setIsSendingNoti(false);
+    }
+  };
+
   // ---------- 🔹 Create new survey ----------
   const handleStartSurvey = async () => {
     if (monthStatus !== 'MASS-CONFIRMED') {
@@ -223,8 +280,10 @@ export function SendSurveyDrawer({
           start_date: fromLocalDateToFirestore(startDate, timezone),
           end_date: fromLocalDateToFirestore(endDate, timezone),
           member_ids: selectedMembers,
-          created_at: serverTimestamp(),
+          created_at: serverTimestamp(),          
           status: 'OPEN',
+          opened_by: session.user?.uid || 'unknown',
+          opened_by_name: session.user?.displayName || 'Unknown',
         },
         { merge: true }
       );
@@ -801,6 +860,21 @@ export function SendSurveyDrawer({
                               <Bell size={14} className="text-gray-500" /> 알림 발송 이력
                           </span>
                       </div>
+                      <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-xs"
+                          onClick={handleManualNotification}
+                          disabled={isSendingNoti || (monthStatus !== 'MASS-CONFIRMED' && monthStatus !== 'SURVEY-CONFIRMED')}
+                      >
+                          {isSendingNoti 
+                              ? '발송 중...' 
+                              : (monthStatus === 'MASS-CONFIRMED' 
+                                  ? '📣 설문시작 알림발송'
+                                  : (monthStatus === 'SURVEY-CONFIRMED' ? '� 설문종료 알림발송' : '� 알림 발송')
+                                )
+                          }
+                      </Button>
                   </div>
                   
                   <div className="bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-100 dark:border-slate-700">

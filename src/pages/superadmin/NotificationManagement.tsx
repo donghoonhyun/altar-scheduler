@@ -24,6 +24,9 @@ interface NotificationLog {
   click_action?: string;
   feature?: string;
   server_group_id?: string;
+  triggered_by?: string;
+  triggered_by_name?: string;
+  trigger_status?: string;
 }
 
 export default function NotificationManagement() {
@@ -165,7 +168,7 @@ export default function NotificationManagement() {
                     <thead className="bg-slate-50 dark:bg-slate-900">
                     <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap w-[160px]">일시</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">유형</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">유형 / 트리거</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">제목</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">내용</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">발송 대상</th>
@@ -189,14 +192,26 @@ export default function NotificationManagement() {
                             <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400 font-mono">
                                 {formatDate(log.created_at)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs">
-                                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium border ${
-                                    log.feature === 'TEST_SEND' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' :
-                                    log.feature === 'MASS_REMINDER' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' :
-                                    'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                                }`}>
-                                    {log.feature || 'unknown'}
-                                </span>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col gap-1 items-start">
+                                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium border ${
+                                        log.feature === 'TEST_SEND' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' :
+                                        log.feature === 'MASS_REMINDER' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' :
+                                        'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                    }`}>
+                                        {log.feature || 'unknown'}
+                                    </span>
+                                    {log.trigger_status && (
+                                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                            {log.trigger_status}
+                                        </span>
+                                    )}
+                                    {(log.triggered_by_name || log.triggered_by) && (
+                                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 truncate max-w-[120px]" title={log.triggered_by}>
+                                            by {log.triggered_by_name || 'User'}
+                                        </span>
+                                    )}
+                                </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-slate-100">
                                 {log.title || '(제목 없음)'}
@@ -264,13 +279,23 @@ export default function NotificationManagement() {
                 </div>
                  <div>
                       <span className="text-slate-500 block text-xs mb-1">발송 유형 (Feature)</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                             {selectedLog.feature || 'unknown'}
                         </span>
                         {selectedLog.server_group_id && (
                             <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800">
-                                {selectedLog.server_group_id}
+                                G: {selectedLog.server_group_id}
+                            </span>
+                        )}
+                        {selectedLog.trigger_status && (
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800">
+                                {selectedLog.trigger_status}
+                            </span>
+                        )}
+                        {(selectedLog.triggered_by_name || selectedLog.triggered_by) && (
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700" title={selectedLog.triggered_by}>
+                                👤 {selectedLog.triggered_by_name || 'User'}
                             </span>
                         )}
                       </div>

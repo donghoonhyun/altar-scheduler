@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import dayjs from 'dayjs';
 import { cn } from '@/lib/utils';
 import AddServerDrawer from '@/pages/components/AddServerDrawer';
+import MoveMembersDrawer from '@/pages/components/MoveMembersDrawer';
 import { UserRoleIcon } from '@/components/ui';
 
 interface Member {
@@ -33,6 +34,11 @@ interface Member {
   active: boolean;
   request_confirmed?: boolean; // 승인 여부 (true: 승인됨, false/undefined: 미승인)
   parent_uid?: string;
+  is_moved?: boolean; // ✅ [New] 이동 여부
+  moved_at?: any;
+  moved_by_name?: string;
+  moved_to_sg_id?: string;
+  moved_from_sg_id?: string; // ✅ [New] 어디서 온 복사단원인지
   created_at?: any; // Firestore Timestamp
 }
 
@@ -63,11 +69,13 @@ export default function ServerList() {
   const [pendingMembers, setPendingMembers] = useState<Member[]>([]);
   const [activeMembers, setActiveMembers] = useState<Member[]>([]);
   const [inactiveMembers, setInactiveMembers] = useState<Member[]>([]);
+  const [movedMembers, setMovedMembers] = useState<Member[]>([]); // ✅ [New] 전배간 복사단원
   const [loading, setLoading] = useState(true);
   const [parentInfos, setParentInfos] = useState<Record<string, UserInfo>>({});
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
+  const [isMoveDrawerOpen, setIsMoveDrawerOpen] = useState(false); // ✅ [New] 이동 Drawer
   const [assignmentStats, setAssignmentStats] = useState<AssignmentStats>({ lastMonth: 0, thisMonth: 0, nextMonth: 0 });
   // ✅ 배정 현황 기준 월 (중간달)
   const [statsBaseDate, setStatsBaseDate] = useState(dayjs());
@@ -87,6 +95,7 @@ export default function ServerList() {
   
   // ✅ 배정 로그 확장 상태
   const [expandedMonth, setExpandedMonth] = useState<'last' | 'this' | 'next' | null>(null);
+  const [showMoved, setShowMoved] = useState(false); // ✅ [New] 전배 멤버 더보기 토글
   const [assignmentDetails, setAssignmentDetails] = useState<{eventId: string; title: string; date: string; rawDate: string}[]>([]);
 
   // ✅ 선택된 멤버 변경 시 상태 동기화
@@ -122,11 +131,11 @@ export default function ServerList() {
         id: d.id,
       }));
 
-      // 1. Pending: Active=false AND request_confirmed!=true
-      setPendingMembers(all.filter((m) => !m.active && !m.request_confirmed));
+      // 1. Pending: Active=false AND request_confirmed!=true AND !is_moved
+      setPendingMembers(all.filter((m) => !m.active && !m.request_confirmed && !m.is_moved));
       
-      // 2. Active: Active=true (implies confirmed or legacy)
-      const active = all.filter((m) => m.active);
+      // 2. Active: Active=true (implies confirmed or legacy) AND !is_moved
+      const active = all.filter((m) => m.active && !m.is_moved);
       const nameSorter = (a: Member, b: Member) => {
         const keyA = (a.name_kor || '') + (a.baptismal_name || '');
         const keyB = (b.name_kor || '') + (b.baptismal_name || '');
@@ -136,10 +145,23 @@ export default function ServerList() {
       active.sort(nameSorter);
       setActiveMembers(active);
 
-      // 3. Inactive: Active=false AND request_confirmed=true
-      const inactive = all.filter((m) => !m.active && m.request_confirmed);
+      // 3. Inactive: Active=false AND request_confirmed=true AND !is_moved
+      const inactive = all.filter((m) => !m.active && m.request_confirmed && !m.is_moved);
       inactive.sort(nameSorter);
       setInactiveMembers(inactive);
+
+      // 4. Moved: is_moved=true
+      const moved = all.filter((m) => m.is_moved);
+      moved.sort((a, b) => {
+          // 1. Sort by moved_at DESC
+          const tA = a.moved_at?.toDate ? a.moved_at.toDate().getTime() : 0;
+          const tB = b.moved_at?.toDate ? b.moved_at.toDate().getTime() : 0;
+          if (tA !== tB) return tB - tA;
+
+          // 2. Sort by Name ASC
+          return (a.name_kor || '').localeCompare(b.name_kor || '');
+      });
+      setMovedMembers(moved);
 
       setLoading(false);
     });
@@ -298,6 +320,20 @@ export default function ServerList() {
   // ✅ 승인 처리
   const handleApprove = async (uid: string) => {
     if (!serverGroupId) return;
+
+    // 1. Check for duplicates in active members
+    const targetMember = pendingMembers.find(m => m.id === uid);
+    if (targetMember) {
+        const duplicate = activeMembers.find(m => 
+            m.name_kor === targetMember.name_kor && 
+            m.baptismal_name === targetMember.baptismal_name
+        );
+        
+        if (duplicate) {
+            toast.error(`이미 활동 중인 복사단원에 동일한 이름과 세례명(${targetMember.name_kor}, ${targetMember.baptismal_name})이 존재합니다. 승인할 수 없습니다.`);
+            return;
+        }
+    }
 
     const ok = await openConfirm({
       title: '회원 승인',
@@ -692,7 +728,7 @@ export default function ServerList() {
         {sortedActiveMembers.length === 0 ? (
           <p className="text-gray-500 text-sm">아직 승인된 복사단원이 없습니다.</p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {sortedActiveMembers.map((m, idx) => {
               const parent = m.parent_uid ? parentInfos[m.parent_uid] : undefined;
               let dateStr = '';
@@ -717,7 +753,7 @@ export default function ServerList() {
               return (
                 <React.Fragment key={m.id}>
                   {showSeparator && (
-                     <div className="col-span-2 border-t border-dashed border-gray-300 dark:border-gray-600 my-1 relative h-4">
+                     <div className="col-span-2 md:col-span-3 border-t border-dashed border-gray-300 dark:border-gray-600 my-1 relative h-4">
                        <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-2 text-[10px] text-gray-400 font-medium">
                           {separatorLabel}
                        </span>
@@ -755,6 +791,11 @@ export default function ServerList() {
                       </p>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                         {m.baptismal_name} · {m.grade} {m.start_year && `· ${m.start_year}년`}
+                        {m.moved_from_sg_id && (
+                          <span className="ml-1 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 rounded border border-blue-200 dark:border-blue-800" title={`${m.moved_from_sg_id}에서 전배온 복사단원`}>
+                            전배온
+                          </span>
+                        )}
                       </p>
                     </div>
                     
@@ -825,7 +866,7 @@ export default function ServerList() {
                   <div className="flex-1 min-w-0 mr-1">
                     <p className="font-semibold text-gray-500 dark:text-gray-400 text-sm truncate">{m.name_kor}</p>
                     <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-                      {m.baptismal_name} · {m.grade}
+                      {m.baptismal_name} · {m.grade} {m.start_year && `· ${m.start_year}년`}
                     </p>
                   </div>
                   
@@ -935,7 +976,83 @@ export default function ServerList() {
            >
              +1 학년 진급
            </Button>
+
+           <Button
+               variant="outline"
+               className="border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/30"
+               onClick={() => setIsMoveDrawerOpen(true)}
+               disabled={activeMembers.length === 0 && inactiveMembers.length === 0}
+           >
+               타 복사단 이동
+           </Button>
         </div>
+      </Card>
+
+       {/* ✅ Move Members Drawer */}
+      <MoveMembersDrawer 
+         open={isMoveDrawerOpen} 
+         onOpenChange={setIsMoveDrawerOpen}
+         currentServerGroupId={serverGroupId || ''}
+         members={[...activeMembers, ...inactiveMembers]}
+      />
+
+      {/* ✅ [New] 전배간 복사단원 (Moved Members) */}
+      <Card className="p-4 bg-gray-50/50 border-gray-100 dark:bg-slate-800/10 dark:border-slate-800 mt-8">
+             <div className="flex items-center gap-2 mb-3">
+                 <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+                     전배간 복사단원 <span className="text-sm font-normal">({movedMembers.length}명)</span>
+                 </h2>
+             </div>
+             
+             {movedMembers.length === 0 ? (
+                 <p className="text-gray-400 text-sm">전배간 복사단원이 없습니다.</p>
+             ) : (
+                 <div className="space-y-2">
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                     {movedMembers.slice(0, showMoved ? undefined : 3).map((m, idx) => {
+                         let moveDateStr = '-';
+                         if (m.moved_at?.toDate) {
+                             moveDateStr = dayjs(m.moved_at.toDate()).format('YY.MM.DD');
+                         }
+                         
+                         return (
+                             <div key={m.id} className="flex flex-col justify-center text-xs bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-2 rounded shadow-sm">
+                                 <div className="flex items-center justify-between mb-1">
+                                     <div className="flex items-center gap-1 min-w-0">
+                                         <span className="font-bold text-gray-700 dark:text-gray-300 shrink-0">{m.name_kor}</span>
+                                         <span className="text-gray-400 truncate text-[10px]">
+                                             ({m.baptismal_name}) · {m.grade} {m.start_year && `· ${m.start_year}년`}
+                                         </span>
+                                     </div>
+                                     <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">{moveDateStr}</span>
+                                 </div>
+                                 <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
+                                     {m.moved_to_sg_id ? (
+                                         <span className="bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-1 rounded truncate max-w-[80px]" title={m.moved_to_sg_id}>
+                                             To. {m.moved_to_sg_id}
+                                         </span>
+                                     ) : <span>-</span>}
+                                     <span className="truncate max-w-[60px]" title={m.moved_by_name || '관리자'}>By {m.moved_by_name?.split(' ')[0] || '관리자'}</span>
+                                 </div>
+                             </div>
+                         );
+                     })}
+                     </div>
+
+                     {movedMembers.length > 3 && (
+                         <button 
+                            onClick={() => setShowMoved(!showMoved)}
+                            className="w-full mt-2 py-1.5 flex items-center justify-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-50/50 hover:bg-gray-100 dark:bg-slate-800/20 dark:hover:bg-slate-800 rounded transition-colors"
+                         >
+                            {showMoved ? (
+                                <>접기 <ChevronLeft className="rotate-90" size={12} /></>
+                            ) : (
+                                <>더보기 ({movedMembers.length - 3}건) <ChevronRight className="rotate-90" size={12} /></>
+                            )}
+                         </button>
+                     )}
+                 </div>
+             )}
       </Card>
 
       {/* ✅ Member Detail Sheet */}

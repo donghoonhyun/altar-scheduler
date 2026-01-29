@@ -15,7 +15,10 @@ import {
   orderBy,
   limit,
   onSnapshot,
+
   where,
+  arrayUnion,
+  Timestamp,
 } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions'; // httpsCallable removed
 import dayjs from 'dayjs';
@@ -31,7 +34,7 @@ import {
   DialogDescription,
   DialogClose,
 } from '@/components/ui/dialog';
-import type { MemberDoc } from '@/types/firestore';
+import type { MemberDoc, ChangeLog } from '@/types/firestore';
 // Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
 import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Pencil, Copy, Database } from 'lucide-react';
@@ -76,7 +79,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [mainMemberId, setMainMemberId] = useState<string | null>(null);
   const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
-  const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean; start_year?: string }[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<ChangeLog[]>([]); // ✅ [New] Change Logs
+  const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean; start_year?: string; is_moved?: boolean }[]>([]);
   const [unavailableMembers, setUnavailableMembers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -90,6 +94,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [filterUnassigned, setFilterUnassigned] = useState(false); // ✅ [New] 미배정 필터 (구 당월참여제외 대체)
   const [sortBy, setSortBy] = useState<'name' | 'count' | 'curr_count' | 'grade'>('curr_count');
   const [showAllLogs, setShowAllLogs] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false); // ✅ [New] Show All Change History
   const [showDebugId, setShowDebugId] = useState(false); // 🐛 Debug ID Dialog State
   
   // ✅ 전월 배정 횟수 상태
@@ -129,7 +134,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             name: `${m.name_kor} ${m.baptismal_name}`,
             grade,
             active: m.active !== false, // active가 false인 경우만 비활성으로 간주 (undefined는 활성으로 취급)
-            start_year: m.start_year
+            start_year: m.start_year,
+            is_moved: m.is_moved || false
           };
         })
         .sort((a, b) => {
@@ -215,6 +221,14 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             return tB - tA;
         });
         setNotificationLogs(logs);
+
+        const loadedHistory = (data.history || []) as ChangeLog[];
+        loadedHistory.sort((a, b) => {
+            const tA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+            const tB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+            return tB - tA;
+        });
+        setHistoryLogs(loadedHistory);
       }
     } catch (err) {
       console.error('❌ 이벤트 불러오기 오류:', err);
@@ -253,6 +267,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         });
         
         // For the current event, find which members marked it as unavailable
+        
         if (eventId) {
           const unavailableSet = new Set<string>();
           unavailableMap.forEach((eventIds, memberId) => {
@@ -369,18 +384,69 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
 
       if (eventId) {
         const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
-        await setDoc(
-          ref,
-          {
+        
+        // 🔍 [New] Diff Calculation for Change Log
+        const currentSnap = await getDoc(ref);
+        const currentData = currentSnap.data() as DocumentData;
+        const changes: string[] = [];
+
+        // 1. Title Diff
+        if ((currentData.title || '') !== title) {
+            changes.push(`제목: ${currentData.title || '(없음)'} → ${title}`);
+        }
+        // 2. Required Servers Diff
+        if (Number(currentData.required_servers ?? 0) !== Number(requiredServers)) {
+            changes.push(`인원: ${currentData.required_servers ?? 0}명 → ${requiredServers}명`);
+        }
+        // 3. Main Member Diff
+        if ((currentData.main_member_id || null) !== mainMemberId) {
+            const oldMain = members.find(m => m.id === (currentData.main_member_id || ''))?.name || '미지정';
+            const newMain = members.find(m => m.id === (mainMemberId || ''))?.name || '미지정';
+            changes.push(`주복사: ${oldMain} → ${newMain}`);
+        }
+        // 4. Assignment Diff
+        const oldIds = (currentData.member_ids as string[]) || [];
+        const newIds = finalMemberIds; // activeMemberIds
+        
+        const addedIds = newIds.filter(id => !oldIds.includes(id));
+        const removedIds = oldIds.filter(id => !newIds.includes(id));
+        
+        if (addedIds.length > 0 || removedIds.length > 0) {
+            const addedNames = addedIds.map(id => members.find(m => m.id === id)?.name || '알수없음').join(', ');
+            const removedNames = removedIds.map(id => members.find(m => m.id === id)?.name || '알수없음').join(', ');
+            
+            const parts = [];
+            if (addedIds.length > 0) parts.push(`${addedNames}(추가)`);
+            if (removedIds.length > 0) parts.push(`${removedNames}(삭제)`);
+            changes.push(`배정: ${parts.join(', ')}`);
+        }
+
+        const payload: any = {
             title,
             required_servers: requiredServers,
             member_ids: finalMemberIds,
             main_member_id: mainMemberId,
             anti_autoassign_locked: locked, // 🔒 Save Lock State
             updated_at: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        };
+
+        // Add history if changes exist
+        if (changes.length > 0) {
+             const auth = getAuth();
+             const user = auth.currentUser;
+             const newLog: ChangeLog = {
+                id: dayjs().valueOf().toString(), // Simple Timestamp ID
+                type: 'update',
+                timestamp: Timestamp.now(), // Client timestamp might be safer for arrayUnion sorting if we trust client
+                editor_uid: user?.uid || 'unknown',
+                editor_name: user?.displayName || '관리자', // We might fetch real name elsewhere but this is fine
+                changes: changes
+             };
+             // Use arrayUnion to append
+             payload.history = arrayUnion(newLog);
+        }
+
+        await setDoc(ref, payload, { merge: true });
         console.log(`✅ MassEvent updated: ${eventId}`);
       } else {
 
@@ -501,7 +567,12 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   // ✅ 삭제 처리 (복구 가능하도록 수정 + History 저장)
   const handleDelete = async () => {
     if (!eventId) return;
-    if (!window.confirm('이 미사 일정을 삭제하시겠습니까?')) return;
+    // 이 미사 일정에 대해 '불참'으로 응답한 인원이 있는지 확인 (배정 여부 무관)
+    if (unavailableMembers.size > 0) {
+        if (!window.confirm(`⚠️ 주의: 총 ${unavailableMembers.size}명의 복사가 이 일정에 대해 '불참' 의사를 밝혔습니다.\n\n이 일정을 삭제하면 해당 설문 데이터(불참 이력)의 참조 대상이 사라집니다.\n\n삭제 전, 복사들에게 반드시 사전 공지해야 합니다.\n\n그래도 삭제하시겠습니까?`)) return;
+    } else {
+        if (!window.confirm('이 미사 일정을 삭제하시겠습니까?')) return;
+    }
     
     setLoading(true);
     try {
@@ -919,19 +990,23 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                         const isMain = id === mainMemberId;
                         // @ts-ignore
                         const isActive = member ? member.active : false;
+                        // @ts-ignore
+                        const isMoved = member ? member.is_moved : false;
                         const isUnavailable = unavailableMembers.has(id);
 
                         return (
                           <span
                             key={id}
                             className={`px-2 py-1 rounded text-sm border flex items-center gap-1 ${
-                              !isActive 
+                              !isActive && !isMoved
                                     ? 'bg-red-100 border-red-300 text-red-700' // 🔴 비활성: 전체 붉음
-                                    : isMain
-                                        ? `bg-blue-600 font-bold ${isUnavailable ? 'border-orange-400 text-orange-200' : 'border-blue-600 text-white'}` // 🔵 주복사: 배경 파랑 유지, 불참시 텍스트 경고
-                                        : isUnavailable
-                                            ? 'bg-green-50 border-orange-300 text-orange-700 font-medium' // 🟢 일반: 배경 초록 유지, 불참시 텍스트 오렌지
-                                            : 'bg-green-50 border-green-200 text-green-900'
+                                    : isMoved
+                                        ? 'bg-gray-100 border-gray-300 text-gray-600 line-through decoration-gray-400' // ⚫ 전배: 회색 취소선
+                                        : isMain
+                                            ? `bg-blue-600 font-bold ${isUnavailable ? 'border-orange-400 text-orange-200' : 'border-blue-600 text-white'}` // 🔵 주복사: 배경 파랑 유지, 불참시 텍스트 경고
+                                            : isUnavailable
+                                                ? 'bg-green-50 border-orange-300 text-orange-700 font-medium' // 🟢 일반: 배경 초록 유지, 불참시 텍스트 오렌지
+                                                : 'bg-green-50 border-green-200 text-green-900'
                             }`}
                           >
                             {member
@@ -943,7 +1018,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                     )}
                                     {member.start_year && (
                                     <span className={`text-[10px] ml-0.5 ${
-                                        !isActive ? 'text-red-800' :
+                                        !isActive && !isMoved ? 'text-red-800' :
+                                        isMoved ? 'text-gray-500' :
                                         isMain ? (isUnavailable ? 'text-orange-200' : 'text-blue-100') :
                                         isUnavailable ? 'text-orange-800' : 'text-violet-600'
                                     }`}>
@@ -954,8 +1030,9 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                 )
                               : `ID: ${id.substring(0, 8)}... (미확인)`}
                             
-                            {/* 비활성 뱃지 */}
-                            {!isActive && <span className="text-[10px] font-bold bg-red-200 text-red-800 px-1 rounded">비활성</span>}
+                            {/* 비활성/전배 뱃지 */}
+                            {!isActive && !isMoved && <span className="text-[10px] font-bold bg-red-200 text-red-800 px-1 rounded no-underline">비활성</span>}
+                            {isMoved && <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1 rounded no-underline">전배</span>}
                           </span>
                         );
                       })}
@@ -1143,7 +1220,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                     <span 
                                       className={`text-sm cursor-help ${
                                           isUnavailable ? 'text-orange-600 font-medium' 
-                                          : !isActive ? 'text-red-600 font-bold line-through' 
+                                          : !isActive && !m.is_moved ? 'text-red-600 font-bold line-through'
+                                          : m.is_moved ? 'text-gray-500 line-through decoration-gray-400'
                                           : 'text-gray-700 dark:text-gray-200 font-medium'
                                       } ${
                                           isNovice ? 'bg-yellow-200 dark:bg-yellow-700/80 px-1 rounded' : ''
@@ -1174,7 +1252,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                                        <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-slate-700 px-1 rounded-sm">{m.grade}</span>
                                     )}
                                 </div>
-                                {!isActive && <span className="text-[9px] text-red-500">(비활성)</span>}
+                                {!isActive && !m.is_moved && <span className="text-[9px] text-red-500">(비활성)</span>}
+                                {m.is_moved && <span className="text-[9px] text-gray-400">(전배)</span>}
                              </div>
                           </div>
 
@@ -1358,6 +1437,58 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
                 )}
             </div>
           </div>
+
+          {/* ✅ [New] 변경 이력 (Change History) */}
+          {eventId && historyLogs.length > 0 && (
+            <div className="mt-8 pt-4 border-t border-dashed border-gray-200 dark:border-slate-700 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <span className="bg-gray-100 dark:bg-slate-700 p-1 rounded-full text-gray-500 dark:text-gray-300">
+                          <RefreshCw size={10} />
+                        </span>
+                        변경 이력
+                    </h4>
+                    <span className="text-[10px] text-gray-400">최근 수정순</span>
+                </div>
+                
+                <div className="space-y-2.5">
+                    {historyLogs.slice(0, showAllHistory ? undefined : 3).map((log, idx) => {
+                        const logTime = log.timestamp?.toDate ? dayjs(log.timestamp.toDate()) : dayjs();
+                        return (
+                            <div key={idx} className="text-xs bg-gray-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-gray-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-colors">
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                       <div className="w-1.5 h-1.5 rounded-full bg-blue-400 dark:bg-blue-600"></div>
+                                       <span className="font-semibold text-gray-700 dark:text-gray-300">{log.editor_name || '관리자'}</span>
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 font-mono tracking-tight">{logTime.format('YY.MM.DD HH:mm')}</span>
+                                </div>
+                                <div className="space-y-1 pl-3 border-l-[1.5px] border-gray-200 dark:border-gray-700 ml-0.5">
+                                    {log.changes.map((change, cIdx) => (
+                                        <p key={cIdx} className="text-gray-600 dark:text-gray-400 leading-relaxed break-keep">
+                                            {change}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {historyLogs.length > 3 && (
+                    <button 
+                        onClick={() => setShowAllHistory(!showAllHistory)}
+                        className="w-full mt-3 py-1.5 flex items-center justify-center gap-1 text-[11px] font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors bg-gray-50/50 hover:bg-gray-100 dark:bg-slate-800/30 dark:hover:bg-slate-800 rounded"
+                    >
+                        {showAllHistory ? (
+                            <>접기 <ChevronUp size={12} /></>
+                        ) : (
+                            <>더보기 ({historyLogs.length - 3}건) <ChevronDown size={12} /></>
+                        )}
+                    </button>
+                )}
+            </div>
+          )}
         </div>
         </div>
       </DialogContent>

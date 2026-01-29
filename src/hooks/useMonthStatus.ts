@@ -18,7 +18,7 @@ interface UseMonthStatusResult {
   status: MassStatus;
   lock: boolean;
   loading: boolean;
-  updateStatus: (newStatus: MassStatus, updatedBy?: string) => Promise<void>;
+  updateStatus: (newStatus: MassStatus, updatedBy?: string, updatedByName?: string) => Promise<void>;
 }
 
 export const useMonthStatus = (serverGroupId?: string, monthKey?: string): UseMonthStatusResult => {
@@ -58,7 +58,7 @@ export const useMonthStatus = (serverGroupId?: string, monthKey?: string): UseMo
 
   /** 🔹 상태 변경 (Firestore 업데이트) */
   const updateStatus = useCallback(
-    async (newStatus: MassStatus, updatedBy = 'system') => {
+    async (newStatus: MassStatus, updatedBy = 'system', updatedByName = 'System') => {
       if (!serverGroupId || !monthKey) return;
       const ref = doc(db, `server_groups/${serverGroupId}/month_status/${monthKey}`);
       try {
@@ -69,6 +69,7 @@ export const useMonthStatus = (serverGroupId?: string, monthKey?: string): UseMo
             status: newStatus,
             lock: willLock,
             updated_by: updatedBy,
+            updated_by_name: updatedByName,
             updated_at: serverTimestamp(),
           },
           { merge: true }

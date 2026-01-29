@@ -131,11 +131,11 @@ const MassEventPlanner: React.FC = () => {
 
   /** ✅ 상태 변경 드로어 동작 */
   const handleConfirmMass = async () => {
-    await updateStatus('MASS-CONFIRMED', 'planner@test.com');
+    await updateStatus('MASS-CONFIRMED', session.user?.uid, session.user?.displayName || undefined);
     toast.success('📘 미사 일정이 확정되었습니다.');
   };
   const handleCloseSurvey = async () => {
-    await updateStatus('SURVEY-CONFIRMED', 'planner@test.com');
+    await updateStatus('SURVEY-CONFIRMED', session.user?.uid, session.user?.displayName || undefined);
 
     // ✅ 설문 문서 상태도 CLOSED로 변경 (복사 메인 등에서의 감시를 위해)
     if (serverGroupId) {
@@ -174,7 +174,7 @@ const MassEventPlanner: React.FC = () => {
     }
   };
   const handleFinalConfirm = async () => {
-    await updateStatus('FINAL-CONFIRMED', 'planner@test.com');
+    await updateStatus('FINAL-CONFIRMED', session.user?.uid, session.user?.displayName || undefined);
     toast.success('✅ 최종 확정되었습니다.');
   };
 

@@ -141,87 +141,88 @@ export default function SignUp() {
   };
    
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
-      <Card className="w-full max-w-[500px] p-8 shadow-xl bg-white border-none">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900 px-4 py-8 transition-colors duration-200">
+      <Card className="w-full max-w-[500px] p-8 shadow-xl bg-white dark:bg-slate-800 border-none dark:border dark:border-slate-700">
         <div className="text-center mb-8">
-          <Heading size="lg" className="mb-2 text-gray-800">환영합니다!</Heading>
+          <Heading size="lg" className="mb-2 text-gray-800 dark:text-white">환영합니다!</Heading>
         </div>
 
         <div className="space-y-6">
           {/* 이메일 */}
           <div className="space-y-1">
-            <Label className="text-sm font-semibold text-gray-700">이메일</Label>
+              <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">이메일</Label>
             <Input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 bg-white"
+              className="h-11 bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-gray-500"
             />
           </div>
 
           {/* 비밀번호 */}
           <div className="space-y-1">
-            <Label className="text-sm font-semibold text-gray-700">비밀번호</Label>
+            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">비밀번호</Label>
             <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 bg-white"
+              className="h-11 bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-gray-500"
             />
-            <p className="text-xs text-gray-400 mt-1">* 10자 이상이면서 영문, 숫자, 특수문자를 모두 포함하세요 (권장)</p>
+            <p className="text-xs text-gray-400 mt-1 dark:text-gray-500">* 10자 이상이면서 영문, 숫자, 특수문자를 모두 포함하세요 (권장)</p>
           </div>
 
           {/* 비밀번호 재확인 */}
           <div className="space-y-1">
-            <Label className="text-sm font-semibold text-gray-700">비밀번호 재확인</Label>
+            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">비밀번호 재확인</Label>
             <Input
               type="password"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
-              className="h-11 bg-white"
+              className="h-11 bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-gray-500"
             />
-            <p className="text-xs text-gray-400 mt-1">* 비밀번호를 다시 입력해주세요</p>
+            <p className="text-xs text-gray-400 mt-1 dark:text-gray-500">* 비밀번호를 다시 입력해주세요</p>
           </div>
 
           {/* 이름 / 세례명 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label className="text-sm font-semibold text-gray-700">이름</Label>
+              <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">이름</Label>
               <Input
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                className="h-11 bg-white"
+                className="h-11 bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-gray-500"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-sm font-semibold text-gray-700">세례명(선택)</Label>
+              <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">세례명(선택)</Label>
               <Input
                 value={baptismalName}
                 onChange={(e) => setBaptismalName(e.target.value)}
-                className="h-11 bg-white"
+                className="h-11 bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-gray-500"
               />
             </div>
           </div>
           
           <div className="space-y-1">
-             <Label className="text-sm font-semibold text-gray-700">연락처</Label>
+             <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">연락처</Label>
              <Input
                value={phone}
                onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                placeholder="010-0000-0000"
                maxLength={13}
-               className="h-11 bg-white"
+               className="h-11 bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-gray-500"
              />
           </div>
 
           {/* 약관 동의 */}
           <div className="pt-2 space-y-3">
-            <div className="flex items-center space-x-2 pb-2 border-b border-gray-100 mb-2">
+            <div className="flex items-center space-x-2 pb-2 border-b border-gray-100 dark:border-slate-700 mb-2">
               <Checkbox 
                 id="all-agree" 
                 checked={allAgreed} 
                 onCheckedChange={(c) => handleAllAgree(c === true)} 
+                className="dark:border-slate-500 dark:data-[state=checked]:bg-blue-600 dark:data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="all-agree" className="text-sm font-bold text-gray-800 cursor-pointer">
+              <Label htmlFor="all-agree" className="text-sm font-bold text-gray-800 dark:text-gray-200 cursor-pointer">
                 모두 동의합니다
               </Label>
             </div>
@@ -231,8 +232,9 @@ export default function SignUp() {
                 id="agree-age" 
                 checked={agreements.age} 
                 onCheckedChange={(c) => handleAgreeChange('age')(c === true)} 
+                className="dark:border-slate-600 dark:data-[state=checked]:bg-blue-600 dark:data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="agree-age" className="text-sm text-gray-600 cursor-pointer">
+              <Label htmlFor="agree-age" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                 [필수] 만 14세 이상입니다
               </Label>
             </div>
@@ -241,8 +243,9 @@ export default function SignUp() {
                 id="agree-terms" 
                 checked={agreements.terms} 
                 onCheckedChange={(c) => handleAgreeChange('terms')(c === true)} 
+                className="dark:border-slate-600 dark:data-[state=checked]:bg-blue-600 dark:data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="agree-terms" className="text-sm text-gray-600 cursor-pointer">
+              <Label htmlFor="agree-terms" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                 [필수] 최종이용자 이용약관에 동의합니다
               </Label>
             </div>
@@ -251,8 +254,9 @@ export default function SignUp() {
                 id="agree-privacy" 
                 checked={agreements.privacy} 
                 onCheckedChange={(c) => handleAgreeChange('privacy')(c === true)} 
+                className="dark:border-slate-600 dark:data-[state=checked]:bg-blue-600 dark:data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="agree-privacy" className="text-sm text-gray-600 cursor-pointer">
+              <Label htmlFor="agree-privacy" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                 [필수] 개인정보 수집 및 이용에 동의합니다
               </Label>
             </div>
@@ -267,17 +271,17 @@ export default function SignUp() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-200" />
+              <span className="w-full border-t border-gray-200 dark:border-slate-700" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-400">or</span>
+              <span className="bg-white dark:bg-slate-800 px-2 text-gray-400 dark:text-gray-500">or</span>
             </div>
           </div>
 
           <Button
             variant="outline"
             onClick={handleGoogleSignUp}
-            className="w-full h-11 border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-700 font-medium bg-white"
+            className="w-full h-11 border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-700 font-medium bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:hover:bg-slate-600"
           >
             <img
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"

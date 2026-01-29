@@ -121,6 +121,7 @@ const ServerGroupSettings: React.FC = () => {
           server_group_id: sgId,
           parish_code: formData.parish_code,
           role: ['admin', 'planner'],
+          active: true,
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         });

@@ -65,6 +65,7 @@ export default function ServerGroupWizard() {
             server_group_id: sgId,
             parish_code: parishCode,
             role: ['admin', 'planner'],
+            active: true,
             created_at: serverTimestamp(),
             updated_at: serverTimestamp(),
           });

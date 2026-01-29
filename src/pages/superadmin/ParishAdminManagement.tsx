@@ -271,6 +271,7 @@ export default function ParishAdminManagement() {
           server_group_id: targetGroupId,
           parish_code: parishCode,
           role: ['admin', 'planner'], // Give planner by default too? Yes usually.
+          active: true,
           created_at: serverTimestamp(),
           updated_at: serverTimestamp()
         });
@@ -365,6 +366,7 @@ export default function ParishAdminManagement() {
                 server_group_id: sgId,
                 parish_code: parishCode,
                 role: ['admin', 'planner'],
+                active: true,
                 created_at: serverTimestamp(),
                 updated_at: serverTimestamp(),
             });

@@ -209,20 +209,25 @@ export default function MassCalendar({
 
                     return (
                       <>
-                        {participants.slice(0, 3).map((p, i) => (
-                          <span
-                            key={`${p.id}-${i}`}
-                            className={cn(
-                              "px-2 py-[1px] text-[11px] rounded-md truncate max-w-[80px]",
-                              p.isMain 
-                                ? "bg-blue-500 text-white dark:bg-blue-600" 
-                                : "bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-100"
-                            )}
-                            title={p.name}
-                          >
-                            {p.name}
-                          </span>
-                        ))}
+                        {participants.slice(0, 3).map((p, i) => {
+                          const isMoved = p.name.startsWith('[전배]');
+                          return (
+                            <span
+                              key={`${p.id}-${i}`}
+                              className={cn(
+                                "px-2 py-[1px] text-[11px] rounded-md truncate max-w-[80px]",
+                                isMoved 
+                                  ? "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 line-through decoration-gray-500"
+                                  : p.isMain 
+                                    ? "bg-blue-500 text-white dark:bg-blue-600" 
+                                    : "bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-100"
+                              )}
+                              title={p.name}
+                            >
+                              {p.name}
+                            </span>
+                          );
+                        })}
                         {participants.length > 3 && (
                           <span className="text-[10px] text-gray-500">+{participants.length - 3}</span>
                         )}

@@ -12,13 +12,14 @@
 ① MassEventPlanner 화면에서 [설문 진행] 버튼을 누르면 drawer 가 우측에 열려서 상세 업무를 진행함.
 ② drawer 에서 설문대상자를 확인.(default로 전체 members를 보여주고 선택하여 제외 할 수 있도록 함)
 ③ 설문일정 설정: '설문시작일(default 오늘)'~'설문종료일(default 일주일뒤)' 지정, 달력기능으로 선택.
-④ [설문 시작] 버튼을 누름.
+④ [설문 시작] 버튼을 누름 -> 설문 문서가 생성됨 (Status: OPEN).
 ⑤ validation check :
   . Status 상태가 `MASS-CONFIRMED` 인지 확인함. 아닌 경우 alert+return.
   . 필수입력항목 체크.
 ⑥ validation check를 통과하면 복사에게 알려줄 url을 화면에 표시하고 옆에 [URL 복사] 버튼을 배치함.
-⑦ planner는 이 url을 카카오톡 등의 별도의 도구를 통해 복사들에게 공유.
-⑧ 복사 개인은 해당 url을 클릭하여 App의 설문 화면 달력에서 확정된 미사일정 중 본인이 '불가'한 날짜를 선택하고 제출함.
+⑦ **[알림 발송] 버튼을 눌러 복사들에게 '설문 시작' 푸시 알림을 수동으로 발송함.**
+⑧ planner는 이 url을 카카오톡 등의 별도의 도구를 통해 복사들에게 공유할 수도 있음.
+⑨ 복사 개인은 해당 url을 클릭하여 App의 설문 화면 달력에서 확정된 미사일정 중 본인이 '불가'한 날짜를 선택하고 제출함.
   불가하지 않는 미사일정은 모두 가능한 것으로 내부적으로 인식하면 됨.
   화면 달력 미사일정 카드의 default 상태는 모두 '참석가능' 으로 표시하고 '불가' 한 날만 토글로 체크하여 '불가'로 변경시킴.
 
@@ -43,11 +44,13 @@
 
 ### 구조
 
-```lua
 SendSurveyDrawer
  ├── Header: 📩 복사 일정 설문
  ├── Body:
  │   ├── 설문 기간 설정 (Start Date, End Date) - 가로 배치
+ │   ├── **알림 발송 이력 & [알림 발송] 버튼**
+ │   │   ├── (Title 우측) **[📢 설문시작 알림발송]** 또는 **[🔒 설문종료 알림발송]** 버튼
+ │   │   └── 이력 리스트: 발송일시, 제목, 발송자(Triggered By) 표시
  │   ├── 설문 대상자 정렬 탭 (이름 / 학년) - Segmented Control
  │   ├── 설문 대상자 선택 (Checkbox list, max-height: 560px)
  │       └── 학년 정렬 시 가로 구분선 표시
@@ -206,7 +209,10 @@ await setDoc(doc(db, `server_groups/${sg}/month_status/${yyyymm}`), {
 }, { merge: true });
 ```
 
-Cloud Function(`onSurveyClosed`)이 호출되어 불가 응답자를 제외한 `available_members` 계산 후 각 `mass_events` 문서 업데이트.
+**설문 종료 후 알림 정책 (2025.01 변경):**
+*   **자동 알림 중단**: Status가 `SURVEY-CONFIRMED`로 변경되어도 **자동 알림은 발송되지 않는다.** (알림 남발 방지)
+*   **수동 알림 발송**: Planner가 `SendSurveyDrawer` 의 **[🔒 설문종료 알림발송]** 버튼을 직접 클릭해야 알림이 발송된다.
+*   Cloud Function(`onSurveyClosed`)이 호출되어 불가 응답자를 제외한 `available_members` 계산 후 각 `mass_events` 문서 업데이트는 그대로 수행됨.
 
 ---
 
@@ -261,19 +267,26 @@ for each event_id in mass_events:
     4.  WebPush 규격(`webpush.fcmOptions.link`)을 포함하여 알림 클릭 시 딥링크 이동 지원.
 *   **Benefit**: 개별 함수에서 토큰 조회 로직을 중복 구현할 필요가 없음.
 
-### 11.2 설문 시작 알림 (`onSurveyOpened`)
-*   **Trigger**: `server_groups/{sgId}/availability_surveys/{month}` 문서 생성/수정 (Write)
-*   **Target**: 해당 그룹의 모든 멤버(부모 계정)
+### 11.2 설문 시작 알림 (Manual Trigger)
+*   **Method**: `sendSurveyNotification` (Callable Cloud Function)
+*   **Trigger**: Planner가 `SendSurveyDrawer`에서 **[📢 설문시작 알림발송]** 버튼 클릭 시 (수동)
+*   **Condition**: Month Status == `MASS-CONFIRMED`
+*   **Target**: 해당 그룹의 선택된 멤버(부모 계정)
 *   **Message**:
     *   Title: "📋 미사 배정 설문 시작"
     *   Body: "{N}월 미사 배정 설문이 시작되었습니다. 앱에서 참여해주세요!"
     *   Action: 설문 페이지로 이동 (`/survey/{sgId}/{month}`)
 
-### 11.3 설문 마감 및 확정 알림 (`onSurveyClosed`)
-*   **Trigger**: `availability_surveys/{month}` 문서의 `status` 변경 (Update)
-*   **Logic**:
-    *   Status가 `CLOSED`로 변경 시: "🔒 미사 배정 설문 마감" 알림
-    *   Status가 `CONFIRMED`로 변경 시: "✅ 미사 배정 확정" 알림
+### 11.3 설문 마감 알림 (Manual Trigger)
+*   **Method**: `sendSurveyNotification` (Callable Cloud Function)
+*   **Trigger**: Planner가 `SendSurveyDrawer`에서 **[🔒 설문종료 알림발송]** 버튼 클릭 시 (수동)
+*   **Condition**: Month Status == `SURVEY-CONFIRMED`
+*   **Message**:
+    *   Title: "🔒 미사 배정 설문 마감"
+    *   Body: "{N}월 미사 배정 설문이 종료되었습니다."
+    *   Action: 메인 페이지로 이동 (`/server-groups/{sgId}`)
+    
+*   *(참고: `onSurveyOpened` 및 `onSurveyClosed` 트리거 함수에 의한 자동 발송은 비활성화됨)*
 *   **Message (Confirmed)**:
     *   Title: "✅ 미사 배정 확정"
     *   Body: "{N}월 복사 배정표가 확정되었습니다. 확인해주세요!"

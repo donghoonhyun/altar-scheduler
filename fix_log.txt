@@ -1,0 +1,4 @@
+Starting fix for user: m6QWKeSxZ6WMxpCcZV6TgwZKkpg1
+Updating membership m6QWKeSxZ6WMxpCcZV6TgwZKkpg1_SG00001: active=true, role=["server"]
+Updating membership m6QWKeSxZ6WMxpCcZV6TgwZKkpg1_SG00002: active=true, role=["server"]
+??Memberships updated.

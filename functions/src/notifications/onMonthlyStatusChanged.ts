@@ -75,7 +75,9 @@ export const onMonthlyStatusChanged = functions.region(REGION_V1).firestore
                   success_count: uniqueUids.length,
                   server_group_id: groupId,
                   month_id: monthId, // Added for filtering
-                  trigger_status: newStatus
+                  trigger_status: newStatus,
+                  triggered_by: after.updated_by || null,
+                  triggered_by_name: after.updated_by_name || null
               });
           }
       }

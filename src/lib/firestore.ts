@@ -84,12 +84,16 @@ export async function getMemberNamesByIds(
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data() as DocumentData;
-        // ✅ Active check: Only return name if member is active
-        if (data.active === false) return null;
+        // ✅ Active check: Only return name if member is active OR moved
+        // Moved members (is_moved: true) should still show in historical assignments
+        if (data.active === false && !data.is_moved) return null;
 
-        return data.baptismal_name
+        const baseName = data.baptismal_name
           ? `${data.name_kor} ${data.baptismal_name}`
           : data.name_kor;
+        
+        // ✅ Add [전배] prefix for moved members
+        return data.is_moved ? `[전배] ${baseName}` : baseName;
       }
       return null;
     })

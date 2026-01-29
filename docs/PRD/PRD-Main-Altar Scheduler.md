@@ -193,7 +193,10 @@
   . 리스트 화면에서 개별 add/modify/delete 가능
 - 신규 가입자 목록에 승인 대기 표시.
   . [승인] 버튼 → active=true 로 업데이트.
+    *   **승인 시 중복 체크**: 이미 활동 중인(Active) 멤버 중 동일한 '이름(name_kor) + 세례명(baptismal_name)'을 가진 사용자가 있으면 승인을 차단하고 경고 메시지를 표시한다.
   . [거절] 버튼 → 해당 멤버 문서 삭제.
+- 비활동 복사단원 표시:
+  . 하단 비활동 영역의 복사 카드에도 활동 단원과 동일하게 '입단년도(start_year)'를 표시하여 식별력을 높인다.
 - 일괄 기능:
   . [일괄 진급] : 전체 단원(활동/비활동 포함)의 학년을 +1씩 일괄 상향 조정 (예: M1 → M2). 최고 학년(H3)은 유지.
 - 복사 상세 정보 (Drawer UI):
@@ -202,6 +205,68 @@
     - 전월/당월/차월 3개월 배정 횟수 요약 카드 제공.
     - 횟수 클릭 시 해당 월의 상세 배정 내역(날짜, 미사명) Expandable List로 표시.
     - Drawer 닫을 때 배정 현황 상태 자동 초기화.
+
+##### 2.3.5.1 타 복사단 이동 (Member Transfer)
+
+- **목적**: 복사단원이 다른 복사단으로 이동할 때 과거 배정 이력을 보존하면서 깔끔하게 관리
+- **권한**: Planner
+- **UI 위치**: ServerList 페이지 → 일괄 변경 영역 → "타 복사단 이동" 버튼
+
+**이동 프로세스**:
+1. **멤버 선택**: 활동중인 복사단원 중 이동할 멤버를 체크박스로 선택
+2. **목적지 선택**: 이동할 대상 복사단을 콤보박스에서 선택
+3. **확인 및 실행**: 
+   - 선택한 멤버 수와 대상 복사단 확인 다이얼로그 표시
+   - 확인 시 일괄 이동 처리
+
+**데이터 처리** (소프트 삭제 방식):
+- **출발 복사단**:
+  - `active: false` (비활성화)
+  - `is_moved: true` (이동 플래그)
+  - `moved_at: Timestamp` (이동 일시)
+  - `moved_by_uid: string` (처리자 UID)
+  - `moved_by_name: string` (처리자 이름)
+  - `moved_to_sg_id: string` (목적지 복사단 ID)
+  - 문서는 삭제하지 않고 보존 → 과거 배정 이력 유지
+- **도착 복사단**:
+  - 새 멤버 문서 생성 (기존 정보 복사)
+  - `moved_from_sg_id: string` (출발 복사단 ID) 추가
+  - `active: true` (활성 상태로 시작)
+
+**UI 표시**:
+1. **ServerList 페이지**:
+   - **전배간 복사단원** 섹션 (일괄 변경 영역 아래):
+     - 제목 항상 표시 (비활동 복사단원과 동일한 레벨)
+     - 기본 상위 3명만 표시, "더보기" 버튼으로 전체 확장
+     - 2열 그리드 (모바일) / 3열 그리드 (PC/태블릿)
+     - 카드 내용: 이름, 세례명, 학년, 입단년도, 전배일자, 목적지 복사단, 처리자
+     - 정렬: 전배일시 역순 → 이름 가나다순
+   - **활동중 복사단원**:
+     - 전배온 멤버에 "전배온" 뱃지 표시 (파란색)
+     - 툴팁으로 출발 복사단 ID 표시
+
+2. **미사 달력** (MassCalendar):
+   - 전배간 복사단원 이름: `[전배] 홍길동 스테파노`
+   - 회색 배경 + 취소선 스타일
+   - 과거 배정 이력에서 정상 조회 가능
+
+3. **미사 상세** (MassEventDrawer):
+   - **배정된 복사** 카드:
+     - 전배간 멤버: 회색 배경 + 취소선 + `(전배)` 라벨
+     - 비활성 멤버: 빨간색 배경 + `(비활성)` 라벨 (구분)
+   - **배정 복사 선택** 리스트:
+     - 전배간 멤버: 회색 취소선 + `(전배)` 라벨
+     - 선택 가능하지만 경고 표시
+
+**필터링 규칙**:
+- `is_moved: true` 멤버는 모든 일반 목록(승인 대기, 활동중, 비활동)에서 제외
+- 전용 "전배간 복사단원" 섹션에만 표시
+- 과거 미사 배정 이력 조회 시에는 정상 표시
+
+**데이터 무결성**:
+- 멤버 문서 삭제 없이 플래그로 관리 → 과거 배정 참조 유지
+- 양방향 추적 가능: `moved_to_sg_id` ↔ `moved_from_sg_id`
+- 이동 이력 완전 보존: 언제, 누가, 어디로 이동했는지 추적 가능
 
 #### 2.3.6 복사 명단 등록
 
@@ -452,7 +517,8 @@
       "user_category": "Layman",
       "grade": "중2",
       "notes": "",
-      "active": false,         // 기본값: 미승인
+      "role": ["server"],      // 표준화: 역할은 항상 배열로 저장
+      "active": false,         // 기본값: 미승인 (단, Admin/Planner 생성 시에는 active: true)
       "created_at": "...",
       "updated_at": "..."
     }
@@ -628,8 +694,10 @@
     . ON: 토큰 재발급 및 Firestore 등록.
 
 #### 2.16.1 알림 발송 시점 및 수신자
-1. **상태 변경 시 (즉시 발송)**
-   - 트리거: 설문 시작(MASS-CONFIRMED), 설문 종료(SURVEY-CONFIRMED), 최종 확정(FINAL-CONFIRMED) 상태 변경 시
+1. **설문 관련 알림 (Manual Trigger)**
+   - **설문 시작**: Month Status `MASS-CONFIRMED` 상태에서 Planner가 [📢 설문시작 알림발송] 버튼 클릭 시
+   - **설문 종료**: Month Status `SURVEY-CONFIRMED` 상태에서 Planner가 [🔒 설문종료 알림발송] 버튼 클릭 시
+   - **최종 확정**: Status `FINAL-CONFIRMED` 상태 변경 후 별도 확정 알림 필요 시 (현재 확정 알림도 수동 버튼 필요 여부 검토 중, 우선 설문 시작/종료는 완전 수동화)
    - 수신자: 해당 복사단 전체 인원 (Admin, Planner, Server)
    - 채널: 앱 푸시 (App Push)
 2. **주기적 미사 알림 (하루 전 발송)**
@@ -677,7 +745,15 @@
       sent_at: Timestamp;
       recipient_count: number;
       status: 'success' | 'partial' | 'failure';
-      message: string;
+      title?: string;
+      body?: string;
+      message?: string; // SMS의 경우
+      
+      // Trigger Info (2025.01 Added)
+      triggered_by?: string;      // 발송자 UID
+      triggered_by_name?: string; // 발송자 이름 (표시용)
+      trigger_status?: string;    // 발송 시점의 상태 (OPEN, CLOSED, FINAL_CONFIRMED 등)
+
       group_id?: string; // SMS 발송 그룹 ID (Solapi tracking용)
       details?: {
         member_id: string; // 학생 ID (참조용)
@@ -716,6 +792,8 @@
 - hosting/deploy: Google Firebase Hosting, Functions, Auth
 - Localization: 여러 성당에서 사용 가능 (parish_code로 구분)
 - Locale : 한국어 (다국어 확장 계획 없음 – 시차 관련 로직 폐기)
+  . **자동 번역 방지**: `index.html` 에 `translate="no"` 및 메타 태그를 적용하여 브라우저(Chrome 등)의 자동 번역 팝업이 뜨지 않도록 강제함.
+  
 - Sesurity: Google Firebase Security Rules로 역할별 접근 제어
 - 유지보수성: CSV Import/Export, Emulator 기반 테스트 지원
 - CI/CD
@@ -836,6 +914,23 @@
 ---
 
 ## 🎯5. 변경 이력 (Changelog)
+
+### 2026-01-29: 데이터 무결성 확보 및 UI/UX 개선
+
+#### 1. 데이터 무결성 (Integrity)
+- **멤버십 데이터 표준화**:
+  - `role` 필드 포맷을 배열(Array)로 통일 (`"server"` → `["server"]`).
+  - `active` 필드 누락 및 불일치 수정 (어드민 생성 시 `active: true` 강제).
+  - 전체 데이터 보정 스크립트(`fix_all_memberships.ts`) 실행 완료.
+
+#### 2. 복사단원 관리 (Server List)
+- **승인 로직 강화**: '승인' 시 활동 중인 단원과 이름/세례명이 완벽히 동일한 경우 승인 차단 (중복 방지).
+- **비활동 단원 표시 개선**: 비활동 카드에도 '입단년도' 정보를 표시.
+- **등록 UI 개선**: 신규 단원 추가 시 입단년도 입력 필드(`Input`) 너비 최적화.
+
+#### 3. 앱 환경 및 UI
+- **자동 번역 방지**: `index.html` 태그 설정을 통해 브라우저 자동 번역 기능 비활성화 (오역 방지).
+- **회원가입 UI**: 다크모드 완벽 지원 (배경, 입력 필드 등 색상 최적화).
 
 ### 2026-01-25: 대량 배정 및 최종 확정 화면 UI/UX 개선
 

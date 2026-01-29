@@ -45,6 +45,12 @@ export interface MemberDoc {
   notes?: string;
   active: boolean;
   request_confirmed?: boolean;
+  is_moved?: boolean; // ✅ [New] 타 복사단 이동 여부
+  moved_at?: Timestamp;
+  moved_by_uid?: string;
+  moved_by_name?: string;
+  moved_to_sg_id?: string;
+  moved_from_sg_id?: string; // ✅ [New] 어디서 왔는지
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -79,8 +85,19 @@ export interface MassEventDoc {
   status: MassStatus;
   member_ids?: string[];
   main_member_id?: string;
+  history?: ChangeLog[];
+  notifications?: NotificationDoc[]; // Existing notifications field
   created_at: Timestamp;
   updated_at: Timestamp;
+}
+
+export interface ChangeLog {
+  id: string;
+  type: 'update' | 'create';
+  timestamp: Timestamp;
+  editor_uid?: string;
+  editor_name?: string;
+  changes: string[];
 }
 
 // ===============================

@@ -7,6 +7,9 @@ export interface NotificationPayload {
   clickAction?: string;
   feature?: string; // e.g. 'TEST_SEND', 'MASS_REMINDER', 'SURVEY_OPEN', etc.
   serverGroupId?: string; // Optional: associated server group ID
+  triggered_by?: string; // Operator UID
+  triggered_by_name?: string; // Operator Name
+  trigger_status?: string; // e.g. 'SURVEY_OPENED', 'FINAL-CONFIRMED'
 }
 
 /**
@@ -96,7 +99,10 @@ export async function sendMulticastNotification(
             success_count: response.successCount,
             failure_count: response.failureCount,
             click_action: payload.clickAction || null,
-            status: 'success'
+            status: 'success',
+            triggered_by: payload.triggered_by || null,
+            triggered_by_name: payload.triggered_by_name || null,
+            trigger_status: payload.trigger_status || null,
         };
         
         const ref = await db.collection('system_notification_logs').add(logData);

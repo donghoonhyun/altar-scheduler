@@ -228,7 +228,7 @@ export default function AddMember() {
       await setDoc(doc(db, 'memberships', membershipId), {
         uid: user.uid,
         server_group_id: selectedGroup,
-        role: 'server',
+        role: ['server'],
         active: false,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
@@ -380,13 +380,13 @@ export default function AddMember() {
           </button>
           <input
             type="number"
-            className="flex-1 border rounded p-2 text-center bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
+            className="w-36 border rounded p-2 text-center bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
             value={startYear}
             onChange={(e) => {
               const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
               setStartYear(val);
             }}
-            placeholder="직접 입력 (YYYY)"
+            placeholder="YYYY"
           />
           <button 
              tabIndex={-1}

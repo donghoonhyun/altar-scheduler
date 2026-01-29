@@ -42,6 +42,7 @@ export { onUserCreated } from './notifications/onUserCreated';
 export { onMemberCreated, onRoleRequestCreated } from './notifications/onMemberEvents';
 export { onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
 export { onDailyMassReminder, manualDailyMassReminder } from './notifications/onDailyMassReminder';
+export { sendSurveyNotification } from './notifications/sendSurveyNotification';
 
 
 
