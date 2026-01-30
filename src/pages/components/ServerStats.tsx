@@ -90,9 +90,9 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
           복사단원 관리
         </Button>
         <Button
-          variant="secondary"
+          variant="ghost"
           onClick={() => navigate(`/server-groups/${serverGroupId}/assignment-status`)}
-          className="w-full"
+          className="w-full bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 dark:hover:bg-purple-900/50"
         >
           복사배정 현황
         </Button>

@@ -205,6 +205,22 @@
     - 전월/당월/차월 3개월 배정 횟수 요약 카드 제공.
     - 횟수 클릭 시 해당 월의 상세 배정 내역(날짜, 미사명) Expandable List로 표시.
     - Drawer 닫을 때 배정 현황 상태 자동 초기화.
+  . **복사 변경 이력 (History Log)**:
+    - 위치: Drawer 최하단.
+    - 내용: 정보 수정, 학년 진급, 상태 변경(활동/비활동), 삭제/복구 등 주요 변경 이력을 타임라인 형태로 표시.
+    - 데이터: 변경 일시, 작업 내용(Before -> After), 변경자 이름.
+    - 기능: 기본 3건 표시, '더보기' 버튼으로 전체 이력 조회 가능.
+
+- 복사단원 삭제 (Soft Delete) 및 복구:
+  . 삭제 시 영구 삭제하지 않고 `del_members` 컬렉션으로 이동(Soft Delete).
+  . '삭제된 복사단원' 섹션에서 삭제된 멤버 목록 및 삭제 정보(삭제자, 삭제일시) 확인 가능.
+  . [복구] 버튼을 통해 다시 `members` 컬렉션(비활동 상태)으로 복원 가능.
+
+- 슈퍼 어드민 기능 (Super Admin Only):
+  . **ID 복사 배지 ("S")**: 복사단원의 Firestore Document ID를 클립보드에 복사하는 기능.
+  . 위치:
+    - 활동/비활동 단원: '복사 상세 정보 Drawer' 상단 이름 옆.
+    - 대기/전배/삭제 단원: 각 리스트 카드 내 이름 옆.
 
 ##### 2.3.5.1 타 복사단 이동 (Member Transfer)
 
@@ -240,8 +256,12 @@
      - 기본 상위 3명만 표시, "더보기" 버튼으로 전체 확장
      - 2열 그리드 (모바일) / 3열 그리드 (PC/태블릿)
      - 카드 내용: 이름, 세례명, 학년, 입단년도, 전배일자, 목적지 복사단, 처리자
-     - 정렬: 전배일시 역순 → 이름 가나다순
-   - **활동중 복사단원**:
+      - 정렬: 전배일시 역순 → 이름 가나다순
+    - **삭제된 복사단원** 섹션:
+      - 전배간 복사단원 섹션과 유사한 UI.
+      - 카드 내용: 이름, 세례명, 삭제 정보(Del by [Name] [Date]).
+      - [복구] 버튼 제공.
+    - **활동중 복사단원**:
      - 전배온 멤버에 "전배온" 뱃지 표시 (파란색)
      - 툴팁으로 출발 복사단 ID 표시
 
@@ -621,6 +641,10 @@
     . 목록 표시 정보: 사용자 정보(이름, 세례명, UID, 가입경로), 연락처(이메일, 전화번호), 구분(신부님/수녀님/평신도), 관리 기능(수정, 멤버십, 복사정보, 지원)
     . 검색 기능 고도화: 이름, 이메일, UID(Prefix) 통합 검색 지원 (자동 공백 제거 및 엔터 검색 지원)
     . UI/UX 최적화: 모바일 및 데스크탑 가독성을 고려한 Compact Table Layout 적용 (이름/세례명/UID 한 줄 표시)
+645:   ⑦ AI 관리 (AI Management)
+646:     . 경로: Admin Panel 하단 'AI 관리' 섹션
+647:     . 기능: 배정 결과 분석 프롬프트 템플릿 수정 및 저장
+648:     . 데이터: `system_settings/ai_config` 문서의 `prompt_analyze_monthly_assignments` 필드 관리
 
 ---
 
@@ -779,6 +803,33 @@
   - `manualDailyMassReminder` (Callable Function)를 호출.
   - 내부적으로 `scheduled` 트리거와 동일한 `executeDailyMassReminder` 핵심 로직을 공유하여 동작의 일관성 보장.
   - **Month Status 체크**: 수동 실행 시에도 해당 월이 'FINAL-CONFIRMED' 상태인지 확인하고 발송함.
+
+### 📍2.17 AI 기반 배정 분석 (AI Assignment Analysis)
+
+- **개요**: 매월 완료된 미사 배정 결과(통계)를 AI가 분석하여, 균등 배정 여부 및 특이사항(편중, 불참 등)을 리포트로 제공한다.
+- **기술 스택**: 
+  - **Model**: Google Generative AI (Gemini 2.5 Flash)
+  - **Auth**: API Key (Firebase Secrets Manager `GOOGLE_AI_API_KEY`)
+  - **SDK**: `@google/generative-ai`
+
+#### 2.17.1 분석 실행 흐름
+1. **데이터 수집**: 해당 월의 모든 미사 배정 데이터(`mass_events`)와 복사단원 정보, 전월 배정 통계를 수집.
+2. **프롬프트 생성**: 
+   - `system_settings/ai_config`에서 저장된 **Custom Prompt**를 로드. (없으면 기본 개조식 템플릿 사용)
+   - 변수 치환(`{{yyyymm}}`, `{{totalMembers}}`, `{{assignedCount}}`, `{{dataList}}` 등)을 통해 실제 데이터를 주입.
+3. **AI 호출**: Gemini 모델에 프롬프트를 전송하여 분석 요청.
+4. **결과 저장**:
+   - 위치: `server_groups/{sgId}/ai_insights/{yyyymm}` 문서 및 `history` 서브컬렉션.
+   - 필드: `content`, `model`, `usage`, `total_count` (분석 횟수 증가).
+
+#### 2.17.2 UI 표시 (ServerAssignmentStatus)
+- **위치**: [배정 현황] 페이지 상단.
+- **구성**:
+  - **3줄 요약**: 분석 결과의 앞부분만 노출하여 가독성 확보.
+  - **펼치기/접기**: '더 읽으려면 클릭하세요' 버튼으로 전체 내용(최대 600px 스크롤) 확인.
+  - **Markdown 렌더링**: 내용의 가독성을 위해 리스트, 볼드체 등 서식 적용.
+  - **재분석**: '다시 분석하기' 버튼으로 최신 데이터를 반영하여 리포트 갱신 가능.
+
 ---
 
 ## 🎯3. 비기능 요구사항
@@ -914,6 +965,21 @@
 ---
 
 ## 🎯5. 변경 이력 (Changelog)
+
+
+### 2026-01-30: AI 기반 배정 분석 및 시스템 관리 고도화
+
+#### 1. AI 배정 분석 (AI Analysis)
+- **Gemini 2.5 Flash 도입**: Vertex AI(IAM) 대신 API Key 기반의 Google AI SDK로 전환하여 안정성 확보.
+- **분석 기능**:
+  - 월별 배정 결과(편중, 평균 횟수, 전월 대비 증감) 자동 분석.
+  - **Markdown 리포트**: 3줄 요약 보기, 펼치기/접기, 스크롤 지원 UI 적용.
+  - **히스토리 관리**: 분석 이력(`history`) 저장 및 재분석 기능(`total_count` 증가).
+
+#### 2. 시스템 관리 (System Admin)
+- **AI 관리 섹션 추가**: 슈퍼어드민 페이지에서 '배정 결과 분석' 프롬프트를 직접 수정하고 저장하는 기능 구현.
+- **설정 저장 구조 개선**: `system_settings/ai_config` 문서 내 `prompt_analyze_monthly_assignments` 객체 구조로 확장성 확보.
+- **보안 강화**: `system_settings` 컬렉션에 대한 보안 규칙(Security Rules) 적용 (Admin Write / User Read).
 
 ### 2026-01-29: 데이터 무결성 확보 및 UI/UX 개선
 

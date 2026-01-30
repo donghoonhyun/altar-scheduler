@@ -23,6 +23,7 @@ interface MoveMembersDrawerProps {
     onOpenChange: (open: boolean) => void;
     currentServerGroupId: string;
     members: any[]; // Active + Inactive members
+    parentInfos: Record<string, any>;
 }
 
 interface ServerGroupOption {
@@ -34,7 +35,8 @@ export default function MoveMembersDrawer({
     open, 
     onOpenChange, 
     currentServerGroupId, 
-    members 
+    members,
+    parentInfos
 }: MoveMembersDrawerProps) {
     const [targetSgId, setTargetSgId] = useState<string>('');
     const [serverGroups, setServerGroups] = useState<ServerGroupOption[]>([]);
@@ -52,6 +54,7 @@ export default function MoveMembersDrawer({
         allGrades.forEach(g => groups[g] = []);
         
         members.forEach(m => {
+            if (!m.active) return; // ✅ Only show active members
             const grade = allGrades.includes(m.grade) ? m.grade : '기타';
             groups[grade].push(m);
         });
@@ -299,24 +302,32 @@ export default function MoveMembersDrawer({
                                         <span className="text-xs text-gray-400">{list.length}명</span>
                                     </div>
                                     <div className="divide-y divide-gray-50 dark:divide-slate-800">
-                                        {list.map((m: any) => (
-                                            <div 
-                                                key={m.id} 
-                                                className="flex items-center gap-3 p-2.5 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer"
-                                                onClick={() => handleToggleMember(m.id)}
-                                            >
-                                                <Checkbox 
-                                                    checked={selectedIds.has(m.id)}
-                                                    onCheckedChange={() => handleToggleMember(m.id)}
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{m.name_kor}</span>
-                                                        <span className="text-xs text-gray-500 dark:text-gray-500">({m.baptismal_name})</span>
+                                        {list.map((m: any) => {
+                                            const parent = m.parent_uid ? parentInfos[m.parent_uid] : undefined;
+                                            return (
+                                                <div 
+                                                    key={m.id} 
+                                                    className="flex items-center gap-3 p-2.5 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                                                    onClick={() => handleToggleMember(m.id)}
+                                                >
+                                                    <Checkbox 
+                                                        checked={selectedIds.has(m.id)}
+                                                        onCheckedChange={() => handleToggleMember(m.id)}
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{m.name_kor}</span>
+                                                            <span className="text-xs text-gray-500 dark:text-gray-500">({m.baptismal_name})</span>
+                                                            {parent && (
+                                                              <span className="text-xs text-gray-400 dark:text-gray-600 ml-1">
+                                                                · 신청: {parent.user_name}
+                                                              </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );

@@ -56,10 +56,19 @@ server_groups/{serverGroupId} (Document)
  │    ├── dates: Record<eventId, string(yyyymmdd)> | null 
  │    └── created_at, updated_at
  │
+ ├── ai_insights/{yyyymm}
+ │    ├── content: string
+ │    ├── model: string
+ │    └── history/ (Subcollection)
+ │
  └── notifications/{notifId}
       ├── message: string
       ├── created_at: Timestamp
       └── type?: string
+
+system_settings/{settingId}
+   └── (e.g., ai_config)
+
 ```
 
 ## 1. 권한 SSOT
@@ -103,10 +112,28 @@ server_groups/{sg}/members/{member_id}
   baptismal_name: string
   grade: string              # E1~E6 / M1~M3 / H1~H3
   phone_guardian?: string
-  phone_student?: string
+  phone_student?: string  
   notes?: string
   created_at: timestamp
   updated_at: timestamp
+  history_logs: HistoryLog[] # 변경 이력
+    [{
+       date: timestamp
+       action: string   # "정보 수정", "삭제", "복구" 등
+       changes: string[] 
+       editor: string
+    }]
+```
+
+### 2.1.1 Deleted Members (Soft Delete)
+
+```lua
+server_groups/{sg}/del_members/{member_id}
+  (members 구조와 동일)
+  deleted_at: timestamp
+  deleted_by_uid: string
+  deleted_by_name: string
+  active: false
 ```
 
 ### 2.2 Mass_Presets
@@ -242,6 +269,39 @@ system_notification_logs/{logId}
   status: string                 // "success"
   created_at: timestamp
   data?: object                  // 추가 메타데이터
+```
+
+## 7. System Settings & AI
+
+### 7.1 System Settings (root level)
+
+- 전역 시스템 설정 관리
+
+```lua
+system_settings/ai_config
+  prompt_analyze_monthly_assignments: {
+      template: string          // AI 프롬프트 템플릿
+      updated_at: timestamp
+  }
+  // 향후 prompt_daily_briefing 등으로 확장 가능
+```
+
+### 7.2 AI Assignment Analysis (server_group level)
+
+- 월별 배정 결과 분석 데이터
+
+```lua
+server_groups/{sg}/ai_insights/{yyyymm}
+  content: string               // Markdown 형식의 분석 결과
+  model: string                 // 사용된 모델명 (ex: "gemini-2.5-flash")
+  total_count: number           // 분석 실행 횟수
+  created_at: timestamp         // 마지막 분석 일시
+  
+  history/ (Subcollection)      // 분석 이력 (재분석 시 쌓임)
+    {docId}: auto-generated
+      content: string
+      model: string
+      created_at: timestamp
 ```
 
 ## 4. 클라이언트 연계 포인트 (UI기준)

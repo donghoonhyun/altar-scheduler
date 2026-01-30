@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, Timestamp, writeBatch, setDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { db } from '@/lib/firebase';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ import { cn } from '@/lib/utils';
 import AddServerDrawer from '@/pages/components/AddServerDrawer';
 import MoveMembersDrawer from '@/pages/components/MoveMembersDrawer';
 import { UserRoleIcon } from '@/components/ui';
+import { useSession } from '@/state/session';
 
 interface Member {
   id: string;
@@ -40,6 +42,15 @@ interface Member {
   moved_to_sg_id?: string;
   moved_from_sg_id?: string; // ✅ [New] 어디서 온 복사단원인지
   created_at?: any; // Firestore Timestamp
+  // History
+  history_logs?: HistoryLog[];
+}
+
+interface HistoryLog {
+  date: Timestamp;
+  action: string;
+  changes: string[];
+  editor: string;
 }
 
 interface UserInfo {
@@ -63,13 +74,26 @@ const ALL_GRADES = [
   'H1', 'H2', 'H3'
 ];
 
+// Helper function to get changes
+const getMemberChanges = (oldMember: Member, newActive: boolean, newGrade: string, newStartYear: string, newNameKor: string, newBaptismalName: string): string[] => {
+  const changes: string[] = [];
+  if (oldMember.active !== newActive) changes.push(`상태: ${oldMember.active ? '활동' : '비활동'} -> ${newActive ? '활동' : '비활동'}`);
+  if (oldMember.grade !== newGrade) changes.push(`학년: ${oldMember.grade} -> ${newGrade}`);
+  if ((oldMember.start_year || '') !== newStartYear) changes.push(`입단: ${oldMember.start_year || ''} -> ${newStartYear}`);
+  if ((oldMember.name_kor || '') !== newNameKor) changes.push(`이름: ${oldMember.name_kor} -> ${newNameKor}`);
+  if ((oldMember.baptismal_name || '') !== newBaptismalName) changes.push(`세례명: ${oldMember.baptismal_name} -> ${newBaptismalName}`);
+  return changes;
+};
+
 export default function ServerList() {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const navigate = useNavigate();
+  const { isSuperAdmin } = useSession();
   const [pendingMembers, setPendingMembers] = useState<Member[]>([]);
   const [activeMembers, setActiveMembers] = useState<Member[]>([]);
   const [inactiveMembers, setInactiveMembers] = useState<Member[]>([]);
   const [movedMembers, setMovedMembers] = useState<Member[]>([]); // ✅ [New] 전배간 복사단원
+  const [deletedMembers, setDeletedMembers] = useState<Member[]>([]); // ✅ [New] 삭제된 복사단원
   const [loading, setLoading] = useState(true);
   const [parentInfos, setParentInfos] = useState<Record<string, UserInfo>>({});
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -79,6 +103,7 @@ export default function ServerList() {
   const [assignmentStats, setAssignmentStats] = useState<AssignmentStats>({ lastMonth: 0, thisMonth: 0, nextMonth: 0 });
   // ✅ 배정 현황 기준 월 (중간달)
   const [statsBaseDate, setStatsBaseDate] = useState(dayjs());
+  const [showAllLogs, setShowAllLogs] = useState(false); // ✅ [New] 이력 더보기 토글
   
   // ✅ 상태 수정용 state
   const [editActive, setEditActive] = useState(false);
@@ -164,6 +189,29 @@ export default function ServerList() {
       setMovedMembers(moved);
 
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [serverGroupId]);
+
+  // ✅ 삭제된 복사단원 구독
+  useEffect(() => {
+    if (!serverGroupId) return;
+
+    const delColRef = collection(db, 'server_groups', serverGroupId, 'del_members');
+    const unsubscribe = onSnapshot(delColRef, (snap) => {
+        const deleted = snap.docs.map(d => ({
+            ...(d.data() as Member),
+            id: d.id
+        }));
+
+        deleted.sort((a: any, b: any) => {
+             const tA = a.deleted_at?.toDate ? a.deleted_at.toDate().getTime() : 0;
+             const tB = b.deleted_at?.toDate ? b.deleted_at.toDate().getTime() : 0;
+             return tB - tA; // 내림차순
+        });
+
+        setDeletedMembers(deleted);
     });
 
     return () => unsubscribe();
@@ -346,13 +394,25 @@ export default function ServerList() {
 
     try {
       const batch = writeBatch(db);
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const editorName = currentUser?.displayName || '관리자';
 
       // (1) server_groups/.../members 업데이트
       const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+      
+      const newLog: HistoryLog = {
+        date: Timestamp.now(),
+        action: '승인',
+        changes: ['상태: 비활동 -> 활동', '승인됨'],
+        editor: editorName
+      };
+
       batch.update(memberRef, { 
         active: true, 
         request_confirmed: true, // 승인 확정
-        updated_at: new Date() 
+        updated_at: new Date(),
+        history_logs: arrayUnion(newLog)
       });
 
       // (2) memberships 컬렉션 업데이트 (active: true)
@@ -372,28 +432,69 @@ export default function ServerList() {
     }
   };
 
-  // ✅ 삭제(거절) 처리
+  // ✅ 삭제(거절) 처리 -> del_members로 이동
   const handleDelete = async (uid: string): Promise<boolean> => {
     if (!serverGroupId) return false;
 
+    // pending, active, inactive, moved 중에서 찾아봄
+    const targetMember = 
+        pendingMembers.find(m => m.id === uid) || 
+        activeMembers.find(m => m.id === uid) || 
+        inactiveMembers.find(m => m.id === uid) ||
+        movedMembers.find(m => m.id === uid);
+
+    if (!targetMember) {
+        toast.error('대상을 찾을 수 없습니다.');
+        return false;
+    }
+
     const ok = await openConfirm({
-      title: '회원 삭제',
-      message: '정말로 이 복사단원을 영구적으로 삭제하시겠습니까?',
+      title: '복사단원 삭제',
+      message: '해당 복사단원을 삭제하시겠습니까?\n삭제된 단원은 [삭제된 복사단원] 목록으로 이동되며, 필요 시 복구할 수 있습니다.',
       confirmText: '삭제',
       cancelText: '취소',
     });
 
     if (!ok) return false;
 
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
     try {
-      // (1) members 문서 삭제
-      await deleteDoc(doc(db, 'server_groups', serverGroupId, 'members', uid));
+      const batch = writeBatch(db);
+      
+      // 1. del_members에 추가 (History 추가)
+      const delRef = doc(db, 'server_groups', serverGroupId, 'del_members', uid);
+      
+      const newLog: HistoryLog = {
+          date: Timestamp.now(),
+          action: '삭제',
+          changes: ['휴지통으로 이동'],
+          editor: currentUser?.displayName || '관리자'
+      };
+      const existingLogs = targetMember.history_logs || [];
 
-      // (2) memberships 문서 삭제
+      batch.set(delRef, {
+        ...targetMember,
+        active: false, // 삭제되므로 active는 false
+        deleted_at: serverTimestamp(),
+        deleted_by_uid: currentUser?.uid,
+        deleted_by_name: currentUser?.displayName || '관리자',
+        history_logs: [newLog, ...existingLogs] // 최신 로그가 앞으로 오게 (하지만 Firestore 저장은 배열 순서대로임, 뷰에서 sort 필요)
+      });
+
+      // 2. members 문서 삭제
+      const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+      batch.delete(memberRef);
+
+      // 3. memberships 문서 삭제
       const membershipId = `${uid}_${serverGroupId}`;
-      await deleteDoc(doc(db, 'memberships', membershipId));
+      const membershipRef = doc(db, 'memberships', membershipId);
+      batch.delete(membershipRef);
 
-      toast.success('🚫 회원이 삭제되었습니다.');
+      await batch.commit();
+
+      toast.success('휴지통으로 이동되었습니다.');
       return true;
     } catch (err) {
       console.error(err);
@@ -402,13 +503,89 @@ export default function ServerList() {
     }
   };
 
+  // ✅ 복구 처리
+  const handleRestore = async (uid: string, originalData: any) => {
+      if (!serverGroupId) return;
+
+      const ok = await openConfirm({
+          title: '복사단원 복구',
+          message: '선택한 단원을 복구하시겠습니까?\n(비활동 상태로 복구됩니다)',
+          confirmText: '복구',
+          cancelText: '취소'
+      });
+      if (!ok) return;
+
+      try {
+          const batch = writeBatch(db);
+
+          // 1. members로 복귀 (History 추가)
+          const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+          
+          // 삭제 관련 필드 제거
+          const { deleted_at, deleted_by_uid, deleted_by_name, ...rest } = originalData;
+          
+          const auth = getAuth();
+          const currentUser = auth.currentUser;
+          const newLog: HistoryLog = {
+              date: Timestamp.now(),
+              action: '복구',
+              changes: ['휴지통에서 복구 (비활동 상태)'],
+              editor: currentUser?.displayName || '관리자'
+          };
+          const existingLogs = originalData.history_logs || [];
+
+          batch.set(memberRef, {
+              ...rest,
+              active: false, // 복구 시 안전하게 비활동으로
+              request_confirmed: true, // 복구된 멤버는 승인된 것으로 간주
+              updated_at: serverTimestamp(),
+              history_logs: [newLog, ...existingLogs]
+          });
+
+          // 2. memberships 생성
+          const membershipRef = doc(db, 'memberships', `${uid}_${serverGroupId}`);
+          batch.set(membershipRef, {
+              uid,
+              server_group_id: serverGroupId,
+              role: ['server'],
+              active: false,
+              created_at: serverTimestamp(),
+              updated_at: serverTimestamp()
+          });
+
+          // 3. del_members에서 제거
+          const delRef = doc(db, 'server_groups', serverGroupId, 'del_members', uid);
+          batch.delete(delRef);
+
+          await batch.commit();
+          toast.success('복사단원이 복구되었습니다.');
+      } catch (e) {
+          console.error(e);
+          toast.error('복구 중 오류가 발생했습니다.');
+      }
+  };
+
   // ✅ 상태 변경 저장
   const handleSaveStatus = async () => {
     if (!selectedMember || !serverGroupId) return;
+    
+    // 변경 사항 감지
+    const changes = getMemberChanges(selectedMember, editActive, editGrade, editStartYear, editNameKor, editBaptismalName);
+
+    if (changes.length === 0) {
+        setIsDrawerOpen(false);
+        return;
+    }
+
     setIsSaving(true);
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const editorName = currentUser?.displayName || '관리자';
+
     try {
       const memberRef = doc(db, 'server_groups', serverGroupId, 'members', selectedMember.id);
-      await updateDoc(memberRef, { 
+      
+      const updateData: any = { 
         active: editActive, 
         grade: editGrade,
         start_year: editStartYear,
@@ -416,18 +593,34 @@ export default function ServerList() {
         baptismal_name: editBaptismalName,
         request_confirmed: true, // 수정 시 확정 상태 보장 (비활동 전환 시 필요)
         updated_at: new Date() 
-      });
+      };
+
+      const newLog: HistoryLog = {
+          date: Timestamp.now(),
+          action: '정보 수정',
+          changes: changes,
+          editor: editorName
+      };
+      
+      updateData.history_logs = arrayUnion(newLog);
+
+      await updateDoc(memberRef, updateData);
       
       // 로컬 상태 업데이트
-      setSelectedMember(prev => prev ? ({ 
-          ...prev, 
-          active: editActive, 
-          grade: editGrade, 
-          start_year: editStartYear,
-          name_kor: editNameKor,
-          baptismal_name: editBaptismalName,
-          request_confirmed: true 
-      }) : null);
+      setSelectedMember(prev => {
+          if (!prev) return null;
+          const updatedLogs = [newLog, ...(prev.history_logs || [])];
+          return { 
+            ...prev, 
+            active: editActive, 
+            grade: editGrade, 
+            start_year: editStartYear,
+            name_kor: editNameKor,
+            baptismal_name: editBaptismalName,
+            request_confirmed: true,
+            history_logs: updatedLogs
+          };
+      });
       
       toast.success('정보가 저장되었습니다.');
       setIsDrawerOpen(false);
@@ -437,6 +630,12 @@ export default function ServerList() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCopyId = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(id);
+      toast.success('ID가 복사되었습니다: ' + id);
   };
 
   const handleExcelDownload = () => {
@@ -864,7 +1063,16 @@ export default function ServerList() {
                 >
                   {/* Left: Server Info */}
                   <div className="flex-1 min-w-0 mr-1">
-                    <p className="font-semibold text-gray-500 dark:text-gray-400 text-sm truncate">{m.name_kor}</p>
+                    <p className="font-semibold text-gray-500 dark:text-gray-400 text-sm truncate flex items-center gap-1">
+                        {m.name_kor}
+                        {isSuperAdmin && (
+                        <span 
+                              onClick={(e) => handleCopyId(e, m.id)}
+                              className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700"
+                              title="ID 복사"
+                         >S</span>
+                         )}
+                    </p>
                     <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
                       {m.baptismal_name} · {m.grade} {m.start_year && `· ${m.start_year}년`}
                     </p>
@@ -935,7 +1143,7 @@ export default function ServerList() {
                
                const ok = await openConfirm({
                  title: '일괄 학년 진급',
-                 message: `활동단원 ${activeCount}명과 비활동단원 ${inactiveCount}명 전체를 한 학년씩 올리겠습니까?\n(최고 학년인 경우 변경되지 않습니다.)`,
+                 message: `활동단원 ${activeCount}명과 비활동단원 ${inactiveCount}명 전체를 한 학년씩 올리겠습니까? (고3 학년인 경우 변경되지 않습니다.)`,
                  confirmText: '실행',
                  cancelText: '취소',
                });
@@ -947,6 +1155,9 @@ export default function ServerList() {
                    let updateCount = 0;
 
                    const allTargets = [...activeMembers, ...inactiveMembers];
+                   const auth = getAuth();
+                   const currentUser = auth.currentUser;
+                   const editorName = currentUser?.displayName || '관리자';
                    
                    allTargets.forEach(m => {
                      const currentIdx = ALL_GRADES.indexOf(m.grade);
@@ -954,7 +1165,19 @@ export default function ServerList() {
                      if (currentIdx !== -1 && currentIdx < ALL_GRADES.length - 1) {
                         const nextGrade = ALL_GRADES[currentIdx + 1];
                         const ref = doc(db, 'server_groups', serverGroupId, 'members', m.id);
-                        batch.update(ref, { grade: nextGrade, updated_at: new Date() });
+                        
+                        const newLog: HistoryLog = {
+                            date: Timestamp.now(),
+                            action: '일괄 학년 진급',
+                            changes: [`학년: ${m.grade} -> ${nextGrade}`],
+                            editor: editorName
+                        };
+
+                        batch.update(ref, { 
+                            grade: nextGrade, 
+                            updated_at: new Date(),
+                            history_logs: arrayUnion(newLog)
+                        });
                         updateCount++;
                      }
                    });
@@ -994,6 +1217,7 @@ export default function ServerList() {
          onOpenChange={setIsMoveDrawerOpen}
          currentServerGroupId={serverGroupId || ''}
          members={[...activeMembers, ...inactiveMembers]}
+         parentInfos={parentInfos}
       />
 
       {/* ✅ [New] 전배간 복사단원 (Moved Members) */}
@@ -1019,12 +1243,25 @@ export default function ServerList() {
                              <div key={m.id} className="flex flex-col justify-center text-xs bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-2 rounded shadow-sm">
                                  <div className="flex items-center justify-between mb-1">
                                      <div className="flex items-center gap-1 min-w-0">
-                                         <span className="font-bold text-gray-700 dark:text-gray-300 shrink-0">{m.name_kor}</span>
-                                         <span className="text-gray-400 truncate text-[10px]">
+                                         <span className="font-bold text-gray-700 dark:text-gray-300 shrink-0 flex items-center gap-1">
+                                            {m.name_kor}
+                                            {isSuperAdmin && (
+                                            <span 
+                                                onClick={(e) => handleCopyId(e, m.id)}
+                                                className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700"
+                                                title="ID 복사"
+                                            >S</span>
+                                            )}
+                                          </span>
+                                          <span className="text-gray-400 truncate text-[10px]">
                                              ({m.baptismal_name}) · {m.grade} {m.start_year && `· ${m.start_year}년`}
                                          </span>
                                      </div>
-                                     <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">{moveDateStr}</span>
+                                     <div className="flex flex-col items-end">
+                                         <span className="text-[9px] text-gray-400">
+                                             By {m.moved_by_name?.split(' ')[0] || '관리자'} <span className="text-[10px] text-gray-500">{moveDateStr}</span>
+                                         </span>
+                                     </div>
                                  </div>
                                  <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
                                      {m.moved_to_sg_id ? (
@@ -1032,7 +1269,6 @@ export default function ServerList() {
                                              To. {m.moved_to_sg_id}
                                          </span>
                                      ) : <span>-</span>}
-                                     <span className="truncate max-w-[60px]" title={m.moved_by_name || '관리자'}>By {m.moved_by_name?.split(' ')[0] || '관리자'}</span>
                                  </div>
                              </div>
                          );
@@ -1055,6 +1291,67 @@ export default function ServerList() {
              )}
       </Card>
 
+      {/* ✅ [New] 삭제된 복사단원 (Deleted Members) */}
+      <Card className="p-4 bg-gray-50/50 border-gray-100 dark:bg-slate-800/10 dark:border-slate-800 mt-8 mb-20 opacity-80 hover:opacity-100 transition-opacity">
+             <div className="flex items-center gap-2 mb-3">
+                 <h2 className="text-lg font-semibold text-gray-400 dark:text-gray-500">
+                     삭제된 복사단원 <span className="text-sm font-normal">({deletedMembers.length}명)</span>
+                 </h2>
+             </div>
+             
+             {deletedMembers.length === 0 ? (
+                 <p className="text-gray-400 text-sm">삭제된 단원이 없습니다.</p>
+             ) : (
+                 <div className="space-y-2">
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                     {deletedMembers.map((m: any) => {
+                         let delDateStr = '-';
+                         if (m.deleted_at?.toDate) {
+                             delDateStr = dayjs(m.deleted_at.toDate()).format('YY.MM.DD');
+                         }
+                         
+                         return (
+                             <div key={m.id} className="flex flex-col justify-center text-xs bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-2 rounded shadow-sm opacity-70 hover:opacity-100 transition-opacity">
+                                 <div className="flex items-center justify-between mb-1">
+                                     <div className="flex items-center gap-1 min-w-0">
+                                         <span className="font-bold text-gray-500 dark:text-gray-400 shrink-0 line-through flex items-center gap-1">
+                                            {m.name_kor}
+                                            {isSuperAdmin && (
+                                            <span 
+                                                onClick={(e) => handleCopyId(e, m.id)}
+                                                className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 no-underline"
+                                                title="ID 복사"
+                                            >S</span>
+                                            )}
+                                          </span>
+                                          <span className="text-gray-400 truncate text-[10px]">
+                                             ({m.baptismal_name})
+                                         </span>
+                                     </div>
+                                     <div className="flex flex-col items-end">
+                                         <span className="text-[9px] text-gray-400">
+                                           Del by {m.deleted_by_name?.split(' ')[0] || '관리자'} <span className="text-[10px] text-gray-500">{delDateStr}</span>
+                                         </span>
+                                     </div>
+                                 </div>
+                                 <div className="flex items-center justify-end gap-2 text-[10px] text-gray-500 mt-1">
+                                     <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="h-5 text-[10px] px-1.5 py-0"
+                                        onClick={() => handleRestore(m.id, m)}
+                                     >
+                                        복구
+                                     </Button>
+                                 </div>
+                             </div>
+                         );
+                     })}
+                     </div>
+                 </div>
+             )}
+      </Card>
+
       {/* ✅ Member Detail Sheet */}
       <Sheet open={isDrawerOpen} onOpenChange={(open) => {
         if (!open) handleCloseDrawer();
@@ -1065,16 +1362,16 @@ export default function ServerList() {
             <SheetTitle className="text-xl font-bold flex flex-col gap-2 dark:text-gray-100">
 
                  {isEditingName ? (
-                   <div className="flex items-center gap-3 w-full">
+                   <div className="flex items-center gap-2 w-full">
                       <input 
-                          className="bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none flex-1 min-w-0 text-xl font-bold text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
+                          className="w-20 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none text-lg font-bold text-gray-900 dark:text-gray-100 placeholder:text-gray-400 text-center"
                           value={editNameKor}
                           onChange={(e) => setEditNameKor(e.target.value)}
                           placeholder="이름"
                           autoFocus
                       />
                       <input 
-                          className="bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none flex-1 min-w-0 text-base font-normal text-gray-500 dark:text-gray-400 placeholder:text-gray-400"
+                          className="w-28 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none text-base font-normal text-gray-500 dark:text-gray-400 placeholder:text-gray-400"
                           value={editBaptismalName}
                           onChange={(e) => setEditBaptismalName(e.target.value)}
                           placeholder="세례명"
@@ -1093,6 +1390,13 @@ export default function ServerList() {
                      >
                        <Pencil size={14} />
                      </button>
+                     {isSuperAdmin && selectedMember && (
+                       <span 
+                           onClick={(e) => handleCopyId(e, selectedMember.id)}
+                           className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 ml-1"
+                           title="ID 복사"
+                       >S</span>
+                     )}
                    </div>
                  )}
               </SheetTitle>
@@ -1338,6 +1642,75 @@ export default function ServerList() {
                 {isSaving ? '저장 중...' : '저장'}
               </Button>
             </SheetFooter>
+
+            {/* ✅ History Logs Section */}
+            <div className="pt-6 pb-12 px-1">
+               <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                   변경 이력
+                   <span className="text-xs font-normal text-gray-400">({selectedMember?.history_logs?.length || 0})</span>
+               </h4>
+               <div className="space-y-3 relative">
+                   {/* Timeline Line */}
+                   <div className="absolute left-[5px] top-2 bottom-2 w-[1px] bg-gray-200 dark:bg-gray-800"></div>
+
+                   {(() => {
+                       const logs = [...(selectedMember?.history_logs || [])];
+                       // Sort by date DESC
+                       logs.sort((a, b) => {
+                           const tA = a.date?.toDate ? a.date.toDate().getTime() : 0;
+                           const tB = b.date?.toDate ? b.date.toDate().getTime() : 0;
+                           return tB - tA;
+                       });
+                       
+                       const visibleLogs = showAllLogs ? logs : logs.slice(0, 3);
+                       
+                       if (logs.length === 0) {
+                           return <p className="text-xs text-gray-400 pl-4">이력이 없습니다.</p>;
+                       }
+
+                       return (
+                           <>
+                               {visibleLogs.map((log, idx) => {
+                                   const logDate = log.date?.toDate ? dayjs(log.date.toDate()).format('YY.MM.DD HH:mm') : '-';
+                                   return (
+                                       <div key={idx} className="relative pl-4 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/50 rounded transition-colors group">
+                                           {/* Dot */}
+                                           <div className="absolute left-0 top-3.5 w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-slate-900 group-hover:bg-blue-400 group-hover:border-blue-100 dark:group-hover:border-slate-700 transition-colors"></div>
+                                           
+                                           <div className="flex flex-col gap-0.5">
+                                               <div className="flex items-center justify-between">
+                                                   <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{log.action}</span>
+                                                   <span className="text-[10px] text-gray-400">
+                                                        by {log.editor} <span className="ml-1">{logDate}</span>
+                                                   </span>
+                                               </div>
+                                               <div className="text-[11px] text-gray-600 dark:text-gray-400">
+                                                   {log.changes.map((c, cIdx) => (
+                                                       <div key={cIdx}>{c}</div>
+                                                   ))}
+                                               </div>
+                                           </div>
+                                       </div>
+                                   );
+                               })}
+
+                               {logs.length > 3 && (
+                                   <button 
+                                       onClick={() => setShowAllLogs(!showAllLogs)}
+                                       className="w-full flex items-center justify-center py-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors bg-gray-50 dark:bg-slate-800/50 rounded mt-2 z-10 relative"
+                                   >
+                                       {showAllLogs ? (
+                                         <>접기 <ChevronLeft className="rotate-90 ml-1" size={12} /></>
+                                       ) : (
+                                         <>더보기 ({logs.length - 3}건) <ChevronRight className="rotate-90 ml-1" size={12} /></>
+                                       )}
+                                   </button>
+                               )}
+                           </>
+                       );
+                   })()}
+               </div>
+            </div>
         </SheetContent>
       </Sheet>
 

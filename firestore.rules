@@ -88,6 +88,12 @@ service cloud.firestore {
     match /system_notification_logs/{logId} {
       allow read: if isSuperAdmin();
     }
+
+    // 3.11 System Settings (AI 프롬프트 설정 등)
+    match /system_settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
     
     // 4️⃣ 나머지: 기본 차단 (명시되지 않은 경로는 접근 불가)
     // 필요 시 추가

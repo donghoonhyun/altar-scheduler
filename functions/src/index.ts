@@ -32,6 +32,7 @@ export { onRoleRequestUpdated } from './serverGroups/onRoleRequestUpdated';
 
 // 📌 MassEvents
 export { autoAssignMassEvents } from './massEvents/autoAssignMassEvents';
+export { analyzeMonthlyAssignments } from './massEvents/analyzeMonthlyAssignments';
 
 // 📌 Notifications
 export { createNotification } from './notifications/createNotification';

@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 
-import { Plus, User, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Plus, User, ChevronRight, MoreHorizontal, Settings, Sparkles } from 'lucide-react';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 export default function SuperAdminMain() {
   const session = useSession();
@@ -22,6 +23,41 @@ export default function SuperAdminMain() {
   const [editingParish, setEditingParish] = useState<Partial<Parish>>({});
   
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
+
+  // AI Settings State
+  const [showAiSettings, setShowAiSettings] = useState(false);
+  const [promptTemplate, setPromptTemplate] = useState('');
+  const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
+
+  // Fetch AI Settings & Body Scroll Lock
+  useEffect(() => {
+    if (showAiSettings) {
+        // Lock Scroll
+        document.body.style.overflow = 'hidden';
+        
+        const fetchSettings = async () => {
+            try {
+                const ref = doc(db, 'system_settings/ai_config');
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    const tmpl = data.prompt_analyze_monthly_assignments?.template || data.prompt_template || '';
+                    setPromptTemplate(tmpl);
+                }
+            } catch (e) {
+                console.error('Failed to fetch AI settings', e);
+            }
+        };
+        fetchSettings();
+    } else {
+        // Unlock Scroll
+        document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+        document.body.style.overflow = 'unset';
+    };
+  }, [showAiSettings]);
 
 
 
@@ -404,6 +440,32 @@ export default function SuperAdminMain() {
           </div>
         </section>
 
+        {/* AI 관리 섹션 */}
+        <section className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden mb-10">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+               AI 관리
+            </h2>
+          </div>
+          <div className="p-6">
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-white">배정 결과 분석 AI</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    [AI 배정 분석] 기능에 사용되는 프롬프트를 수정합니다.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => setShowAiSettings(true)}
+                  className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <Sparkles size={16} />
+                  Prompt-배정결과분석
+                </Button>
+             </div>
+          </div>
+        </section>
+
       </div>
 
 
@@ -512,6 +574,19 @@ export default function SuperAdminMain() {
                   SMS 서비스 활성화 (SMS Service)
                 </label>
               </div>
+
+              <div className="flex items-center">
+                <input
+                  id="ai-active-check"
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  checked={editingParish.ai_service_active || false}
+                  onChange={(e) => setEditingParish({...editingParish, ai_service_active: e.target.checked})}
+                />
+                <label htmlFor="ai-active-check" className="ml-2 block text-sm text-gray-900 dark:text-slate-300">
+                  AI 서비스 활성화 (AI Analysis)
+                </label>
+              </div>
             </div>
 
             <div className="mt-6 flex justify-between items-center">
@@ -550,6 +625,70 @@ export default function SuperAdminMain() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* AI Settings Modal */}
+      {showAiSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg shadow-xl border dark:border-slate-700 flex flex-col max-h-[90vh]">
+                <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Settings size={18} /> AI 프롬프트 설정 (배정결과분석)
+                    </h3>
+                    <button onClick={() => setShowAiSettings(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                        ✕
+                    </button>
+                </div>
+                <div className="p-4 flex-1 overflow-hidden flex flex-col">
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md mb-3 text-xs text-yellow-800 dark:text-yellow-200 border border-yellow-100 dark:border-yellow-900/30">
+                        주의: 프롬프트를 수정하면 모든 성당의 분석 결과에 영향을 미칩니다. 
+                        <code>{'{{variable}}'}</code> 형식은 AI가 데이터를 삽입하는 위치이므로 삭제하지 않도록 주의하세요.
+                    </div>
+                    <div className="flex gap-2 mb-2 text-xs text-purple-600 dark:text-purple-400 flex-wrap font-mono">
+                        <span className="bg-purple-50 dark:bg-purple-900/20 px-1 rounded">{'{{yyyymm}}'}</span>
+                        <span className="bg-purple-50 dark:bg-purple-900/20 px-1 rounded">{'{{totalMembers}}'}</span>
+                        <span className="bg-purple-50 dark:bg-purple-900/20 px-1 rounded">{'{{assignedCount}}'}</span>
+                        <span className="bg-purple-50 dark:bg-purple-900/20 px-1 rounded">{'{{dataList}}'}</span>
+                        <span className="bg-purple-50 dark:bg-purple-900/20 px-1 rounded">{'{{thisMonthTotal}}'}</span>
+                        <span className="bg-purple-50 dark:bg-purple-900/20 px-1 rounded">{'{{prevMonthAssignedCount}}'}</span>
+                    </div>
+                    <textarea 
+                        className="flex-1 w-full p-3 text-sm border rounded-md font-mono bg-gray-50 dark:bg-slate-900 dark:border-slate-700 dark:text-gray-300 focus:ring-2 focus:ring-purple-500 outline-none resize-y min-h-[400px] leading-relaxed"
+                        value={promptTemplate}
+                        onChange={(e) => setPromptTemplate(e.target.value)}
+                        placeholder="프롬프트 내용을 입력하세요..."
+                    />
+                </div>
+                <div className="p-4 border-t dark:border-slate-700 flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowAiSettings(false)}>취소</Button>
+                    <Button 
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        disabled={isSavingAiSettings}
+                        onClick={async () => {
+                            setIsSavingAiSettings(true);
+                            try {
+                                await setDoc(doc(db, 'system_settings/ai_config'), { 
+                                    prompt_analyze_monthly_assignments: {
+                                        template: promptTemplate,
+                                        updated_at: serverTimestamp()
+                                    }
+                                    // 기존 prompt_template 필드는 더 이상 쓰지 않지만 굳이 삭제하진 않겠습니다 (안전성)
+                                }, { merge: true });
+                                setShowAiSettings(false);
+                                toast.success('프롬프트 설정이 저장되었습니다.');
+                            } catch(e) {
+                                console.error(e);
+                                toast.error('저장 실패');
+                            } finally {
+                                setIsSavingAiSettings(false);
+                            }
+                        }}
+                    >
+                        {isSavingAiSettings ? <LoadingSpinner size="sm" /> : '저장하기'}
+                    </Button>
+                </div>
+            </div>
         </div>
       )}
     </div>

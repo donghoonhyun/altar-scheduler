@@ -20,7 +20,10 @@ import { useSession } from '@/state/session';
 import timezone from 'dayjs/plugin/timezone';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MassStatus } from '@/types/firestore';
-import { Printer } from 'lucide-react';
+import { Printer, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
+import ReactMarkdown from 'react-markdown';
 
 dayjs.extend(timezone);
 
@@ -65,7 +68,114 @@ export default function ServerAssignmentStatus() {
   const [events, setEvents] = useState<MassEventDoc[]>([]);
   // const [unavailableMap, setUnavailableMap] = useState<Record<string, string[]>>({}); // Removed per request
 
+  // AI Analysis State
+  const [aiData, setAiData] = useState<{ content: string; total_count?: number; created_at?: any } | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed
+  const [analysisHistory, setAnalysisHistory] = useState<any[]>([]); // Renamed to avoid reserved word collision
+
+  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
+  const [useAi, setUseAi] = useState(false); // Toggle AI feature based on parish settings
+
   const yyyymm = currentMonth.format('YYYYMM');
+
+  // Check Parish AI Setting
+  useEffect(() => {
+    if (!serverGroupId) return;
+    const checkAiSetting = async () => {
+        try {
+            // 1. Get Parish Code from Server Group
+            const sgSnap = await getDoc(doc(db, `server_groups/${serverGroupId}`));
+            if (!sgSnap.exists()) return;
+            const parishCode = sgSnap.data().parish_code;
+
+            // 2. Get AI Setting from Parish
+            if (parishCode) {
+                const parishSnap = await getDoc(doc(db, `parishes/${parishCode}`));
+                if (parishSnap.exists()) {
+                    setUseAi(parishSnap.data().ai_service_active === true);
+                }
+            }
+        } catch(e) {
+            console.error('Failed to check AI setting', e);
+        }
+    };
+    checkAiSetting();
+  }, [serverGroupId, db]);
+
+  // Fetch Existing AI Insight & History
+  useEffect(() => {
+    if (!serverGroupId) return;
+    const fetchInsight = async () => {
+        try {
+            // 1. Fetch Current Insight
+            const ref = doc(db, `server_groups/${serverGroupId}/ai_insights/${yyyymm}`);
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+                const data = snap.data();
+                setAiData({ 
+                    content: data.content, 
+                    total_count: data.total_count || 1,
+                    created_at: data.created_at
+                });
+            } else {
+                setAiData(null);
+            }
+
+            // 2. Fetch History
+            const histRef = collection(db, `server_groups/${serverGroupId}/ai_insights/${yyyymm}/history`);
+            const histQ = query(histRef, orderBy('created_at', 'desc'));
+            const histSnap = await getDocs(histQ);
+            const histList = histSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setAnalysisHistory(histList);
+
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    fetchInsight();
+  }, [serverGroupId, yyyymm, db]);
+
+  const handleAiAnalysis = async () => {
+      if (analyzing) return;
+      setAnalyzing(true);
+      try {
+          const analyzeFn = httpsCallable(functions, 'analyzeMonthlyAssignments');
+          const result = await analyzeFn({ 
+              serverGroupId, 
+              yyyymm: currentMonth.format('YYYY-MM') 
+          }) as { data: { success: boolean, content: string } };
+          
+          if (result.data.success) {
+              const now = new Date();
+              setAiData(prev => ({ 
+                  content: result.data.content, 
+                  total_count: (prev?.total_count || 0) + 1,
+                  created_at: { seconds: now.getTime() / 1000 }
+              }));
+              setIsExpanded(true); 
+
+              // Add to history list locally
+              setAnalysisHistory(prev => [{
+                id: 'temp-' + now.getTime(),
+                content: result.data.content,
+                created_at: { seconds: now.getTime() / 1000 },
+                model: 'gemini-2.5-flash'
+            }, ...prev]);
+          }
+      } catch (e) {
+          console.error('AI Analysis failed', e);
+          alert('AI 분석 중 오류가 발생했습니다.');
+      } finally {
+          setAnalyzing(false);
+      }
+  };
+
+  const formatTime = (ts: any) => {
+    if (!ts) return '';
+    const date = new Date(ts.seconds * 1000);
+    return dayjs(date).format('M/D HH:mm');
+  };
 
   // Fetch Data
   useEffect(() => {
@@ -296,14 +406,157 @@ export default function ServerAssignmentStatus() {
              <StatusBadge status={monthlyStatus} />
          </div>
 
-         {/* Row 2: Description */}
-         <div className="pl-11">
-             <p className="text-xs text-gray-500 dark:text-gray-400">
-                월별 미사 배정 현황을 조회하고 번표를 출력할 수 있습니다.
-             </p>
-         </div>
+          <div className="pl-11 pr-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                 월별 미사 배정 현황을 조회하고 번표를 출력할 수 있습니다.
+              </p>
 
-         {/* Row 3: Controls */}
+              {/* AI Insight Section */}
+              {useAi && (
+              <div className="bg-white dark:bg-slate-800 border border-purple-100 dark:border-purple-900/30 rounded-lg overflow-hidden shadow-sm transition-all pb-0 relative">
+                  <div
+                    className="flex items-center justify-between p-3 cursor-pointer bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/10 dark:to-slate-800"
+                    onClick={() => {
+                        if (aiData) setIsExpanded(!isExpanded);
+                        else handleAiAnalysis();
+                    }}
+                  >
+                        <div className="flex items-center gap-2">
+                             <div className="p-1.5 bg-white dark:bg-slate-700 rounded-full shadow-sm text-purple-600 dark:text-purple-400">
+                                <Sparkles size={14} />
+                             </div>
+                             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                AI 배정 분석 {aiData && <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">({aiData.total_count}회 분석됨)</span>}
+                             </span>
+                             {analysisHistory.length > 0 && (
+                                <div className="relative ml-2" onClick={(e) => e.stopPropagation()}>
+                                    <button 
+                                        className="text-[11px] flex items-center gap-1 bg-white dark:bg-slate-700 border border-purple-100 dark:border-slate-600 rounded px-2 py-0.5 hover:bg-purple-50 dark:hover:bg-slate-600 transition-colors text-gray-600 dark:text-gray-300"
+                                        onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+                                    >
+                                        🕒 이력 ({analysisHistory.length})
+                                        <ChevronDown size={12} />
+                                    </button>
+                                    
+                                    {showHistoryDropdown && (
+                                        <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg border dark:border-slate-700 z-50 max-h-60 overflow-y-auto">
+                                            {analysisHistory.map((h, idx) => (
+                                                <div 
+                                                    key={h.id}
+                                                    className={cn(
+                                                        "px-3 py-2 text-xs border-b dark:border-slate-700 last:border-0 hover:bg-purple-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center group",
+                                                        // Highlight current if needed
+                                                    )}
+                                                    onClick={() => {
+                                                        setAiData(prev => ({ ...prev!, content: h.content, created_at: h.created_at }));
+                                                        setShowHistoryDropdown(false);
+                                                        setIsExpanded(true);
+                                                    }}
+                                                >
+                                                    <span className="text-gray-700 dark:text-gray-300">
+                                                        {formatTime(h.created_at)}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 group-hover:text-purple-500">
+                                                        {idx === 0 ? '최신' : '과거'}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                             )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                             {!aiData ? (
+                                 <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                                    onClick={(e) => {
+                                        e.stopPropagation(); 
+                                        handleAiAnalysis();
+                                    }}
+                                    disabled={analyzing}
+                                 >
+                                    {analyzing ? <LoadingSpinner size="sm" /> : <><Sparkles size={12} /> 분석 시작</>}
+                                 </Button>
+                             ) : (
+                                 <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                 </button>
+                             )}
+                        </div>
+                  </div>
+
+                  {/* AI Content */}
+                  {aiData && (
+                      <div className={cn(
+                          "bg-white dark:bg-slate-800/50 border-t border-purple-50/50 dark:border-purple-900/20 transition-all duration-300",
+                          isExpanded ? "p-4 pt-2" : "max-h-[100px] overflow-hidden relative p-4 pt-2"
+                      )}>
+                          {aiData.created_at && (
+                              <div className="flex justify-end mb-2">
+                                  <span className="text-[10px] text-gray-400 bg-gray-50 dark:bg-slate-700/50 px-1.5 py-0.5 rounded">
+                                      분석시점: {formatTime(aiData.created_at)}
+                                  </span>
+                              </div>
+                          )}
+                          <div className={cn(
+                              "text-gray-700 dark:text-gray-300 text-xs sm:text-sm leading-relaxed",
+                              isExpanded && "h-[600px] overflow-y-auto pr-2 custom-scrollbar" // Increased height to 600px
+                          )}>
+                              <ReactMarkdown
+                                components={{
+                                    h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-4 mb-2 text-purple-800 dark:text-purple-300" {...props} />,
+                                    h2: ({node, ...props}) => <h2 className="text-base font-bold mt-3 mb-1 text-gray-900 dark:text-gray-100 border-l-4 border-purple-400 pl-2" {...props} />,
+                                    h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-2 mb-1 text-gray-800 dark:text-gray-200" {...props} />,
+                                    ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2 pl-1" {...props} />,
+                                    li: ({node, ...props}) => <li className="ml-1" {...props} />,
+                                    strong: ({node, ...props}) => <strong className="font-bold text-gray-900 dark:text-white bg-purple-50 dark:bg-purple-900/40 px-0.5 rounded" {...props} />,
+                                    p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                                }}
+                              >
+                                  {aiData.content}
+                              </ReactMarkdown>
+                          </div>
+                          
+                          {/* Fade Overlay when collapsed */}
+                          {!isExpanded && (
+                              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white dark:from-slate-800 to-transparent flex items-end justify-center pb-2 cursor-pointer"
+                                  onClick={() => setIsExpanded(true)}
+                              >
+                                  <span className="text-xs text-purple-600 dark:text-purple-400 font-medium hover:underline bg-white/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-full shadow-sm border border-purple-100 dark:border-purple-800">
+                                      더 읽으려면 클릭하세요
+                                  </span>
+                              </div>
+                          )}
+
+                          {isExpanded && (
+                            <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100 dark:border-slate-700 sticky bottom-0 bg-white dark:bg-slate-800/95 backdrop-blur-sm -mb-4 -mx-4 px-4 py-3">
+                                <span className="text-[10px] text-gray-400">
+                                    최근 생성됨 • Google Gemini 2.5 Flash
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAiAnalysis(); 
+                                    }}
+                                    disabled={analyzing}
+                                >
+                                    {analyzing ? <LoadingSpinner size="sm" /> : '🔄 다시 분석하기'}
+                                </Button>
+                            </div>
+                          )}
+                      </div>
+                  )}
+              </div>
+              )}
+          </div>
+
+          {/* Row 3: Controls */}
          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 bg-gray-50 dark:bg-slate-800/50 p-2 rounded-lg border border-gray-100 dark:border-slate-700 gap-2">
              {/* Left: View Mode */}
              <div className="flex bg-white dark:bg-slate-800 p-1 rounded-md border dark:border-slate-600 shadow-sm">
