@@ -43,8 +43,9 @@ export default function MoveMembersDrawer({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
     const [isFetchingGroups, setIsFetchingGroups] = useState(false);
-    const [showConfirm, setShowConfirm] = useState(false); // ✅ [New] Internal confirm dialog state
+    const [actionType, setActionType] = useState<'move' | 'copy' | null>(null); // ✅ [New] Action type
     const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set(['ALL'])); // Default expand all? Or use 'ALL' concept
+    const [parishCode, setParishCode] = useState<string>(''); // ✅ [New] Store parish code
 
     // Group members by grade
     const groupedMembers = useMemo(() => {
@@ -78,12 +79,13 @@ export default function MoveMembersDrawer({
                     const currentSgSnap = await getDoc(doc(db, 'server_groups', currentServerGroupId));
                     if (!currentSgSnap.exists()) return;
                     
-                    const parishCode = currentSgSnap.data().parish_code;
+                    const code = currentSgSnap.data().parish_code;
+                    setParishCode(code);
 
                     // 2. Query other SGs in same parish
                     const q = query(
                         collection(db, 'server_groups'), 
-                        where('parish_code', '==', parishCode)
+                        where('parish_code', '==', code)
                     );
                     const snap = await getDocs(q);
                     
@@ -128,21 +130,23 @@ export default function MoveMembersDrawer({
 
     const moveButtonDisabled = loading;
 
-    const handleValidation = () => {
+    const handleAction = (type: 'move' | 'copy') => {
         if (!targetSgId) {
-            toast.error('이동할 대상 복사단을 선택해주세요.');
+            toast.error(`이동할 대상 복사단을 선택해주세요.`);
             return;
         }
         if (selectedIds.size === 0) {
-            toast.error('이동할 복사단원을 선택해주세요.');
+            toast.error(`이동할 복사단원을 선택해주세요.`);
             return;
         }
-        setShowConfirm(true);
+        setActionType(type);
     };
 
-    const executeMove = async () => {
+    const executeAction = async () => {
+        if (!actionType) return;
+        
         setLoading(true);
-        setShowConfirm(false); // Close confirm dialog immediately
+        // Do not close confirm here, let it close by clearing actionType
         
         const auth = getAuth();
         const currentUser = auth.currentUser;
@@ -159,81 +163,88 @@ export default function MoveMembersDrawer({
                 
                 // 1. Create new member doc in target SG
                 const targetMemberRef = doc(db, 'server_groups', targetSgId, 'members', uid);
-                // Copy data but update timestamps and ensuring strictly minimal profile
-                // We should reuse existing data primarily
+                
+                // Fetch target SG name if possible? No need.
+                
                 const memberData = {
                     ...member,
-                    server_group_id: targetSgId, // Logically correct for local usage if stored
+                    server_group_id: targetSgId, 
                     moved_from_sg_id: currentServerGroupId, // ✅ 어디서 왔는지 기록
                     updated_at: serverTimestamp(),
-                    // requested_confirmed, active should strictly be maintained? 
-                    // User said "Change server_group_id so move it".
-                    // Usually moving means they become 'active' member of new group or 'pending'?
-                    // Let's assume they stay 'active' status if they were active.
-                    // But strictly, membership document controls access.
                 };
                 // Remove ID from data if it exists physically in object
                 delete memberData.id; 
+                delete memberData.is_moved; 
+                delete memberData.moved_at; 
+                delete memberData.moved_by_uid; 
+                delete memberData.moved_by_name; 
+                delete memberData.moved_to_sg_id; 
 
+                // If copy, ensure active is true (or keep original status?)
+                // Usually when moving/copying, we want them active in new place?
+                // Let's keep original active status unless we want to reset.
+                // Resetting to 'active: true' might be safer for 'copy' to new group. 
+                // But let's stick to original data + basic resets.
+                
                 batch.set(targetMemberRef, memberData);
 
-                // 2. [Modified] Soft-delete old member doc (Mark as moved) vs Delete
-                const oldMemberRef = doc(db, 'server_groups', currentServerGroupId, 'members', uid);
-                batch.update(oldMemberRef, { 
-                    active: false, 
-                    is_moved: true,
-                    moved_at: serverTimestamp(),
-                    moved_by_uid: currentUser?.uid,
-                    moved_by_name: currentUser?.displayName || '관리자',
-                    moved_to_sg_id: targetSgId,
-                    updated_at: serverTimestamp() 
-                });
+                // 2. Handle Old Member based on Action Type
+                if (actionType === 'move') {
+                    const oldMemberRef = doc(db, 'server_groups', currentServerGroupId, 'members', uid);
+                    batch.update(oldMemberRef, { 
+                        active: false, 
+                        is_moved: true,
+                        moved_at: serverTimestamp(),
+                        moved_by_uid: currentUser?.uid,
+                        moved_by_name: currentUser?.displayName || '관리자',
+                        moved_to_sg_id: targetSgId,
+                        updated_at: serverTimestamp() 
+                    });
 
-                // 3. Update Membership
-                // Create new membership or update existing?
-                // Membership ID is `{uid}_{sgId}` by convention.
+                    // Remove old membership
+                    const oldMembershipRef = doc(db, 'memberships', `${uid}_${currentServerGroupId}`);
+                    batch.delete(oldMembershipRef);
+                } else if (actionType === 'copy') {
+                    // Update old member to record copy history
+                    const oldMemberRef = doc(db, 'server_groups', currentServerGroupId, 'members', uid);
+                    batch.update(oldMemberRef, {
+                        copied_to_sg_id: targetSgId,
+                        copied_at: serverTimestamp(),
+                        copied_by_uid: currentUser?.uid,
+                        copied_by_name: currentUser?.displayName || '관리자',
+                        updated_at: serverTimestamp()
+                    });
+                }
+                // If copy, do nothing to old member/membership.
+
+                // 3. Create New Membership
+                // Membership ID is `{uid}_{sgId}`
                 const newMembershipRef = doc(db, 'memberships', `${uid}_${targetSgId}`);
-                const oldMembershipRef = doc(db, 'memberships', `${uid}_${currentServerGroupId}`);
-
-                // Read old membership to copy role? Or just default to 'server'?
-                // Ideally we should have fetched it, but for bulk operations, reading per user is expensive inside loop.
-                // However, we can assume standard 'server' role for bulk moves.
-                // If they had 'planner' or 'admin', that privilege might not transfer automatically?
-                // Safest is to grant 'server' role. Moving admins is rare via bulk tool.
                 
-                // We'll set a basic membership
                 batch.set(newMembershipRef, {
                     uid: uid,
                     server_group_id: targetSgId,
-                    // parish_code we can assume same, but better to check target group parish_code? 
-                    // We filtered by same parish_code, so it matches.
-                    // We need parameter or infer it.
-                    // We can't easily get it here without strict fetch. 
-                    // BUT, currentServerGroupId has same parish_code.
-                    // Let's assume we can skip strictly setting parish_code if it's not critical or set it from known context.
-                    // Looking at `memberships` definition: `parish_code` is present.
-                    // We will fetch members and see if `parish_code` is in `member` object? No.
-                    
                     role: ['server'], // Reset to basic server role
                     active: member.active, // Maintain active status
                     created_at: serverTimestamp(),
-                    updated_at: serverTimestamp()
+                    updated_at: serverTimestamp(),
+                    parish_code: member.parish_code || parishCode // Use member's parish_code if available, else fallback to current SG's parish_code
                 });
-
-                batch.delete(oldMembershipRef);
                 
                 count++;
             }
 
             await batch.commit();
-            toast.success(`총 ${count}명의 복사단원이 이동되었습니다.`);
+            toast.success(`총 ${count}명의 복사단원이 ${actionType === 'move' ? '이동' : '복제'}되었습니다.`);
+            setActionType(null);
             onOpenChange(false);
 
         } catch (e) {
             console.error('Migration failed', e);
-            toast.error('이동 중 오류가 발생했습니다.');
+            toast.error(`${actionType === 'move' ? '이동' : '복제'} 중 오류가 발생했습니다.`);
         } finally {
             setLoading(false);
+            setActionType(null);
         }
     };
 
@@ -244,10 +255,10 @@ export default function MoveMembersDrawer({
                 className="max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-900"
             >
                 <div className="p-6 pb-2 shrink-0">
-                    <DialogHeader>
-                        <DialogTitle>타 복사단 이동</DialogTitle>
+                <DialogHeader>
+                        <DialogTitle>복사단 이동(복제)</DialogTitle>
                         <DialogDescription>
-                            선택한 복사단원들을 같은 성당 내 다른 복사단으로 이동시킵니다.
+                            선택한 복사단원들을 같은 성당 내 다른 복사단으로 이동하거나 복제합니다.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -341,29 +352,57 @@ export default function MoveMembersDrawer({
 
                 <div className="p-4 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900 shrink-0 flex justify-end gap-2">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
-                    <Button onClick={handleValidation} disabled={moveButtonDisabled}>
-                        {loading ? '이동 중...' : '이동'}
-                    </Button>
+                    <div className="flex gap-2 ml-auto">
+                        <Button 
+                            variant="secondary"
+                            onClick={() => handleAction('copy')} 
+                            disabled={moveButtonDisabled}
+                            className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                        >
+                            {loading && actionType === 'copy' ? '복제 중...' : '복제 (유지)'}
+                        </Button>
+                        <Button 
+                            onClick={() => handleAction('move')} 
+                            disabled={moveButtonDisabled}
+                            className="bg-orange-500 hover:bg-orange-600 text-white"
+                        >
+                            {loading && actionType === 'move' ? '이동 중...' : '이동 (삭제)'}
+                        </Button>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>
 
-        {/* ✅ Confirmation Alert Dialog (Nested but detached efficiently by Radix) */}
-        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        {/* ✅ Confirmation Alert Dialog */}
+        <AlertDialog open={!!actionType} onOpenChange={(open) => !open && setActionType(null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>복사단원 이동</AlertDialogTitle>
-                    <AlertDialogDescription className="whitespace-pre-wrap">
-                        {`선택한 ${selectedIds.size}명의 복사단원을\n[${serverGroups.find(g => g.id === targetSgId)?.name || targetSgId}] 복사단으로 이동하시겠습니까?\n\n이동 후에는 현재 복사단 목록에서 제외됩니다.`}
+                    <AlertDialogTitle>
+                        {actionType === 'move' ? '복사단원 이동 (삭제)' : '복사단원 복제 (유지)'}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="whitespace-pre-wrap text-gray-600 dark:text-gray-300">
+                        {`선택한 ${selectedIds.size}명의 복사단원을\n[${serverGroups.find(g => g.id === targetSgId)?.name || targetSgId}] 복사단으로 ${actionType === 'move' ? '이동' : '복제'}하시겠습니까?\n\n`}
+                        {actionType === 'move' ? (
+                            <span className="text-red-500 font-bold block mt-2">
+                                ⚠️ 주의: 이동 후에는 현재 복사단 목록에서 제외됩니다.
+                            </span>
+                        ) : (
+                            <span className="text-blue-500 font-bold block mt-2">
+                                ℹ️ 안내: 현재 복사단 목록은 유지되며, 대상 복사단에 새로 추가됩니다.
+                            </span>
+                        )}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>취소</AlertDialogCancel>
-                    <AlertDialogAction onClick={(e) => {
-                        e.preventDefault(); // allow handling async explicitly if needed, but here simple firing is enough
-                        executeMove();
-                    }}>
-                        이동
+                    <AlertDialogCancel onClick={() => setActionType(null)}>취소</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={(e) => {
+                            e.preventDefault(); 
+                            executeAction();
+                        }}
+                        className={actionType === 'move' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700'}
+                    >
+                        {actionType === 'move' ? '이동하기' : '복제하기'}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

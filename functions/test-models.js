@@ -1,6 +1,10 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const apiKey = 'AIzaSyANkWTMbRSGiEpACnTsA9qKFoKLhNS-h2A';
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+    console.error('❌ ERROR: process.env.GEMINI_API_KEY is missing.');
+    process.exit(1);
+}
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const modelsToTest = [

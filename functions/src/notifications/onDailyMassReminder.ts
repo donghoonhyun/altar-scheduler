@@ -205,7 +205,7 @@ async function executeDailyMassReminder() {
           });
       }
 
-      // 6. Send Notifications
+// 6. Send Notifications
 
       // 6.1 App Push (to Parent UIDs) -> Send Generic Message
       const pushTargets = recipients.filter(r => r.parentUid).map(r => r.parentUid!);
@@ -214,6 +214,22 @@ async function executeDailyMassReminder() {
               await sendNotificationToUids(pushTargets, messageTitle, pushBody, `/server-groups/${sgId}/mass-events`);
               // Assume success for all for now (utils doesn't return detailed breakdown yet)
               recipients.forEach(r => { if(r.parentUid) r.pushResult = 'success'; });
+
+              // ✅ [NEW] Global Log for Admin (App Push)
+              await db.collection('system_notification_logs').add({
+                  created_at: admin.firestore.FieldValue.serverTimestamp(),
+                  feature: 'MASS_REMINDER',
+                  type: 'app_push',
+                  title: messageTitle,
+                  body: pushBody,
+                  target_uids: pushTargets,
+                  success_count: pushTargets.length,
+                  failure_count: 0,
+                  status: 'success',
+                  server_group_id: sgId,
+                  trigger_status: 'scheduled'
+              });
+
           } catch (e) {
               console.error('Push failed:', e);
               recipients.forEach(r => { if(r.parentUid) r.pushResult = 'fail'; });
@@ -223,6 +239,11 @@ async function executeDailyMassReminder() {
       // 6.2 SMS (if enabled) -> Send Personalized Message
       if (isSmsEnabled) {
           console.log(`>> SMS is ENABLED for Group [${sgId}]. Processing ${recipients.length} recipients...`);
+          // Track SMS stats for global log
+          const smsLogUids: string[] = [];
+          let smsSuccessCount = 0;
+          let smsFailCount = 0;
+
           for (const r of recipients) {
               if (r.phone) {
                   // Personalize SMS
@@ -234,25 +255,26 @@ async function executeDailyMassReminder() {
                   try {
                       const res: any = await sendSolapiMessage(r.phone, smsBody);
                       r.smsResult = 'success';
+                      smsSuccessCount++;
+                      if (r.parentUid) smsLogUids.push(r.parentUid);
                       
                       const gid = res?.groupInfo?._id || res?.groupId || res?._id; 
                       if (gid) smsGroupId = gid;
 
-                      // ✅ WRITE TO GLOBAL LOGS (for Admin View)
+                      // ✅ WRITE TO GLOBAL LOGS (Detail Log)
                       await db.collection('system_sms_logs').add({
                           created_at: admin.firestore.Timestamp.now(),
                           sender: 'System (Reminder)',
                           sender_email: 'system@altar-scheduler',
                           receiver: r.phone,
-                          receiver_name: r.parentName || `${r.name} 보호자`, // ✅ Use Parent Name (or fallback)
-                          parent_uid: r.parentUid, // ✅ Added Parent UID for reference
+                          receiver_name: r.parentName || `${r.name} 보호자`, 
+                          parent_uid: r.parentUid, 
                           message: smsBody,
                           status: 'success',
                           group_id: gid,
                           parish_code: parishCode,
                           server_group_id: sgId,
                           message_type: 'SMS',
-                          // ✅ Simplified Result (Remove bulk bloat)
                           result: { 
                               groupId: gid, 
                               accountId: res?.groupInfo?.accountId,
@@ -263,6 +285,7 @@ async function executeDailyMassReminder() {
                   } catch (e: any) {
                       console.error(`SMS failed for ${r.name}:`, e);
                       r.smsResult = 'fail';
+                      smsFailCount++;
 
                       // ✅ WRITE ERROR LOG
                       await db.collection('system_sms_logs').add({
@@ -270,8 +293,8 @@ async function executeDailyMassReminder() {
                           sender: 'System (Reminder)',
                           sender_email: 'system@altar-scheduler',
                           receiver: r.phone,
-                          receiver_name: r.parentName || `${r.name} 보호자`, // ✅ Use Parent Name
-                          parent_uid: r.parentUid, // ✅ Added Parent UID
+                          receiver_name: r.parentName || `${r.name} 보호자`, 
+                          parent_uid: r.parentUid, 
                           message: smsBody,
                           status: 'failed',
                           parish_code: parishCode,
@@ -282,6 +305,23 @@ async function executeDailyMassReminder() {
               } else {
                   console.log(`>> Skipping SMS for ${r.name} (${r.memberId}): No phone number.`);
               }
+          }
+
+          // ✅ [NEW] Global Log for Admin (SMS Summary)
+          if (smsSuccessCount > 0 || smsFailCount > 0) {
+              await db.collection('system_notification_logs').add({
+                  created_at: admin.firestore.FieldValue.serverTimestamp(),
+                  feature: 'MASS_REMINDER',
+                  type: 'sms',
+                  title: `[SMS] ${eventTitle}`,
+                  body: template, // Record template as body for summary
+                  target_uids: smsLogUids,
+                  success_count: smsSuccessCount,
+                  failure_count: smsFailCount,
+                  status: smsFailCount === 0 ? 'success' : (smsSuccessCount > 0 ? 'partial' : 'failure'),
+                  server_group_id: sgId,
+                  trigger_status: 'scheduled'
+              });
           }
       }
 

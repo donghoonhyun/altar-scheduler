@@ -12,6 +12,7 @@ import {
   collectionGroup,
   deleteDoc,
   onSnapshot,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
@@ -60,6 +61,7 @@ export default function RequestPlannerRole() {
   const [userName, setUserName] = useState<string>('');
   const [baptismalName, setBaptismalName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [isPhoneEditable, setIsPhoneEditable] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // 📝 사용자 프로필 정보 누락 체크
@@ -195,8 +197,10 @@ export default function RequestPlannerRole() {
           setUserName(data.user_name || user.displayName || '');
           setBaptismalName(data.baptismal_name || '');
           setPhone(data.phone || '');
+          if (!data.phone) setIsPhoneEditable(true);
         } else {
             setUserName(user.displayName || '');
+            setIsPhoneEditable(true);
         }
       } catch (e) {
         console.error(e);
@@ -294,6 +298,14 @@ export default function RequestPlannerRole() {
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
+
+      // Update user profile if phone number was entered
+      if (isPhoneEditable && phone) {
+        await setDoc(doc(db, 'users', user.uid), {
+            phone: phone,
+            updated_at: serverTimestamp()
+        }, { merge: true });
+      }
 
       // Optionally update user profile if changed? 
       // For now, let's keep it simple.
@@ -545,9 +557,30 @@ export default function RequestPlannerRole() {
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">세례명</span>
                     <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{baptismalName || '-'}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between h-9">
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">전화번호</span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{phone || '-'}</span>
+                    {isPhoneEditable ? (
+                        <Input
+                            className="w-40 h-8 text-right text-sm"
+                            placeholder="010-0000-0000"
+                            value={phone}
+                            onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9]/g, '');
+                                let formatted = raw;
+                                if (raw.length > 11) formatted = raw.slice(0, 11); // Limit length
+                                
+                                if (formatted.length > 3 && formatted.length <= 7) {
+                                    formatted = `${formatted.slice(0, 3)}-${formatted.slice(3)}`;
+                                } else if (formatted.length > 7) {
+                                    formatted = `${formatted.slice(0, 3)}-${formatted.slice(3, 7)}-${formatted.slice(7)}`;
+                                }
+                                setPhone(formatted);
+                            }}
+                            maxLength={13}
+                        />
+                    ) : (
+                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{phone || '-'}</span>
+                    )}
                 </div>
             </div>
             <p className="text-[11px] text-gray-400 text-right">

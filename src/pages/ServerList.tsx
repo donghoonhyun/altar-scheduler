@@ -41,6 +41,10 @@ interface Member {
   moved_by_name?: string;
   moved_to_sg_id?: string;
   moved_from_sg_id?: string; // ✅ [New] 어디서 온 복사단원인지
+  // ✅ [New] 복사(Copy) 관련 필드
+  copied_to_sg_id?: string;
+  copied_at?: any;
+  copied_by_name?: string;
   created_at?: any; // Firestore Timestamp
   // History
   history_logs?: HistoryLog[];
@@ -175,18 +179,35 @@ export default function ServerList() {
       inactive.sort(nameSorter);
       setInactiveMembers(inactive);
 
-      // 4. Moved: is_moved=true
-      const moved = all.filter((m) => m.is_moved);
-      moved.sort((a, b) => {
-          // 1. Sort by moved_at DESC
-          const tA = a.moved_at?.toDate ? a.moved_at.toDate().getTime() : 0;
-          const tB = b.moved_at?.toDate ? b.moved_at.toDate().getTime() : 0;
-          if (tA !== tB) return tB - tA;
+      setInactiveMembers(inactive);
+      
+      // 4. Moved OR Copied History
+      const histories = all.filter((m) => m.is_moved || m.copied_to_sg_id);
+      histories.sort((a, b) => {
+          // Compare moved_at vs copied_at. If both present (moved after copy), use moved_at.
+          // Actually we care about the LATEST relevant event timestamp for sorting.
+          
+          const getTimestamp = (m: Member, field: 'moved' | 'copied') => {
+              if (field === 'moved' && m.moved_at?.toDate) return m.moved_at.toDate().getTime();
+              if (field === 'copied' && m.copied_at?.toDate) return m.copied_at.toDate().getTime();
+              return 0;
+          };
 
-          // 2. Sort by Name ASC
+          const tA = Math.max(
+             a.is_moved ? getTimestamp(a, 'moved') : 0, 
+             a.copied_to_sg_id ? getTimestamp(a, 'copied') : 0
+          );
+          const tB = Math.max(
+             b.is_moved ? getTimestamp(b, 'moved') : 0, 
+             b.copied_to_sg_id ? getTimestamp(b, 'copied') : 0
+          );
+          
+          if (tA !== tB) return tB - tA; // Newest first
+
+          // Sort by Name ASC as secondary
           return (a.name_kor || '').localeCompare(b.name_kor || '');
       });
-      setMovedMembers(moved);
+      setMovedMembers(histories);
 
       setLoading(false);
     });
@@ -1206,7 +1227,7 @@ export default function ServerList() {
                onClick={() => setIsMoveDrawerOpen(true)}
                disabled={activeMembers.length === 0 && inactiveMembers.length === 0}
            >
-               타 복사단 이동
+               복사단 이동(복제)
            </Button>
         </div>
       </Card>
@@ -1220,59 +1241,77 @@ export default function ServerList() {
          parentInfos={parentInfos}
       />
 
-      {/* ✅ [New] 전배간 복사단원 (Moved Members) */}
+      {/* ✅ [New] 전배/복제 이력 (Transfer/Copy History) */}
       <Card className="p-4 bg-gray-50/50 border-gray-100 dark:bg-slate-800/10 dark:border-slate-800 mt-8">
              <div className="flex items-center gap-2 mb-3">
                  <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400">
-                     전배간 복사단원 <span className="text-sm font-normal">({movedMembers.length}명)</span>
+                     전배/복제 이력 <span className="text-sm font-normal">({movedMembers.length}건)</span>
                  </h2>
              </div>
              
              {movedMembers.length === 0 ? (
-                 <p className="text-gray-400 text-sm">전배간 복사단원이 없습니다.</p>
+                 <p className="text-gray-400 text-sm">이력이 없습니다.</p>
              ) : (
                  <div className="space-y-2">
                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                     {movedMembers.slice(0, showMoved ? undefined : 3).map((m, idx) => {
-                         let moveDateStr = '-';
-                         if (m.moved_at?.toDate) {
-                             moveDateStr = dayjs(m.moved_at.toDate()).format('YY.MM.DD');
-                         }
-                         
-                         return (
-                             <div key={m.id} className="flex flex-col justify-center text-xs bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-2 rounded shadow-sm">
-                                 <div className="flex items-center justify-between mb-1">
-                                     <div className="flex items-center gap-1 min-w-0">
-                                         <span className="font-bold text-gray-700 dark:text-gray-300 shrink-0 flex items-center gap-1">
-                                            {m.name_kor}
-                                            {isSuperAdmin && (
-                                            <span 
-                                                onClick={(e) => handleCopyId(e, m.id)}
-                                                className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700"
-                                                title="ID 복사"
-                                            >S</span>
-                                            )}
+                      {movedMembers.slice(0, showMoved ? undefined : 3).map((m, idx) => {
+                          const isMoved = m.is_moved;
+                          const isCopied = !isMoved && !!m.copied_to_sg_id;
+                          
+                          let dateStr = '-';
+                          let byName = '';
+                          let targetSgId = '';
+                          
+                          if (isMoved) {
+                              if (m.moved_at?.toDate) dateStr = dayjs(m.moved_at.toDate()).format('YY.MM.DD');
+                              byName = m.moved_by_name || '관리자';
+                              targetSgId = m.moved_to_sg_id || '';
+                          } else if (isCopied) {
+                              if (m.copied_at?.toDate) dateStr = dayjs(m.copied_at.toDate()).format('YY.MM.DD');
+                              byName = m.copied_by_name || '관리자';
+                              targetSgId = m.copied_to_sg_id || '';
+                          }
+                          
+                          return (
+                              <div key={m.id} className={`flex flex-col justify-center text-xs bg-white dark:bg-slate-900 border rounded shadow-sm p-3 relative overflow-hidden ${isMoved ? 'border-orange-100 dark:border-orange-900/30' : 'border-blue-100 dark:border-blue-900/30'}`}>
+                                  {/* Type Badge */}
+                                  <div className={`absolute top-0 right-0 px-1.5 py-0.5 text-[9px] font-bold rounded-bl-md ${
+                                      isMoved 
+                                        ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' 
+                                        : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                  }`}>
+                                      {isMoved ? '전배' : '복제'}
+                                  </div>
+
+                                  <div className="flex items-center justify-between mb-1 mt-1">
+                                      <div className="flex items-center gap-1 min-w-0">
+                                          <span className="font-bold text-gray-700 dark:text-gray-300 shrink-0 flex items-center gap-1">
+                                             {m.name_kor}
+                                             {isSuperAdmin && (
+                                             <span 
+                                                 onClick={(e) => handleCopyId(e, m.id)}
+                                                 className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700"
+                                                 title="ID 복사"
+                                             >S</span>
+                                             )}
+                                           </span>
+                                           <span className="text-gray-400 truncate text-[10px]">
+                                              ({m.baptismal_name}) · {m.grade}
                                           </span>
-                                          <span className="text-gray-400 truncate text-[10px]">
-                                             ({m.baptismal_name}) · {m.grade} {m.start_year && `· ${m.start_year}년`}
-                                         </span>
-                                     </div>
-                                     <div className="flex flex-col items-end">
-                                         <span className="text-[9px] text-gray-400">
-                                             By {m.moved_by_name?.split(' ')[0] || '관리자'} <span className="text-[10px] text-gray-500">{moveDateStr}</span>
-                                         </span>
-                                     </div>
-                                 </div>
-                                 <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
-                                     {m.moved_to_sg_id ? (
-                                         <span className="bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-1 rounded truncate max-w-[80px]" title={m.moved_to_sg_id}>
-                                             To. {m.moved_to_sg_id}
-                                         </span>
-                                     ) : <span>-</span>}
-                                 </div>
-                             </div>
-                         );
-                     })}
+                                      </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+                                      <span className="flex items-center gap-1">
+                                          To. <span className="font-medium text-gray-600 dark:text-gray-400 truncate max-w-[80px]" title={targetSgId}>{targetSgId}</span>
+                                      </span>
+                                      <span className="text-[9px]">
+                                          {dateStr}
+                                      </span>
+                                  </div>
+                              </div>
+                          );
+                      })}
                      </div>
 
                      {movedMembers.length > 3 && (
