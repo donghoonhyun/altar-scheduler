@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface UpdateProfileDialogProps {
   memberId: string;
@@ -31,7 +32,7 @@ export default function UpdateProfileDialog({
 
     try {
       setLoading(true);
-      const ref = doc(db, 'server_groups', serverGroupId, 'members', memberId);
+      const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', memberId);
       await updateDoc(ref, {
         name_kor: name.trim(),
         baptismal_name: baptismalName.trim(),

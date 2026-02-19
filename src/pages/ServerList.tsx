@@ -25,6 +25,7 @@ import AddServerDrawer from '@/pages/components/AddServerDrawer';
 import MoveMembersDrawer from '@/pages/components/MoveMembersDrawer';
 import { UserRoleIcon } from '@/components/ui';
 import { useSession } from '@/state/session';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface Member {
   id: string;
@@ -152,7 +153,7 @@ export default function ServerList() {
   useEffect(() => {
     if (!serverGroupId) return;
 
-    const colRef = collection(db, 'server_groups', serverGroupId, 'members');
+    const colRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members');
 
     const unsubscribe = onSnapshot(colRef, (snap) => {
       const all: Member[] = snap.docs.map((d) => ({
@@ -219,7 +220,7 @@ export default function ServerList() {
   useEffect(() => {
     if (!serverGroupId) return;
 
-    const delColRef = collection(db, 'server_groups', serverGroupId, 'del_members');
+    const delColRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'del_members');
     const unsubscribe = onSnapshot(delColRef, (snap) => {
         const deleted = snap.docs.map(d => ({
             ...(d.data() as Member),
@@ -263,7 +264,7 @@ export default function ServerList() {
               let roles: string[] = [];
               if (serverGroupId) {
                  try {
-                    const memSnap = await getDoc(doc(db, 'memberships', `${uid}_${serverGroupId}`));
+                    const memSnap = await getDoc(doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${serverGroupId}`));
                     if (memSnap.exists()) {
                         const memData = memSnap.data();
                         if (Array.isArray(memData.role)) {
@@ -310,7 +311,7 @@ export default function ServerList() {
     const endStr = base.add(1, 'month').endOf('month').format('YYYYMMDD');
     
     const q = query(
-      collection(db, 'server_groups', serverGroupId, 'mass_events'),
+      collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
       where('event_date', '>=', startStr), 
       where('event_date', '<=', endStr)
     );
@@ -352,7 +353,7 @@ export default function ServerList() {
     const endStr = targetMonth.endOf('month').format('YYYYMMDD');
     
     const q = query(
-      collection(db, 'server_groups', serverGroupId, 'mass_events'),
+      collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
       where('event_date', '>=', startStr),
       where('event_date', '<=', endStr)
     );
@@ -420,7 +421,7 @@ export default function ServerList() {
       const editorName = currentUser?.displayName || '관리자';
 
       // (1) server_groups/.../members 업데이트
-      const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+      const memberRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid);
       
       const newLog: HistoryLog = {
         date: Timestamp.now(),
@@ -437,7 +438,7 @@ export default function ServerList() {
       });
 
       // (2) memberships 컬렉션 업데이트 (active: true)
-      const membershipRef = doc(db, 'memberships', `${uid}_${serverGroupId}`);
+      const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${serverGroupId}`);
       // memberships 문서가 반드시 존재한다고 가정 (AddMember에서 생성됨)
       batch.update(membershipRef, {
         active: true,
@@ -485,7 +486,7 @@ export default function ServerList() {
       const batch = writeBatch(db);
       
       // 1. del_members에 추가 (History 추가)
-      const delRef = doc(db, 'server_groups', serverGroupId, 'del_members', uid);
+      const delRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'del_members', uid);
       
       const newLog: HistoryLog = {
           date: Timestamp.now(),
@@ -505,12 +506,12 @@ export default function ServerList() {
       });
 
       // 2. members 문서 삭제
-      const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+      const memberRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid);
       batch.delete(memberRef);
 
       // 3. memberships 문서 삭제
       const membershipId = `${uid}_${serverGroupId}`;
-      const membershipRef = doc(db, 'memberships', membershipId);
+      const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, membershipId);
       batch.delete(membershipRef);
 
       await batch.commit();
@@ -540,7 +541,7 @@ export default function ServerList() {
           const batch = writeBatch(db);
 
           // 1. members로 복귀 (History 추가)
-          const memberRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+          const memberRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid);
           
           // 삭제 관련 필드 제거
           const { deleted_at, deleted_by_uid, deleted_by_name, ...rest } = originalData;
@@ -564,7 +565,7 @@ export default function ServerList() {
           });
 
           // 2. memberships 생성
-          const membershipRef = doc(db, 'memberships', `${uid}_${serverGroupId}`);
+          const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${serverGroupId}`);
           batch.set(membershipRef, {
               uid,
               server_group_id: serverGroupId,
@@ -575,7 +576,7 @@ export default function ServerList() {
           });
 
           // 3. del_members에서 제거
-          const delRef = doc(db, 'server_groups', serverGroupId, 'del_members', uid);
+          const delRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'del_members', uid);
           batch.delete(delRef);
 
           await batch.commit();
@@ -604,7 +605,7 @@ export default function ServerList() {
     const editorName = currentUser?.displayName || '관리자';
 
     try {
-      const memberRef = doc(db, 'server_groups', serverGroupId, 'members', selectedMember.id);
+      const memberRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', selectedMember.id);
       
       const updateData: any = { 
         active: editActive, 
@@ -1185,7 +1186,7 @@ export default function ServerList() {
                      // If found and not the last one, bump it up
                      if (currentIdx !== -1 && currentIdx < ALL_GRADES.length - 1) {
                         const nextGrade = ALL_GRADES[currentIdx + 1];
-                        const ref = doc(db, 'server_groups', serverGroupId, 'members', m.id);
+                        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', m.id);
                         
                         const newLog: HistoryLog = {
                             date: Timestamp.now(),

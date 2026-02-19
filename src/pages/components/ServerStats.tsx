@@ -4,6 +4,7 @@ import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface ServerStatsProps {
   parishCode: string;
@@ -23,7 +24,7 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
 
   useEffect(() => {
     const fetchMembers = async () => {
-      const snap = await getDocs(collection(db, 'server_groups', serverGroupId, 'members'));
+      const snap = await getDocs(collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members'));
       
       // request_confirmed가 true 이거나 undefined(기존 데이터)인 멤버 포함, false(승인 대기)는 제외
       const count = snap.docs.filter(d => {
@@ -44,7 +45,7 @@ const ServerStats: React.FC<ServerStatsProps> = ({ parishCode, serverGroupId }) 
       const monthId = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
       const respSnap = await getDocs(
-        collection(db, 'server_groups', serverGroupId, 'availability_surveys', monthId, 'responses')
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys', monthId, 'responses')
       );
 
       setSurveyCount({

@@ -14,7 +14,7 @@ delete process.env.FIRESTORE_EMULATOR_HOST;
 delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
 delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
 
-const PROJECT_ID = 'altar-scheduler-dev';
+const PROJECT_ID = 'ordo-eb11a';
 
 // Global variables
 let db: FirebaseFirestore.Firestore;
@@ -22,15 +22,18 @@ let auth: ReturnType<typeof getAuth>;
 
 // Move initialization inside a function to catch credential errors
 function initFirebase() {
-    const serviceAccountPath = path.join(__dirname, 'service-account.json');
+    // Try to find the service account in the sibling Ordo directory first
+    const serviceAccountPath = path.join(__dirname, '../../Ordo/service-account.json');
     if (fs.existsSync(serviceAccountPath)) {
-        console.log('Found service-account.json, using it for authentication...');
+        console.log('Found service-account.json in Ordo directory, using it for authentication...');
         const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        console.log('Using Key for Project:', serviceAccount.project_id);
         initializeApp({
             credential: cert(serviceAccount),
-            projectId: PROJECT_ID,
+            // projectId: PROJECT_ID, // cert() provides the project ID
         });
     } else {
+        console.warn('Ordo service-account.json not found. Warning: Might fail if not authenticated via gcloud.');
         initializeApp({
             projectId: PROJECT_ID,
         });

@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { COLLECTIONS } from '../lib/collections';
 import { Parish } from '../types/parish';
 
 export function useParishes(onlyActive?: boolean) {
   return useQuery({
     queryKey: ['parishes', { onlyActive }],
     queryFn: async (): Promise<Parish[]> => {
-      const parishRef = collection(db, 'parishes');
+      const parishRef = collection(db, COLLECTIONS.PARISHES);
       let q;
       
       if (onlyActive) {

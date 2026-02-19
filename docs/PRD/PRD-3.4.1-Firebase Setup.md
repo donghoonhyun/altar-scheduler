@@ -178,8 +178,11 @@ curl -X POST http://127.0.0.1:5001/altar-scheduler-dev/asia-northeast3/copyPrevM
 - 🔹 실제 배포
 
 ```bash
+# 기본 배포 (firebase.json의 codebase 설정에 따라 해당 앱의 함수만 배포됨)
 firebase deploy --only functions
 ```
+
+💡 **주의**: 여러 앱이 같은 Firebase 프로젝트를 공유하므로, `firebase.json`의 `codebase` 설정이 `altar-scheduler`로 되어 있는지 확인하십시오. 이를 통해 다른 앱(예: OrdoAdmin)의 함수를 덮어쓰지 않고 독립적으로 배포할 수 있습니다.
 
 ### 3.4 개발 소스 가이드
 

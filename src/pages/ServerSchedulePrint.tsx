@@ -7,6 +7,7 @@ import Loader from '@/components/common/LoadingSpinner';
 import { useSession } from '@/state/session';
 import { Button } from '@/components/ui/button';
 import { Printer, ZoomIn, ZoomOut, X, CalendarDays } from 'lucide-react';
+import { COLLECTIONS } from '@/lib/collections';
 
 dayjs.extend(timezone);
 
@@ -44,14 +45,14 @@ export default function ServerSchedulePrint() {
         setLoading(true);
 
         // 1. Fetch Group Info (for Title)
-        const groupRef = doc(db, 'server_groups', serverGroupId);
+        const groupRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId);
         const groupSnap = await getDoc(groupRef);
         if (groupSnap.exists()) {
             setGroupName(groupSnap.data().name || '복사단');
         }
 
         // 2. Fetch Members
-        const memRef = collection(db, `server_groups/${serverGroupId}/members`);
+        const memRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/members`);
         const memQ = query(memRef); // active check optional? better to get all in case historical
         const memSnap = await getDocs(memQ);
         const mMap: Record<string, MemberDoc> = {};
@@ -70,7 +71,7 @@ export default function ServerSchedulePrint() {
         const startStr = startOfMonth.format('YYYYMMDD');
         const endStr = endOfMonth.format('YYYYMMDD');
 
-        const evRef = collection(db, `server_groups/${serverGroupId}/mass_events`);
+        const evRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/mass_events`);
         const evQ = query(evRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr), orderBy('event_date', 'asc'));
         const evSnap = await getDocs(evQ);
         const evList = evSnap.docs.map(d => ({ id: d.id, ...d.data() } as MassEventDoc));

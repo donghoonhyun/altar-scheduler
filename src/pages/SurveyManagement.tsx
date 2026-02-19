@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { COLLECTIONS } from '@/lib/collections';
 import { Container, Card, Heading } from '@/components/ui'; // Assuming these exist
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +65,7 @@ export default function SurveyManagement() {
     if (!serverGroupId) return;
     try {
       if (isRefresh) setRefreshing(true);
-      const q = query(collection(db, 'server_groups', serverGroupId, 'availability_surveys'));
+      const q = query(collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys'));
       const snap = await getDocs(q);
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SurveyDoc));
       // Sort descending by ID (YYYYMM)
@@ -83,7 +84,7 @@ export default function SurveyManagement() {
   const fetchAllMembers = useCallback(async () => {
        if (!serverGroupId) return;
        try {
-           const q = query(collection(db, 'server_groups', serverGroupId, 'members'));
+           const q = query(collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members'));
            const snap = await getDocs(q);
            const newMap: Record<string, MemberInfo> = {};
            snap.forEach(doc => {

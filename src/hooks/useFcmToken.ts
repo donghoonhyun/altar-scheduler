@@ -15,8 +15,17 @@ export function useFcmToken() {
       if (!userInfo?.userName) return;
       
       if (!('Notification' in window)) return;
+      
+      const isInIframe = window.self !== window.top;
 
       try {
+          // If in iframe, we can only proceed if permission is already granted.
+          // Cross-origin iframes cannot request permission.
+          if (isInIframe && Notification.permission !== 'granted') {
+              setPermission(Notification.permission);
+              return;
+          }
+
           const perm = await Notification.requestPermission();
           setPermission(perm);
 
@@ -31,9 +40,16 @@ export function useFcmToken() {
               swUrl.searchParams.append('messagingSenderId', firebaseConfig.messagingSenderId);
               swUrl.searchParams.append('appId', firebaseConfig.appId);
 
-              // 2. Register SW
-              const registration = await navigator.serviceWorker.register(swUrl.href, {
-                  scope: '/firebase-cloud-messaging-push-scope',
+              // 2. Register SW (Root scope, needed for FCM to control current page)
+              if (!('serviceWorker' in navigator)) {
+                  console.error('Service Worker not supported');
+                  return;
+              }
+
+              // Try using existing ready SW first to avoid redundant registration
+              const existingReg = await navigator.serviceWorker.getRegistration('/');
+              const registration = existingReg || await navigator.serviceWorker.register(swUrl.href, {
+                  scope: '/',
               });
 
               // 3. Get Token

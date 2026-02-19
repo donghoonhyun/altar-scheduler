@@ -9,6 +9,7 @@ import { collection, query, orderBy, limit, getDocs, startAfter } from 'firebase
 import dayjs from 'dayjs';
 import { useSession } from '@/state/session';
 import { httpsCallable } from 'firebase/functions';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface NotificationLog {
   id: string;
@@ -27,6 +28,7 @@ interface NotificationLog {
   triggered_by?: string;
   triggered_by_name?: string;
   trigger_status?: string;
+  app_id?: string;
 }
 
 export default function NotificationManagement() {
@@ -44,16 +46,16 @@ export default function NotificationManagement() {
   const fetchLogs = async (isLoadMore = false) => {
     try {
       setIsLoadingLogs(true);
-      // Query Top-Level Collection 'system_notification_logs'
+      // Query Top-Level Collection 'notifications'
       let q = query(
-        collection(db, 'system_notification_logs'),
+        collection(db, COLLECTIONS.NOTIFICATIONS),
         orderBy('created_at', 'desc'),
         limit(50)
       );
 
       if (isLoadMore && lastDoc) {
           q = query(
-            collection(db, 'system_notification_logs'),
+            collection(db, COLLECTIONS.NOTIFICATIONS),
             orderBy('created_at', 'desc'),
             startAfter(lastDoc),
             limit(50)
@@ -91,7 +93,7 @@ export default function NotificationManagement() {
       
       try {
           setIsSendingTest(true);
-          const sendTest = httpsCallable(functions, 'sendTestNotification');
+          const sendTest = httpsCallable(functions, 'altar_sendTestNotification');
           const res = await sendTest({ targetUid: session.user.uid });
           const data = res.data as any;
           
@@ -283,6 +285,11 @@ export default function NotificationManagement() {
                         <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                             {selectedLog.feature || 'unknown'}
                         </span>
+                        {selectedLog.app_id && (
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800">
+                                {selectedLog.app_id}
+                            </span>
+                        )}
                         {selectedLog.server_group_id && (
                             <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800">
                                 G: {selectedLog.server_group_id}

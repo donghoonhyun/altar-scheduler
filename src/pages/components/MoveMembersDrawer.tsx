@@ -14,6 +14,7 @@ import {
 import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { COLLECTIONS } from '@/lib/collections';
 import { 
     AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel 
 } from '@/components/ui/alert-dialog';
@@ -76,7 +77,7 @@ export default function MoveMembersDrawer({
                 setIsFetchingGroups(true);
                 try {
                     // 1. Get current SG to find parish_code
-                    const currentSgSnap = await getDoc(doc(db, 'server_groups', currentServerGroupId));
+                    const currentSgSnap = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, currentServerGroupId));
                     if (!currentSgSnap.exists()) return;
                     
                     const code = currentSgSnap.data().parish_code;
@@ -84,7 +85,7 @@ export default function MoveMembersDrawer({
 
                     // 2. Query other SGs in same parish
                     const q = query(
-                        collection(db, 'server_groups'), 
+                        collection(db, COLLECTIONS.SERVER_GROUPS), 
                         where('parish_code', '==', code)
                     );
                     const snap = await getDocs(q);
@@ -162,7 +163,7 @@ export default function MoveMembersDrawer({
                 const uid = member.id; // Assuming member.id is uid (which is true for active members)
                 
                 // 1. Create new member doc in target SG
-                const targetMemberRef = doc(db, 'server_groups', targetSgId, 'members', uid);
+                const targetMemberRef = doc(db, COLLECTIONS.SERVER_GROUPS, targetSgId, 'members', uid);
                 
                 // Fetch target SG name if possible? No need.
                 
@@ -190,7 +191,7 @@ export default function MoveMembersDrawer({
 
                 // 2. Handle Old Member based on Action Type
                 if (actionType === 'move') {
-                    const oldMemberRef = doc(db, 'server_groups', currentServerGroupId, 'members', uid);
+                    const oldMemberRef = doc(db, COLLECTIONS.SERVER_GROUPS, currentServerGroupId, 'members', uid);
                     batch.update(oldMemberRef, { 
                         active: false, 
                         is_moved: true,
@@ -202,11 +203,11 @@ export default function MoveMembersDrawer({
                     });
 
                     // Remove old membership
-                    const oldMembershipRef = doc(db, 'memberships', `${uid}_${currentServerGroupId}`);
+                    const oldMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${currentServerGroupId}`);
                     batch.delete(oldMembershipRef);
                 } else if (actionType === 'copy') {
                     // Update old member to record copy history
-                    const oldMemberRef = doc(db, 'server_groups', currentServerGroupId, 'members', uid);
+                    const oldMemberRef = doc(db, COLLECTIONS.SERVER_GROUPS, currentServerGroupId, 'members', uid);
                     batch.update(oldMemberRef, {
                         copied_to_sg_id: targetSgId,
                         copied_at: serverTimestamp(),
@@ -219,7 +220,7 @@ export default function MoveMembersDrawer({
 
                 // 3. Create New Membership
                 // Membership ID is `{uid}_{sgId}`
-                const newMembershipRef = doc(db, 'memberships', `${uid}_${targetSgId}`);
+                const newMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${targetSgId}`);
                 
                 batch.set(newMembershipRef, {
                     uid: uid,

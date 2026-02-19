@@ -11,6 +11,7 @@ import {
   doc,
 } from 'firebase/firestore';
 import { getMemberNamesByIds } from '@/lib/firestore';
+import { COLLECTIONS } from '@/lib/collections';
 import type { MassEventCalendar } from '@/types/massEvent';
 import type { MassStatus } from '@/types/firestore';
 import dayjs from 'dayjs';
@@ -48,7 +49,7 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
     const yyyymm = currentMonth.format('YYYYMM');
 
     // 1️⃣ Events Listener
-    const colRef = collection(db, 'server_groups', serverGroupId, 'mass_events');
+    const colRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events');
     const q = query(
       colRef,
       where('event_date', '>=', startStr),
@@ -103,7 +104,7 @@ export function useMassEvents(serverGroupId?: string, currentMonth?: dayjs.Dayjs
     );
 
     // 2️⃣ Month Status Listener
-    const statusRef = doc(getFirestore(), 'server_groups', serverGroupId, 'month_status', yyyymm);
+    const statusRef = doc(getFirestore(), COLLECTIONS.SERVER_GROUPS, serverGroupId, 'month_status', yyyymm);
     const unsubscribeStatus = onSnapshot(statusRef, (docSnap) => {
         if (docSnap.exists()) {
             setMonthStatus(docSnap.data().status as MassStatus);

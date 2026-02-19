@@ -21,6 +21,7 @@ import UpdateUserProfileDialog from './components/UpdateUserProfileDialog';
 import { Parish } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
 import { Button, Input } from '@/components/ui';
+import { COLLECTIONS } from '@/lib/collections';
 
 type ServerGroupItem = {
   id: string;
@@ -125,7 +126,7 @@ export default function RequestPlannerRole() {
                     if (sgSnap.exists()) {
                         const sgData = sgSnap.data();
                         groupName = sgData.name;
-                        const parishDoc = await getDoc(doc(db, 'parishes', sgData.parish_code));
+                        const parishDoc = await getDoc(doc(db, COLLECTIONS.PARISHES, sgData.parish_code));
                         if (parishDoc.exists()) {
                              parishName = (parishDoc.data() as Parish).name_kor;
                         }
@@ -225,7 +226,7 @@ export default function RequestPlannerRole() {
       }
       try {
         const q = query(
-          collection(db, 'server_groups'), 
+          collection(db, COLLECTIONS.SERVER_GROUPS), 
           where('parish_code', '==', selectedParish),
           where('active', '==', true)
         );
@@ -285,7 +286,7 @@ export default function RequestPlannerRole() {
     setLoading(true);
     try {
       // Create Request in server_groups/{sgId}/role_requests/{uid}
-      const requestRef = doc(db, 'server_groups', selectedGroup, 'role_requests', user.uid);
+      const requestRef = doc(db, COLLECTIONS.SERVER_GROUPS, selectedGroup, 'role_requests', user.uid);
       
       await setDoc(requestRef, {
         uid: user.uid,
@@ -334,7 +335,7 @@ export default function RequestPlannerRole() {
     setLoading(true);
     try {
       await deleteDoc(
-        doc(db, 'server_groups', req.serverGroupId, 'role_requests', req.id) // req.id is user uid.
+        doc(db, COLLECTIONS.SERVER_GROUPS, req.serverGroupId, 'role_requests', req.id) // req.id is user uid.
         // Wait, req.id in the map above (line 114) is docObj.id which IS the user uid. 
         // Correct.
       );

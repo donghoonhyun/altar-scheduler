@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface Props {
   members: (MemberDoc & { memberId: string })[];
@@ -29,7 +30,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
     setIsDeleting(true);
     try {
       const db = getFirestore();
-      await deleteDoc(doc(db, 'server_groups', serverGroupId, 'members', selectedPendingMember.memberId));
+      await deleteDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', selectedPendingMember.memberId));
       toast.success('신청이 취소되었습니다.');
       setSelectedPendingMember(null);
     } catch (error) {

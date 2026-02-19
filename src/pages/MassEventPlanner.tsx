@@ -35,6 +35,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { MassEventToolbar } from '@/components/MassEventToolbar';
 import { useSession } from '@/state/session';
 import timezone from 'dayjs/plugin/timezone';
+import { COLLECTIONS } from '@/lib/collections';
 
 dayjs.extend(weekOfYear);
 dayjs.extend(timezone);
@@ -95,7 +96,7 @@ const MassEventPlanner: React.FC = () => {
   useEffect(() => {
      if (!serverGroupId || !monthKey) return;
 
-     const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${monthKey}`);
+     const surveyRef = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${monthKey}`);
      const unsub = onSnapshot(surveyRef, (snap) => {
          if (snap.exists()) {
              const data = snap.data();
@@ -139,7 +140,7 @@ const MassEventPlanner: React.FC = () => {
 
     // ✅ 설문 문서 상태도 CLOSED로 변경 (복사 메인 등에서의 감시를 위해)
     if (serverGroupId) {
-        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${monthKey}`);
+        const surveyRef = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${monthKey}`);
         // merge: true로 부분 업데이트
         await setDoc(surveyRef, { status: 'CLOSED' }, { merge: true });
     }
@@ -155,7 +156,7 @@ const MassEventPlanner: React.FC = () => {
       connectFunctionsEmulator(functions, '127.0.0.1', 5001);
     }
 
-    const autoAssignFn = httpsCallable(functions, 'autoAssignMassEvents');
+    const autoAssignFn = httpsCallable(functions, 'altar_autoAssignMassEvents');
     
     try {
       const result = await autoAssignFn({

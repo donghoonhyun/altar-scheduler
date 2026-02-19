@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Search, User as UserIcon, X, Check, List } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { orderBy } from 'firebase/firestore';
+import { COLLECTIONS } from '@/lib/collections';
 
 const ALL_GRADES = [
   'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
@@ -178,7 +179,7 @@ export default function AddServerDrawer({ open, onOpenChange, serverGroupId }: A
 
     try {
       setIsSubmitting(true);
-      const colRef = collection(db, 'server_groups', serverGroupId, 'members');
+      const colRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members');
       
       const payload: any = {
         name_kor: name,

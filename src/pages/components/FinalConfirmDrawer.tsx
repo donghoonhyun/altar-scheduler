@@ -7,6 +7,7 @@ import { getFirestore, collection, getDocs, query, where, doc, getDoc, orderBy, 
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/ko'; // ✅ Import Korean Locale
 import { MassEventCalendar } from '@/types/massEvent';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface FinalConfirmDrawerProps {
   open: boolean;
@@ -116,7 +117,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
         const monthKey = currentMonth.format('YYYYMM');
 
         // 0. Fetch Availability Survey for Unavailable Check
-        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${monthKey}`);
+        const surveyRef = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${monthKey}`);
         const surveySnap = await getDoc(surveyRef);
         const unavailableMap: Record<string, Set<string>> = {}; 
         
@@ -135,7 +136,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
         }
 
         // 1. Fetch Members
-        const membersRef = collection(db, 'server_groups', serverGroupId, 'members');
+        const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members');
         const memberSnap = await getDocs(membersRef);
         
         // 2. Fetch Prev Month Events
@@ -144,7 +145,7 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
         const endStr = prevMonth.endOf('month').format('YYYYMMDD');
         
         const q = query(
-            collection(db, 'server_groups', serverGroupId, 'mass_events'),
+            collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
             where('event_date', '>=', startStr),
             where('event_date', '<=', endStr)
         );

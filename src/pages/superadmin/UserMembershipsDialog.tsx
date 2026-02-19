@@ -19,6 +19,7 @@ import { Loader2, Shield, Edit2, Trash2, Plus, Search, AlertCircle, X, ChevronRi
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface Membership {
   id: string; // document id
@@ -83,7 +84,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
   const fetchMemberships = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'memberships'), where('uid', '==', uid));
+      const q = query(collection(db, COLLECTIONS.MEMBERSHIPS), where('uid', '==', uid));
       const snap = await getDocs(q);
       
       const list: Membership[] = snap.docs.map(d => ({ 
@@ -96,7 +97,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
         if (m.server_group_id === 'global') return { ...m, server_group_name: 'Global System' };
         
         try {
-            const sgSnap = await getDoc(doc(db, 'server_groups', m.server_group_id));
+            const sgSnap = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, m.server_group_id));
             if (sgSnap.exists()) {
                 const sgData = sgSnap.data() as ServerGroup;
                 let parishName = '';
@@ -175,7 +176,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
             return;
         }
 
-        await updateDoc(doc(db, 'memberships', editTargetId), {
+        await updateDoc(doc(db, COLLECTIONS.MEMBERSHIPS, editTargetId), {
             role: editRoles,
             active: editActive,
             updated_at: serverTimestamp()
@@ -198,7 +199,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
   const deleteMembership = async (m: Membership) => {
     if (!confirm(`${m.parish_name ? m.parish_name + ' ' : ''}${m.server_group_name} 멤버십을 정말 삭제하시겠습니까?`)) return;
     try {
-        await deleteDoc(doc(db, 'memberships', m.id));
+        await deleteDoc(doc(db, COLLECTIONS.MEMBERSHIPS, m.id));
         setMemberships(prev => prev.filter(item => item.id !== m.id));
         toast.success('삭제되었습니다.');
     } catch (e) {
@@ -249,7 +250,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
     // Fetch server groups for this parish immediately
     setIsLoadingGroups(true);
     try {
-        const q = query(collection(db, 'server_groups'), where('parish_code', '==', parish.code));
+        const q = query(collection(db, COLLECTIONS.SERVER_GROUPS), where('parish_code', '==', parish.code));
         const snap = await getDocs(q);
         const groups = snap.docs.map(d => ({ id: d.id, ...d.data() } as ServerGroup));
         setFoundGroups(groups);
@@ -289,7 +290,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
     }
 
     try {
-        const newDocRef = await addDoc(collection(db, 'memberships'), {
+        const newDocRef = await addDoc(collection(db, COLLECTIONS.MEMBERSHIPS), {
             uid,
             server_group_id: selectedGroup.id,
             role: newRoles,

@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface MembershipWithUser {
   id: string;
@@ -49,7 +50,7 @@ const MemberRoleManagement: React.FC = () => {
     setLoading(true);
     try {
       const q = query(
-        collection(db, 'memberships'),
+        collection(db, COLLECTIONS.MEMBERSHIPS),
         where('server_group_id', '==', serverGroupId)
       );
       const snap = await getDocs(q);
@@ -107,7 +108,7 @@ const MemberRoleManagement: React.FC = () => {
     }
 
     try {
-      await updateDoc(doc(db, 'memberships', id), {
+      await updateDoc(doc(db, COLLECTIONS.MEMBERSHIPS, id), {
         role: editRoles,
         active: editActive,
         updated_at: Timestamp.now()
@@ -125,7 +126,7 @@ const MemberRoleManagement: React.FC = () => {
     if (!confirm(`정말로 '${name}' 님을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     
     try {
-      await deleteDoc(doc(db, 'memberships', id));
+      await deleteDoc(doc(db, COLLECTIONS.MEMBERSHIPS, id));
       toast.success('멤버가 삭제되었습니다.');
       fetchMemberships();
     } catch (err) {

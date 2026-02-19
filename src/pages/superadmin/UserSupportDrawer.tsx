@@ -66,7 +66,7 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
     try {
         // ... (existing logic)
       setSending(true);
-      const sendTest = httpsCallable(functions, 'sendTestNotification');
+      const sendTest = httpsCallable(functions, 'altar_sendTestNotification');
       
       const iconUrl = new URL('/pwa-icon.png', window.location.origin).href;
       const result = await sendTest({ targetUid: uid, iconUrl });

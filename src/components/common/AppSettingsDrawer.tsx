@@ -17,12 +17,13 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
   const { theme, setTheme } = useTheme();
   const { permission, toggleNotification } = useFcmToken();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
+  const isInIframe = window.self !== window.top;
 
   useEffect(() => {
     const pref = localStorage.getItem('altar_notification_enabled');
     // Enabled if permission granted AND not explicitly disabled
     setIsNotificationsEnabled(permission === 'granted' && pref !== 'false');
-  }, [permission, open]); // Re-check on open
+  }, [permission, open]); 
 
   const handleToggle = async (checked: boolean) => {
     if (checked) {
@@ -193,21 +194,58 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
                 {/* Divider */}
                 <div className="h-px bg-gray-100 dark:bg-gray-700" />
 
-                {/* Manual Status Indicator */}
-                <div className="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-lg flex items-center gap-2">
-                    {permission === 'granted' ? (
-                        <CheckCircle2 className="text-green-500 shrink-0" size={20} />
-                    ) : permission === 'denied' ? (
-                        <XCircle className="text-red-500 shrink-0" size={20} />
-                    ) : (
-                        <AlertCircle className="text-amber-500 shrink-0" size={20} />
-                    )}
-                    <div className="text-xs text-gray-700 dark:text-gray-300">
-                        브라우저 권한: 
-                        <span className="font-bold ml-1">
-                            {permission === 'granted' ? '허용됨' : permission === 'denied' ? '거부됨' : '미설정'}
-                        </span>
+                {/* Notification Settings Area */}
+                <div className="space-y-4">
+                {isNotificationsEnabled && permission !== 'granted' && !isInIframe && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs border border-red-100 dark:border-red-900/50 space-y-2">
+                        <div className="flex items-center gap-2 font-bold">
+                            <AlertCircle size={16} />
+                            알림 권한이 차단되어 있습니다
+                        </div>
+                        <p className="leading-relaxed opacity-90">
+                            브라우저 주소창 왼쪽의 <b>'자물쇠'</b> 또는 <b>'설정'</b> 아이콘을 눌러 <b>[알림: 허용]</b>으로 변경해 주세요.
+                        </p>
                     </div>
+                )}
+
+                {/* Manual Status Indicator */}
+                <div className="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-lg flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                        {permission === 'granted' ? (
+                            <CheckCircle2 className="text-green-500 shrink-0" size={20} />
+                        ) : (permission === 'denied' || isInIframe) ? (
+                            <XCircle className="text-red-500 shrink-0" size={20} />
+                        ) : (
+                            <AlertCircle className="text-amber-500 shrink-0" size={20} />
+                        )}
+                        <div className="text-xs text-gray-700 dark:text-gray-300">
+                            브라우저 권한: 
+                            <span className="font-bold ml-1">
+                                {permission === 'granted' ? '허용됨' : (permission === 'denied' || isInIframe) ? '제한됨(거부)' : '미설정'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {isInIframe && permission !== 'granted' && (
+                        <div className="mt-1 border-t border-gray-200 dark:border-gray-700 pt-2">
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mb-2">
+                                * Ordo 플랫폼(iframe) 내부에서는 보안을 위해 알림 권한 요청이 차단됩니다. 단독 페이지에서 한 번만 허용해 주세요.
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-[10px] h-7 bg-white dark:bg-slate-800 font-bold border-indigo-200 text-indigo-600"
+                                onClick={() => window.open('/', '_blank')}
+                            >
+                                <Monitor size={12} className="mr-1" />
+                                단독 페이지로 열기
+                            </Button>
+                            <p className="text-[9px] text-gray-400 mt-1 text-center">
+                                (보안 정책에 따라 한 번 더 로그인이 필요할 수 있습니다.)
+                            </p>
+                        </div>
+                    )}
+                </div>
                 </div>
 
                 {/* Test Button */}

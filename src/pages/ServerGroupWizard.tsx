@@ -4,6 +4,7 @@ import { db } from "../lib/firebase";
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { useSession } from "../state/session";
 import { useParishes } from "../hooks/useParishes";
+import { COLLECTIONS } from '@/lib/collections';
 
 export default function ServerGroupWizard() {
   const { parishCode } = useParams();
@@ -32,7 +33,7 @@ export default function ServerGroupWizard() {
       setLoading(true);
       setError(null);
 
-      const counterRef = doc(db, 'counters', 'server_groups');
+      const counterRef = doc(db, COLLECTIONS.COUNTERS, COLLECTIONS.SERVER_GROUPS);
       
       const newSgId = await runTransaction(db, async (transaction) => {
         // 1) 카운터 조회 및 증가
@@ -45,7 +46,7 @@ export default function ServerGroupWizard() {
 
         // 2) SG00000 포맷 ID 생성
         const sgId = `SG${nextSeq.toString().padStart(5, '0')}`;
-        const sgRef = doc(db, 'server_groups', sgId);
+        const sgRef = doc(db, COLLECTIONS.SERVER_GROUPS, sgId);
 
         // 3) 복사단 문서 생성
         transaction.set(sgRef, {
@@ -59,7 +60,7 @@ export default function ServerGroupWizard() {
         // 4) 생성자를 해당 복사단의 어드민/플래너로 등록
         if (session.user) {
           const membershipId = `${session.user.uid}_${sgId}`;
-          const membershipRef = doc(db, 'memberships', membershipId);
+          const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, membershipId);
           transaction.set(membershipRef, {
             uid: session.user.uid,
             server_group_id: sgId,

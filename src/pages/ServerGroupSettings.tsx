@@ -6,6 +6,7 @@ import { Container, Card, Heading, Button, Input, Label, InfoBox } from '@/compo
 import { ArrowLeft, Save, Info, Plus, X, MessageSquare, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/state/session';
+import { COLLECTIONS } from '@/lib/collections';
 
 const ServerGroupSettings: React.FC = () => {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
@@ -44,7 +45,7 @@ const ServerGroupSettings: React.FC = () => {
     const fetchSgInfo = async () => {
       if (!serverGroupId) return;
       try {
-        const sgDoc = await getDoc(doc(db, 'server_groups', serverGroupId));
+        const sgDoc = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId));
         if (sgDoc.exists()) {
           const data = sgDoc.data();
           const pCode = data.parish_code || '';
@@ -59,7 +60,7 @@ const ServerGroupSettings: React.FC = () => {
 
           // Fetch Parish Settings
           if (pCode) {
-             const parishDoc = await getDoc(doc(db, 'parishes', pCode));
+             const parishDoc = await getDoc(doc(db, COLLECTIONS.PARISHES, pCode));
              if (parishDoc.exists()) {
                  setParishSmsActive(parishDoc.data().sms_service_active === true);
              }
@@ -88,7 +89,7 @@ const ServerGroupSettings: React.FC = () => {
 
     setCreating(true);
     try {
-      const counterRef = doc(db, 'counters', 'server_groups');
+      const counterRef = doc(db, COLLECTIONS.COUNTERS, COLLECTIONS.SERVER_GROUPS);
       
       const newSgId = await runTransaction(db, async (transaction) => {
         // 1) 카운터 조회 및 증가
@@ -101,7 +102,7 @@ const ServerGroupSettings: React.FC = () => {
 
         // 2) SG00000 포맷 ID 생성
         const sgId = `SG${nextSeq.toString().padStart(5, '0')}`;
-        const sgRef = doc(db, 'server_groups', sgId);
+        const sgRef = doc(db, COLLECTIONS.SERVER_GROUPS, sgId);
 
         // 3) 복사단 문서 생성
         transaction.set(sgRef, {
@@ -115,7 +116,7 @@ const ServerGroupSettings: React.FC = () => {
 
         // 4) 생성자를 해당 복사단의 어드민/플래너로 등록 (선택 사항이나 보통 필요함)
         const membershipId = `${session.user?.uid}_${sgId}`;
-        const membershipRef = doc(db, 'memberships', membershipId);
+        const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, membershipId);
         transaction.set(membershipRef, {
           uid: session.user?.uid,
           server_group_id: sgId,
@@ -158,7 +159,7 @@ const ServerGroupSettings: React.FC = () => {
 
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'server_groups', serverGroupId), {
+      await updateDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId), {
         name: formData.name,
         active: formData.active,
         sms_service_active: formData.sms_service_active, 

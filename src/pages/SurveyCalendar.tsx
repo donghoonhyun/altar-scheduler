@@ -13,6 +13,7 @@ import { MassStatus } from '@/types/firestore';
 import { ArrowLeft, Loader2, Download, Trash2, User } from 'lucide-react';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface SurveyDoc {
   id: string; // yyyymm
@@ -73,7 +74,7 @@ export default function SurveyCalendar() {
     try {
       setLoading(true);
       // 1. Fetch Survey
-      const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', surveyId);
+      const surveyRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys', surveyId);
       const surveySnap = await getDoc(surveyRef);
 
       if (!surveySnap.exists()) {
@@ -86,9 +87,9 @@ export default function SurveyCalendar() {
       setSurvey(surveyData);
 
       // 2. Fetch Monthly Status
-      // Collection: 'server_groups/{gid}/month_status/{YYYYMM}'
+      // Collection: ${COLLECTIONS.SERVER_GROUPS}/{gid}/month_status/{YYYYMM}'
       try {
-          const monthStatusRef = doc(db, 'server_groups', serverGroupId, 'month_status', surveyId);
+          const monthStatusRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'month_status', surveyId);
           const monthStatusSnap = await getDoc(monthStatusRef);
           if (monthStatusSnap.exists()) {
               setMonthlyStatus(monthStatusSnap.data().status as MassStatus);
@@ -105,7 +106,7 @@ export default function SurveyCalendar() {
       const endStr = dayjs(surveyId + '01').endOf('month').format('YYYYMMDD');
 
       const eventsQuery = query(
-          collection(db, 'server_groups', serverGroupId, 'mass_events'),
+          collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
           where('event_date', '>=', startStr),
           where('event_date', '<=', endStr)
       );
@@ -128,7 +129,7 @@ export default function SurveyCalendar() {
 
       // 4. Fetch Deleted Mass Events
       const deletedQuery = query(
-        collection(db, 'server_groups', serverGroupId, 'deleted_mass_events'),
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'deleted_mass_events'),
         where('event_date', '>=', startStr),
         where('event_date', '<=', endStr)
       );
@@ -158,7 +159,7 @@ export default function SurveyCalendar() {
            const newMap: Record<string, MemberInfo> = {};
            await Promise.all(targetUids.map(async (uid) => {
                try {
-                  const snap = await getDoc(doc(db, 'server_groups', serverGroupId, 'members', uid));
+                  const snap = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid));
                   if (snap.exists()) {
                       const d = snap.data();
                       newMap[uid] = { 

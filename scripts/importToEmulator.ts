@@ -19,7 +19,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_
     process.exit(1);
 }
 
-const PROJECT_ID = 'altar-scheduler-dev';
+const PROJECT_ID = 'ordo-eb11a';
 
 initializeApp({
     projectId: PROJECT_ID,
@@ -45,7 +45,7 @@ const CRITICAL_USERS = [
     baptismalName: '알퐁소',
     roleDocs: [
       {
-        collection: 'memberships',
+        collection: 'app_altar/v1/memberships',
         docId: `pongso-hyun-uid_${TEST_SERVER_GROUP_ID}`,
         data: {
           uid: 'pongso-hyun-uid',
@@ -56,7 +56,7 @@ const CRITICAL_USERS = [
         },
       },
       {
-        collection: 'memberships',
+        collection: 'app_altar/v1/memberships',
         docId: `pongso-hyun-uid_global`,
         data: {
           uid: 'pongso-hyun-uid',

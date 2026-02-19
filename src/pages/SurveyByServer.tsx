@@ -11,6 +11,7 @@ import { MassStatus } from '@/types/firestore';
 import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import 'dayjs/locale/ko';
+import { COLLECTIONS } from '@/lib/collections';
 
 dayjs.extend(weekOfYear);
 dayjs.locale('ko');
@@ -62,7 +63,7 @@ export default function SurveyByServer() {
       setLoading(true);
 
       // 1. Fetch Survey
-      const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', surveyId);
+      const surveyRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys', surveyId);
       const surveySnap = await getDoc(surveyRef);
 
       if (!surveySnap.exists()) {
@@ -84,7 +85,7 @@ export default function SurveyByServer() {
       const endStr = endOfMonth.format('YYYYMMDD');
 
       const eventsQuery = query(
-        collection(db, 'server_groups', serverGroupId, 'mass_events'),
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
         where('event_date', '>=', startStr),
         where('event_date', '<=', endStr)
       );
@@ -99,7 +100,7 @@ export default function SurveyByServer() {
 
       // 2.5 Fetch Deleted Events
       const deletedQuery = query(
-        collection(db, 'server_groups', serverGroupId, 'deleted_mass_events'),
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'deleted_mass_events'),
         where('event_date', '>=', startStr),
         where('event_date', '<=', endStr)
       );
@@ -120,7 +121,7 @@ export default function SurveyByServer() {
 
       // 2.6 Fetch Monthly Status
       try {
-          const monthStatusRef = doc(db, 'server_groups', serverGroupId, 'month_status', surveyId);
+          const monthStatusRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'month_status', surveyId);
           const monthStatusSnap = await getDoc(monthStatusRef);
           if (monthStatusSnap.exists()) {
               setMonthlyStatus(monthStatusSnap.data().status as MassStatus);
@@ -197,7 +198,7 @@ export default function SurveyByServer() {
           const members: MemberInfo[] = [];
           // Batch fetching logic not available easily without chunks, so parallel promises
           await Promise.all(allUids.map(async (uid) => {
-             const mRef = doc(db, 'server_groups', serverGroupId, 'members', uid);
+             const mRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid);
              const mSnap = await getDoc(mRef);
              if (mSnap.exists()) {
                  const md = mSnap.data();

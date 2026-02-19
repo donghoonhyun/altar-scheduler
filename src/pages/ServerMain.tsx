@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '@/state/session';
 import { collection, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { COLLECTIONS } from '@/lib/collections';
 import { db } from '@/lib/firebase';
 import dayjs, { Dayjs } from 'dayjs';
 import { toast } from 'sonner';
@@ -45,7 +46,7 @@ export default function ServerMain() {
       setGroupName('');
       return;
     }
-    const ref = doc(db, 'server_groups', serverGroupId);
+    const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId);
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) setGroupName(snap.data().name || '');
       else setGroupName('');
@@ -61,7 +62,7 @@ export default function ServerMain() {
     }
 
     const q = query(
-      collection(db, 'server_groups', serverGroupId, 'members'),
+      collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members'),
       where('parent_uid', '==', session.user.uid)
     );
 
@@ -86,7 +87,7 @@ export default function ServerMain() {
     }
     // ✅ [수정] 의존성을 문자열로 변경하여 무한 루프 방지
     const yyyymm = currentMonth.format('YYYYMM');
-    const ref = doc(db, 'server_groups', serverGroupId, 'month_status', yyyymm);
+    const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'month_status', yyyymm);
 
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) setMonthStatus(snap.data().status as MassStatus);
@@ -112,7 +113,7 @@ export default function ServerMain() {
 
     // ✅ [수정] 의존성을 문자열로 변경
     const yyyymm = currentMonth.format('YYYYMM');
-    const surveyRef = doc(db, 'server_groups', serverGroupId, 'availability_surveys', yyyymm);
+    const surveyRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys', yyyymm);
 
     const unsub = onSnapshot(surveyRef, (snap) => {
       if (snap.exists() && snap.data().status === 'OPEN') {
@@ -174,7 +175,7 @@ export default function ServerMain() {
     const end = currentMonth.endOf('month').format('YYYYMMDD');
 
     const q = query(
-      collection(db, 'server_groups', serverGroupId, 'mass_events'),
+      collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
       where('event_date', '>=', start),
       where('event_date', '<=', end),
       orderBy('event_date')

@@ -27,28 +27,28 @@ if (!admin.apps.length) {
 // ===========================
 
 // 📌 ServerGroups
-export { createServerGroup } from './serverGroups/createServerGroup';
-export { onRoleRequestUpdated } from './serverGroups/onRoleRequestUpdated';
+export { createServerGroup as altar_createServerGroup } from './serverGroups/createServerGroup';
+export { onRoleRequestUpdated as altar_onRoleRequestUpdated } from './serverGroups/onRoleRequestUpdated';
 
 // 📌 MassEvents
-export { autoAssignMassEvents } from './massEvents/autoAssignMassEvents';
-export { analyzeMonthlyAssignments } from './massEvents/analyzeMonthlyAssignments';
+export { autoAssignMassEvents as altar_autoAssignMassEvents } from './massEvents/autoAssignMassEvents';
+export { analyzeMonthlyAssignments as altar_analyzeMonthlyAssignments } from './massEvents/analyzeMonthlyAssignments';
 
 // 📌 Notifications
-export { createNotification } from './notifications/createNotification';
-export { onSurveyOpened } from './notifications/onSurveyOpened';
-export { onSurveyClosed } from './notifications/onSurveyClosed';
-export { sendTestNotification } from './notifications/sendTestNotification';
-export { onUserCreated } from './notifications/onUserCreated';
-export { onMemberCreated, onRoleRequestCreated } from './notifications/onMemberEvents';
-export { onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
-export { onDailyMassReminder, manualDailyMassReminder } from './notifications/onDailyMassReminder';
-export { sendSurveyNotification } from './notifications/sendSurveyNotification';
+export { createNotification as altar_createNotification } from './notifications/createNotification';
+export { onSurveyOpened as altar_onSurveyOpened } from './notifications/onSurveyOpened';
+export { onSurveyClosed as altar_onSurveyClosed } from './notifications/onSurveyClosed';
+export { sendTestNotification as altar_sendTestNotification } from './notifications/sendTestNotification';
+export { onUserCreated as altar_onUserCreated } from './notifications/onUserCreated';
+export { onMemberCreated as altar_onMemberCreated, onRoleRequestCreated as altar_onRoleRequestCreated } from './notifications/onMemberEvents';
+export { onMonthlyStatusChanged as altar_onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
+export { onDailyMassReminder as altar_onDailyMassReminder, manualDailyMassReminder as altar_manualDailyMassReminder } from './notifications/onDailyMassReminder';
+export { sendSurveyNotification as altar_sendSurveyNotification } from './notifications/sendSurveyNotification';
 
 
 
 // 📌 SMS
-export { sendSms } from './sms/sendSms';
+export { sendSms as altar_sendSms } from './sms/sendSms';
 
 // 📌 이후 필요시 Roles, Memberships 등도 여기서 export
 // export { grantPlanner } from "./roles/grantPlanner";

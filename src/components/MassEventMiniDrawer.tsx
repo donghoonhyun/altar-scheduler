@@ -5,6 +5,7 @@ import { Card } from '@/components/ui';
 import { db } from '@/lib/firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import type { MassEventDoc } from '@/types/firestore';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface MassEventMiniDrawerProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export default function MassEventMiniDrawer({
 
         for (const uid of ids) {
           try {
-            const ref = doc(db, 'server_groups', serverGroupId, 'members', uid);
+            const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid);
             const snap = await getDoc(ref);
 
             if (snap.exists()) {

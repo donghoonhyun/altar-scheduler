@@ -1,0 +1,17 @@
+Current Key File Dir: D:\works_ordo\altar-scheduler\scripts\migration
+Source Key Path: D:\works_ordo\altar-scheduler\scripts\service-account.json
+Target Key Path: D:\works_ordo\Ordo\service-account.json
+??Loaded Source Key
+??Loaded Target Key
+D:\works_ordo\altar-scheduler\scripts\migration\init_migration.ts:44
+    credential: admin.credential.cert(sourceServiceAccount),
+                                 ^
+
+
+TypeError: Cannot read properties of undefined (reading 'cert')
+    at <anonymous> (D:\works_ordo\altar-scheduler\scripts\migration\init_migration.ts:44:34)
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+
+Node.js v22.12.0

@@ -15,6 +15,7 @@ export const createNotification = onCall(
     await ref.set({
       message,
       type,
+      app_id: 'ordo-altar',
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 

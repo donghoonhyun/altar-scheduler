@@ -27,7 +27,6 @@ import MemberRoleManagement from '../pages/MemberRoleManagement';
 import ServerGroupSettings from '../pages/ServerGroupSettings';
 import PlannerRoleApproval from '../pages/PlannerRoleApproval';
 import SuperAdminMain from '../pages/superadmin/SuperAdminMain';
-import ParishAdminManagement from '../pages/superadmin/ParishAdminManagement';
 import UserManagement from '../pages/superadmin/UserManagement';
 import SmsManagement from '../pages/superadmin/SmsManagement';
 import NotificationManagement from '../pages/superadmin/NotificationManagement';
@@ -35,6 +34,7 @@ import SurveyManagement from '../pages/SurveyManagement';
 import SurveyCalendar from '@/pages/SurveyCalendar';
 import SurveyByServer from '@/pages/SurveyByServer';
 import WelcomeStandby from '../pages/WelcomeStandby';
+import PendingApproval from '../pages/PendingApproval';
 import Support from '@/pages/Support';
 import ServerSchedulePrint from '@/pages/ServerSchedulePrint';
 
@@ -98,7 +98,13 @@ export default function AppRoutes() {
         return;
       }
 
-      // 5) 어떤 역할도 없으면 WelcomeStandby 로
+      // 5) 승인 대기 중인 내역이 있으면
+      if (session.hasPending) {
+        navigate('/pending-approval', { replace: true });
+        return;
+      }
+
+      // 6) 어떤 역할도 없으면 WelcomeStandby 로
       navigate('/welcome-standby', { replace: true });
     }, [session.loading, session.groupRolesLoaded, session.groupRoles, navigate]);
 
@@ -159,6 +165,7 @@ export default function AppRoutes() {
       <Route element={<Layout />}>
         {/* 대기 페이지 (Layout 적용) */}
         <Route path="/welcome-standby" element={<WelcomeStandby />} />
+        <Route path="/pending-approval" element={<PendingApproval />} />
 
         {/* 복사 추가 페이지 (Layout 적용, RoleGuard 없음) */}
         <Route path="/add-member" element={<AddMember />} />
@@ -168,7 +175,6 @@ export default function AppRoutes() {
 
         {/* Super Admin 페이지 */}
         <Route path="/superadmin" element={<SuperAdminMain />} />
-        <Route path="/superadmin/parish/:parishCode/admins" element={<ParishAdminManagement />} />
         <Route path="/superadmin/users" element={<UserManagement />} />
         <Route path="/superadmin/sms" element={<SmsManagement />} />
         <Route path="/superadmin/notifications" element={<NotificationManagement />} />

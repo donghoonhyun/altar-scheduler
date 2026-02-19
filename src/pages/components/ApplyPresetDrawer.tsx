@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import dayjs from 'dayjs';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface ApplyPresetDrawerProps {
   open: boolean;
@@ -42,7 +43,7 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
     setLoading(true);
     try {
       // 1. Preset 로드
-      const presetRef = doc(db, 'server_groups', serverGroupId, 'mass_presets', 'default');
+      const presetRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_presets', 'default');
       const presetSnap = await getDoc(presetRef);
       if (!presetSnap.exists()) {
         toast.error("미사 Preset 설정이 없습니다. 먼저 Preset을 설정해주세요.");
@@ -56,7 +57,7 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
       const endStr = currentMonth.endOf('month').format('YYYYMMDD');
       
       const q = query(
-        collection(db, 'server_groups', serverGroupId, 'mass_events'),
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
         where('event_date', '>=', startStr),
         where('event_date', '<=', endStr)
       );
@@ -79,7 +80,7 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
         const dailyPresets = weekdaysPreset[dow];
         if (Array.isArray(dailyPresets)) {
           dailyPresets.forEach((p: any) => {
-            const newRef = doc(collection(db, 'server_groups', serverGroupId, 'mass_events'));
+            const newRef = doc(collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'));
             batch.set(newRef, {
               title: p.title || '미사',
               event_date: dateStr,
@@ -95,7 +96,7 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
 
       // 4. Update Month Status -> RESET to 'MASS-NOTCONFIRMED'
       const monthKey = currentMonth.format('YYYYMM');
-      const monthStatusRef = doc(db, 'server_groups', serverGroupId, 'month_status', monthKey);
+      const monthStatusRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'month_status', monthKey);
       batch.set(monthStatusRef, {
           status: 'MASS-NOTCONFIRMED',
           lock: false, // Unlock if it was locked

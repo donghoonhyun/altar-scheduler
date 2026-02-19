@@ -10,6 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Container, Card, Heading, UserRoleIcon } from '@/components/ui';
 import { useSession } from '@/state/session';
 import { Users, Settings, UserPlus, LayoutDashboard, Info } from 'lucide-react';
+import { COLLECTIONS } from '@/lib/collections';
 
 const AdminMain: React.FC = () => {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
@@ -51,7 +52,7 @@ const AdminMain: React.FC = () => {
     if (!serverGroupId) return;
 
     const q = query(
-      collection(db, 'server_groups', serverGroupId, 'role_requests'), 
+      collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'role_requests'), 
       where('status', '==', 'pending')
     );
 
@@ -76,7 +77,7 @@ const AdminMain: React.FC = () => {
       
       MIGRATION_MEMBERS.forEach((m, index) => {
         const id = `MB${String(index + 1).padStart(5, '0')}`;
-        const ref = doc(db, 'server_groups', serverGroupId, 'members', id);
+        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', id);
         batch.set(ref, {
           id: id,
           ...m,
@@ -107,7 +108,7 @@ const AdminMain: React.FC = () => {
       const { DECEMBER_2025_SCHEDULE } = await import('@/data/schedule2025Dec');
 
       // 1. Fetch Members to build matching map
-      const membersRef = collection(db, 'server_groups', serverGroupId, 'members');
+      const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members');
       const memberSnap = await getDocs(membersRef);
       const memberMap = new Map<string, string>();
       
@@ -125,7 +126,7 @@ const AdminMain: React.FC = () => {
 
       DECEMBER_2025_SCHEDULE.forEach((item) => {
         const docId = `ME_${item.date}_${item.title}`;
-        const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', docId);
+        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events', docId);
         
         const matchedServerIds = item.servers.map(name => {
            const cleanName = name.replace(/\s/g, ''); 
@@ -173,7 +174,7 @@ const AdminMain: React.FC = () => {
       const batch = writeBatch(db); 
       
       SG00002_MEMBERS.forEach((m) => {
-        const newDocRef = doc(collection(db, 'server_groups', targetGroupId, 'members'));
+        const newDocRef = doc(collection(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'members'));
         batch.set(newDocRef, {
           ...m,
           active: true,
@@ -201,7 +202,7 @@ const AdminMain: React.FC = () => {
     try {
       const targetGroupId = 'SG00002';
       
-      const membersRef = collection(db, 'server_groups', targetGroupId, 'members');
+      const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'members');
       const memberSnap = await getDocs(membersRef);
       const memberMap = new Map<string, string>();
       
@@ -219,7 +220,7 @@ const AdminMain: React.FC = () => {
 
       DECEMBER_2025_SCHEDULE_SG00002.forEach((item) => {
         const docId = `ME_${item.date}_${item.title}`;
-        const ref = doc(db, 'server_groups', targetGroupId, 'mass_events', docId);
+        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'mass_events', docId);
         
         const matchedServerIds = item.servers.map(name => {
            const cleanName = name.replace(/\s/g, ''); 
@@ -270,7 +271,7 @@ const AdminMain: React.FC = () => {
       const { JANUARY_2026_SCHEDULE } = await import('@/data/schedule2026Jan');
       const targetGroupId = 'SG00001';
       
-      const membersRef = collection(db, 'server_groups', targetGroupId, 'members');
+      const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'members');
       const memberSnap = await getDocs(membersRef);
       const memberMap = new Map<string, string>();
       
@@ -288,7 +289,7 @@ const AdminMain: React.FC = () => {
 
       JANUARY_2026_SCHEDULE.forEach((item) => {
         const docId = `ME_${item.date}_${item.title}`;
-        const ref = doc(db, 'server_groups', targetGroupId, 'mass_events', docId);
+        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'mass_events', docId);
         
         const matchedServerIds = item.servers.map(name => {
            const cleanName = name.replace(/\s/g, ''); 
@@ -335,7 +336,7 @@ const AdminMain: React.FC = () => {
       const { JANUARY_2026_SCHEDULE_SG00002 } = await import('@/data/schedule2026JanSG00002');
       const targetGroupId = 'SG00002';
       
-      const membersRef = collection(db, 'server_groups', targetGroupId, 'members');
+      const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'members');
       const memberSnap = await getDocs(membersRef);
       const memberMap = new Map<string, string>();
       
@@ -353,7 +354,7 @@ const AdminMain: React.FC = () => {
 
       JANUARY_2026_SCHEDULE_SG00002.forEach((item) => {
         const docId = `ME_${item.date}_${item.title}`;
-        const ref = doc(db, 'server_groups', targetGroupId, 'mass_events', docId);
+        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, targetGroupId, 'mass_events', docId);
         
         const matchedServerIds = item.servers.map(name => {
            const cleanName = name.replace(/\s/g, ''); 

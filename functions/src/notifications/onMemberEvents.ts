@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION_V1 } from '../config';
-import { sendNotificationToUids } from './utils';
+import { sendMulticastNotification } from '../utils/fcmUtils';
 
 // Trigger for: Server Application (Members) AND Planner Role Request (RoleRequests)
 
@@ -34,11 +34,15 @@ export const onMemberCreated = functions.region(REGION_V1).firestore
       });
       
       if (adminUids.length > 0) {
-          await sendNotificationToUids(
+          await sendMulticastNotification(
               adminUids,
-              '신규 복사단원 입단 신청',
-              '새로운 복사단원 신청이 있습니다. 승인 대기중입니다.',
-              `/server-groups/${groupId}/admin/members`
+              {
+                  title: '신규 복사단원 입단 신청',
+                  body: '새로운 복사단원 신청이 있습니다. 승인 대기중입니다.',
+                  clickAction: `/server-groups/${groupId}/admin/members`,
+                  feature: 'MEMBER_APPLICATION',
+                  serverGroupId: groupId
+              }
           );
       }
   });
@@ -70,11 +74,15 @@ export const onRoleRequestCreated = functions.region(REGION_V1).firestore
       });
 
       if (adminUids.length > 0) {
-          await sendNotificationToUids(
+          await sendMulticastNotification(
               adminUids,
-              '플래너 권한 신청',
-              `${userName}님이 플래너 권한을 요청했습니다.`,
-              `/server-groups/${groupId}/admin/planners` // Hypothetical path
+              {
+                  title: '플래너 권한 신청',
+                  body: `${userName}님이 플래너 권한을 요청했습니다.`,
+                  clickAction: `/server-groups/${groupId}/admin/role-approval`,
+                  feature: 'ROLE_REQUEST',
+                  serverGroupId: groupId
+              }
           );
       }
   });

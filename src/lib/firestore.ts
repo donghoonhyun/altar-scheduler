@@ -25,6 +25,7 @@ import {
 import type { MassEventCalendar } from '@/types/massEvent';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import type { Dayjs } from 'dayjs';
+import { COLLECTIONS } from '@/lib/collections';
 
 export const db = getFirestore(); // ✅ export 추가 (전역 접근용)
 
@@ -80,7 +81,7 @@ export async function getMemberNamesByIds(
 
   const results = await Promise.all(
     memberIds.map(async (id) => {
-      const ref = doc(db, `server_groups/${serverGroupId}/members/${id}`);
+      const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/members/${id}`);
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data() as DocumentData;
@@ -107,7 +108,7 @@ export async function getMemberNamesByIds(
  * @returns Firestore 문서 데이터 or null
  */
 export async function getServerGroupById(serverGroupId: string): Promise<DocumentData | null> {
-  const ref = doc(db, 'server_groups', serverGroupId);
+  const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId);
   const snap = await getDoc(ref);
   return snap.exists() ? (snap.data() as DocumentData) : null;
 }
@@ -121,7 +122,7 @@ export async function getServerGroupById(serverGroupId: string): Promise<Documen
  * Firestore 문서 → UI용 MassEventCalendar[] 변환
  */
 export async function getMassEvents(serverGroupId: string): Promise<MassEventCalendar[]> {
-  const snap = await getDocs(collection(db, 'server_groups', serverGroupId, 'mass_events'));
+  const snap = await getDocs(collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'));
 
   const list: MassEventCalendar[] = [];
 
@@ -154,7 +155,7 @@ export async function getMassEventById(
   serverGroupId: string,
   eventId: string
 ): Promise<MassEventCalendar | null> {
-  const ref = doc(db, `server_groups/${serverGroupId}/mass_events/${eventId}`);
+  const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/mass_events/${eventId}`);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
 

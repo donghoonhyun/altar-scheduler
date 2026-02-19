@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../lib/firestore";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import type { ServerGroupDoc } from "../types/firestore";
+import { COLLECTIONS } from "@/lib/collections";
 
 export default function ServerGroupsList() {
   const { parishCode } = useParams<{ parishCode: string }>();
@@ -16,7 +17,7 @@ export default function ServerGroupsList() {
 
     const fetchGroups = async () => {
       const q = query(
-        collection(db, "server_groups"),
+        collection(db, COLLECTIONS.SERVER_GROUPS),
         where("parish_code", "==", parishCode)
       );
       const snapshot = await getDocs(q);

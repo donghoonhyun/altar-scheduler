@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { cn } from '@/lib/utils'; // optimized class names
 import { useSession } from '@/state/session';
+import { COLLECTIONS } from '@/lib/collections';
 import timezone from 'dayjs/plugin/timezone';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MassStatus } from '@/types/firestore';
@@ -85,7 +86,7 @@ export default function ServerAssignmentStatus() {
     const checkAiSetting = async () => {
         try {
             // 1. Get Parish Code from Server Group
-            const sgSnap = await getDoc(doc(db, `server_groups/${serverGroupId}`));
+            const sgSnap = await getDoc(doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}`));
             if (!sgSnap.exists()) return;
             const parishCode = sgSnap.data().parish_code;
 
@@ -109,7 +110,7 @@ export default function ServerAssignmentStatus() {
     const fetchInsight = async () => {
         try {
             // 1. Fetch Current Insight
-            const ref = doc(db, `server_groups/${serverGroupId}/ai_insights/${yyyymm}`);
+            const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/ai_insights/${yyyymm}`);
             const snap = await getDoc(ref);
             if (snap.exists()) {
                 const data = snap.data();
@@ -123,7 +124,7 @@ export default function ServerAssignmentStatus() {
             }
 
             // 2. Fetch History
-            const histRef = collection(db, `server_groups/${serverGroupId}/ai_insights/${yyyymm}/history`);
+            const histRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/ai_insights/${yyyymm}/history`);
             const histQ = query(histRef, orderBy('created_at', 'desc'));
             const histSnap = await getDocs(histQ);
             const histList = histSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -140,7 +141,7 @@ export default function ServerAssignmentStatus() {
       if (analyzing) return;
       setAnalyzing(true);
       try {
-          const analyzeFn = httpsCallable(functions, 'analyzeMonthlyAssignments');
+          const analyzeFn = httpsCallable(functions, 'altar_analyzeMonthlyAssignments');
           const result = await analyzeFn({ 
               serverGroupId, 
               yyyymm: currentMonth.format('YYYY-MM') 
@@ -186,7 +187,7 @@ export default function ServerAssignmentStatus() {
         setLoading(true);
 
         // 1. Fetch Active Members
-        const memRef = collection(db, `server_groups/${serverGroupId}/members`);
+        const memRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/members`);
         const memQ = query(memRef, where('active', '==', true));
         const memSnap = await getDocs(memQ);
         const memList = memSnap.docs.map(d => ({ id: d.id, ...d.data() } as MemberDoc));
@@ -209,7 +210,7 @@ export default function ServerAssignmentStatus() {
           startStr = currentMonth.startOf('month').format('YYYYMMDD');
           endStr = currentMonth.endOf('month').format('YYYYMMDD');
         }
-        const evRef = collection(db, `server_groups/${serverGroupId}/mass_events`);
+        const evRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/mass_events`);
         const evQ = query(evRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr), orderBy('event_date', 'asc'));
         const evSnap = await getDocs(evQ);
         const evList = evSnap.docs.map(d => ({ id: d.id, ...d.data() } as MassEventDoc));
@@ -222,7 +223,7 @@ export default function ServerAssignmentStatus() {
         const fetchStatus = async (m: dayjs.Dayjs) => {
             try {
                 const ym = m.format('YYYYMM');
-                const ref = doc(db, `server_groups/${serverGroupId}/month_status/${ym}`);
+                const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/month_status/${ym}`);
                 const snap = await getDoc(ref);
                 return { key: ym, status: snap.exists() ? (snap.data().status as MassStatus) : 'MASS-NOTCONFIRMED' as MassStatus };
             } catch {

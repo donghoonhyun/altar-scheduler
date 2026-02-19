@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { Container, Heading, Card } from '@/components/ui';
 import { useSession } from '@/state/session';
 import { ArrowLeft, ChevronDown, Baby, Mail } from 'lucide-react';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface RoleRequest {
   uid: string;
@@ -58,7 +59,7 @@ export default function PlannerRoleApproval() {
   const fetchMembers = async () => {
     if (!serverGroupId) return;
     try {
-      const q = query(collection(db, 'server_groups', serverGroupId, 'members'));
+      const q = query(collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members'));
       const snap = await getDocs(q);
       
       const map: Record<string, string[]> = {};
@@ -83,7 +84,7 @@ export default function PlannerRoleApproval() {
     setLoading(true);
     try {
       const q = query(
-        collection(db, 'server_groups', serverGroupId, 'role_requests'),
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'role_requests'),
         where('status', '==', 'pending')
       );
       const snap = await getDocs(q);
@@ -115,7 +116,7 @@ export default function PlannerRoleApproval() {
     setHistoryLoading(true);
     try {
       let q = query(
-        collection(db, 'server_groups', serverGroupId, 'role_requests'),
+        collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'role_requests'),
         where('status', 'in', ['approved', 'rejected']),
         orderBy('updated_at', 'desc'),
         limit(HISTORY_PAGE_SIZE)
@@ -123,7 +124,7 @@ export default function PlannerRoleApproval() {
 
       if (!isInitial && lastDoc) {
         q = query(
-          collection(db, 'server_groups', serverGroupId, 'role_requests'),
+          collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'role_requests'),
           where('status', 'in', ['approved', 'rejected']),
           orderBy('updated_at', 'desc'),
           startAfter(lastDoc),
@@ -179,11 +180,11 @@ export default function PlannerRoleApproval() {
     try {
       await runTransaction(db, async (transaction) => {
         // 1. Check membership
-        const membershipRef = doc(db, 'memberships', `${req.uid}_${serverGroupId}`);
+        const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${req.uid}_${serverGroupId}`);
         const membershipSnap = await transaction.get(membershipRef);
         
         // 2. Update request
-        const requestRef = doc(db, 'server_groups', serverGroupId, 'role_requests', req.uid);
+        const requestRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'role_requests', req.uid);
         transaction.update(requestRef, {
           status: 'approved',
           updated_at: serverTimestamp(),
@@ -237,7 +238,7 @@ export default function PlannerRoleApproval() {
     if (!confirm(`${req.user_name}님의 요청을 반려하시겠습니까?`)) return;
 
     try {
-      await updateDoc(doc(db, 'server_groups', serverGroupId, 'role_requests', req.uid), {
+      await updateDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'role_requests', req.uid), {
         status: 'rejected',
         updated_at: serverTimestamp(),
       });

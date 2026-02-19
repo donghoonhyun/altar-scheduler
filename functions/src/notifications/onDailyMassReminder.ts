@@ -27,7 +27,7 @@ async function executeDailyMassReminder() {
   });
 
   // 0. Pre-fetch Parishes for Timezone/Locale/SMS Config
-  const parishSnaps = await db.collection('parishes').get();
+  const parishSnaps = await db.collection('sources/master_datas/parishes').get();
   const parishMap = new Map<string, any>();
   parishSnaps.forEach(p => parishMap.set(p.id, p.data()));
   
@@ -216,7 +216,7 @@ async function executeDailyMassReminder() {
               recipients.forEach(r => { if(r.parentUid) r.pushResult = 'success'; });
 
               // ✅ [NEW] Global Log for Admin (App Push)
-              await db.collection('system_notification_logs').add({
+              await db.collection('notifications').add({
                   created_at: admin.firestore.FieldValue.serverTimestamp(),
                   feature: 'MASS_REMINDER',
                   type: 'app_push',
@@ -227,7 +227,8 @@ async function executeDailyMassReminder() {
                   failure_count: 0,
                   status: 'success',
                   server_group_id: sgId,
-                  trigger_status: 'scheduled'
+                  trigger_status: 'scheduled',
+                  app_id: 'ordo-altar'
               });
 
           } catch (e) {
@@ -309,7 +310,7 @@ async function executeDailyMassReminder() {
 
           // ✅ [NEW] Global Log for Admin (SMS Summary)
           if (smsSuccessCount > 0 || smsFailCount > 0) {
-              await db.collection('system_notification_logs').add({
+              await db.collection('notifications').add({
                   created_at: admin.firestore.FieldValue.serverTimestamp(),
                   feature: 'MASS_REMINDER',
                   type: 'sms',
@@ -320,7 +321,8 @@ async function executeDailyMassReminder() {
                   failure_count: smsFailCount,
                   status: smsFailCount === 0 ? 'success' : (smsSuccessCount > 0 ? 'partial' : 'failure'),
                   server_group_id: sgId,
-                  trigger_status: 'scheduled'
+                  trigger_status: 'scheduled',
+                  app_id: 'ordo-altar'
               });
           }
       }

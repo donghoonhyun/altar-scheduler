@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { MassStatus } from '@/types/firestore';
 import { toast } from 'sonner';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface UseMonthStatusResult {
   status: MassStatus;
@@ -32,7 +33,7 @@ export const useMonthStatus = (serverGroupId?: string, monthKey?: string): UseMo
   useEffect(() => {
     if (!serverGroupId || !monthKey) return;
 
-    const ref = doc(db, `server_groups/${serverGroupId}/month_status/${monthKey}`);
+    const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/month_status/${monthKey}`);
     const unsubscribe = onSnapshot(
       ref,
       (snap) => {
@@ -60,7 +61,7 @@ export const useMonthStatus = (serverGroupId?: string, monthKey?: string): UseMo
   const updateStatus = useCallback(
     async (newStatus: MassStatus, updatedBy = 'system', updatedByName = 'System') => {
       if (!serverGroupId || !monthKey) return;
-      const ref = doc(db, `server_groups/${serverGroupId}/month_status/${monthKey}`);
+      const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/month_status/${monthKey}`);
       try {
         const willLock = newStatus === 'FINAL-CONFIRMED'; // ✅ 최종 확정 시 자동 잠금
         await setDoc(

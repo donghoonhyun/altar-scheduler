@@ -64,8 +64,8 @@ export const onMonthlyStatusChanged = functions.region(REGION_V1).firestore
               );
               console.log(`[onMonthlyStatusChanged] Sent ${newStatus} notification to ${uniqueUids.length} users.`);
               
-              // ✅ Log to system_notification_logs for history tracking
-              await db.collection('system_notification_logs').add({
+              // ✅ Log to notifications for history tracking
+              await db.collection('notifications').add({
                   created_at: admin.firestore.FieldValue.serverTimestamp(),
                   title,
                   body,
@@ -77,7 +77,8 @@ export const onMonthlyStatusChanged = functions.region(REGION_V1).firestore
                   month_id: monthId, // Added for filtering
                   trigger_status: newStatus,
                   triggered_by: after.updated_by || null,
-                  triggered_by_name: after.updated_by_name || null
+                  triggered_by_name: after.updated_by_name || null,
+                  app_id: 'ordo-altar'
               });
           }
       }

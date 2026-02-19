@@ -13,6 +13,7 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import dayjs, { Dayjs } from 'dayjs';
+import { COLLECTIONS } from '@/lib/collections';
 
 export interface Session {
   user: User | null;
@@ -22,6 +23,7 @@ export interface Session {
   currentServerGroupId: string | null;
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
   managerParishes: string[];
+  hasPending: boolean;
   userInfo: { userName: string; baptismalName: string; userCategory?: string } | null;
   isSuperAdmin: boolean;
   currentViewDate: Dayjs | null; 
@@ -38,6 +40,7 @@ const initialSession: Session = {
   currentServerGroupId: null,
   serverGroups: {},
   managerParishes: [],
+  hasPending: false,
   userInfo: null,
   isSuperAdmin: false,
   currentViewDate: null, 
@@ -88,7 +91,7 @@ export function useSession() {
       /** 0) users/{uid} 사용자 프로필 로드 */
       let userInfoData = null;
       try {
-        const userDoc = await getDoc(doc(db, 'users', userUid));
+        const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userUid));
         if (userDoc.exists()) {
           const ud = userDoc.data();
           userInfoData = {
@@ -104,7 +107,7 @@ export function useSession() {
 
       /** 1) memberships로 planner/server 역할 로드 */
       const membershipSnap = await getDocs(
-        query(collection(db, 'memberships'), where('uid', '==', userUid))
+        query(collection(db, COLLECTIONS.MEMBERSHIPS), where('uid', '==', userUid))
       );
 
       const targetSgIds = new Set<string>();
@@ -113,6 +116,11 @@ export function useSession() {
         const data = d.data();
         const sgId = data.server_group_id;
         if (!sgId || !data.role) continue;
+
+        if (data.active !== true) {
+          newSession.hasPending = true;
+          continue;
+        }
 
         const rolesInDoc = Array.isArray(data.role) ? data.role : [data.role];
         
@@ -132,18 +140,24 @@ export function useSession() {
         targetSgIds.add(sgId);
       }
 
-      /** 2) server_groups/{sg}/members 에서 active=true 복사 취득 */
+      /** 2) server_groups/{sg}/members 에서 복사 취득 (가입 내역 확인용) */
       const memberSnap = await getDocs(
         query(
           collectionGroup(db, 'members'),
-          where('parent_uid', '==', userUid),
-          where('active', '==', true)
+          where('parent_uid', '==', userUid)
         )
       );
 
       for (const d of memberSnap.docs) {
+        const data = d.data();
+        if (data.active !== true) {
+          newSession.hasPending = true;
+          continue;
+        }
+
         const path = d.ref.path.split('/');
-        const sgId = path[1];
+        // Path: app_altar/v1/server_groups/{sgId}/members/{memberId}
+        const sgId = path[3]; 
         if (!sgId) continue;
 
         if (!roles[sgId]) roles[sgId] = [];
@@ -159,7 +173,7 @@ export function useSession() {
       const sgResults = await Promise.all(
         sgIdsArray.map(async (id) => {
           try {
-            const sgDoc = await getDoc(doc(db, 'server_groups', id));
+            const sgDoc = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, id));
             if (!sgDoc.exists()) return null;
             
             const sg = sgDoc.data();
@@ -167,7 +181,7 @@ export function useSession() {
             let parishName = parishCode;
 
             if (parishCode) {
-              const parishDoc = await getDoc(doc(db, 'parishes', parishCode));
+              const parishDoc = await getDoc(doc(db, COLLECTIONS.PARISHES, parishCode));
               if (parishDoc.exists()) {
                 const parishData = parishDoc.data();
                 // 성당이 비활성 상태면 해당 복사단은 제외
@@ -272,18 +286,9 @@ export function useSession() {
 
   // Auth Observer
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setSession((prev) => {
-        if (prev.loading) {
-          console.warn('⚠️ Session auth check timed out. Forcing loading: false');
-          return { ...prev, loading: false };
-        }
-        return prev;
-      });
-    }, 10000);
+
 
     const unsub = onAuthStateChanged(auth, async (user) => {
-      clearTimeout(timeoutId);
 
       if (!user) {
         // 로그아웃 시 스토리지도 클리어? -> 선택사항 (일단 유지)

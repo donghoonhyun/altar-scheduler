@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { httpsCallable } from 'firebase/functions';
 import { functions, db } from '@/lib/firebase';
 import { collection, query, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface SmsLog {
   id: string;
@@ -48,7 +49,7 @@ export default function SmsManagement() {
 
   const fetchNames = async () => {
       // 1. Fetch Parishes
-      const parishSnap = await getDocs(collection(db, 'parishes'));
+      const parishSnap = await getDocs(collection(db, COLLECTIONS.PARISHES));
       const pMap: Record<string, string> = {};
       parishSnap.forEach(d => {
           pMap[d.id] = d.data().name_kor || d.id;
@@ -56,7 +57,7 @@ export default function SmsManagement() {
       setParishMap(pMap);
 
       // 2. Fetch Server Groups (This might become expensive if there are many groups, but for now it's okay)
-      const groupSnap = await getDocs(collection(db, 'server_groups'));
+      const groupSnap = await getDocs(collection(db, COLLECTIONS.SERVER_GROUPS));
       const sgMap: Record<string, string> = {};
       groupSnap.forEach(d => {
           sgMap[d.id] = d.data().name || d.id;
@@ -102,7 +103,7 @@ export default function SmsManagement() {
 
     try {
       setIsSendingSms(true);
-      const sendSms = httpsCallable(functions, 'sendSms');
+      const sendSms = httpsCallable(functions, 'altar_sendSms');
       
       const cleanReceiver = smsReceiver.replace(/-/g, '');
       
@@ -135,7 +136,7 @@ export default function SmsManagement() {
     
     try {
         setIsRunningReminder(true);
-        const manualReminder = httpsCallable(functions, 'manualDailyMassReminder');
+        const manualReminder = httpsCallable(functions, 'altar_manualDailyMassReminder');
         const res = await manualReminder();
         const data = res.data as any;
         

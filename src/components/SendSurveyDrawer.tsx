@@ -25,6 +25,7 @@ import { APP_BASE_URL } from '@/lib/env';
 import { RefreshCw, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { COLLECTIONS } from '@/lib/collections';
 
 // ---------- 🔹 Type Definitions ----------
 interface NotificationLog {
@@ -119,7 +120,7 @@ export function SendSurveyDrawer({
       try {
         setIsRefreshing(true);
         // Load ALL members (active & inactive)
-        const membersRef = collection(db, `server_groups/${serverGroupId}/members`);
+        const membersRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/members`);
         // const q = query(membersRef, where('active', '==', true)); // Fetch all now
         const snap = await getDocs(membersRef);
         const mList: MemberDoc[] = snap.docs.map((d) => ({
@@ -139,7 +140,7 @@ export function SendSurveyDrawer({
         const startStr = dayjs(currentMonth + '01').startOf('month').format('YYYYMMDD');
         const endStr = dayjs(currentMonth + '01').endOf('month').format('YYYYMMDD');
         
-        const eventsRef = collection(db, `server_groups/${serverGroupId}/mass_events`);
+        const eventsRef = collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/mass_events`);
         const eq = query(eventsRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr));
         const eSnap = await getDocs(eq);
         const eMap: Record<string, MassEventDoc> = {};
@@ -178,7 +179,7 @@ export function SendSurveyDrawer({
 
     const surveyRef = doc(
        db,
-       `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`
+       `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${currentMonth}`
     );
 
     const unsub = onSnapshot(surveyRef, (sSnap) => {
@@ -237,7 +238,7 @@ export function SendSurveyDrawer({
         if (import.meta.env.DEV) {
              connectFunctionsEmulator(functions, '127.0.0.1', 5001);
         }
-        const sendFn = httpsCallable(functions, 'sendSurveyNotification');
+        const sendFn = httpsCallable(functions, 'altar_sendSurveyNotification');
         
         const result = await sendFn({
             serverGroupId,
@@ -272,7 +273,7 @@ export function SendSurveyDrawer({
 
     try {
       setIsLoading(true);
-      const ref = doc(db, `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`);
+      const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${currentMonth}`);
 
       await setDoc(
         ref,
@@ -323,7 +324,7 @@ export function SendSurveyDrawer({
     if (!existingSurvey) return;
     try {
         setIsLoading(true);
-        const ref = doc(db, `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`);
+        const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${currentMonth}`);
         await setDoc(ref, { member_ids: selectedMembers }, { merge: true });
         toast.success('설문 대상자가 수정되었습니다.');
         setIsEditingMembers(false);
@@ -340,7 +341,7 @@ export function SendSurveyDrawer({
     if (!existingSurvey) return;
     try {
         setIsLoading(true);
-        const ref = doc(db, `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`);
+        const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${currentMonth}`);
         
         await setDoc(ref, { 
             start_date: fromLocalDateToFirestore(startDate, timezone),
@@ -450,7 +451,7 @@ export function SendSurveyDrawer({
                               onCheckedChange={async (checked) => {
                                   try {
                                       const newStatus = checked ? 'OPEN' : 'CLOSED';
-                                      const ref = doc(db, `server_groups/${serverGroupId}/availability_surveys/${currentMonth}`);
+                                      const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${currentMonth}`);
                                       await setDoc(ref, { status: newStatus }, { merge: true });
                                       toast.success(`설문 상태가 ${newStatus}로 변경되었습니다.`);
                                   } catch (e) {
@@ -520,7 +521,7 @@ export function SendSurveyDrawer({
                          </div>
                       </div>
 
-                      <div className="border rounded-md max-h-[300px] overflow-y-auto p-2 text-sm dark:border-slate-700">
+                      <div className="border rounded-md max-h-[450px] overflow-y-auto p-2 text-sm dark:border-slate-700">
                         {(() => {
                           let sortedMembers = [...members].sort((a, b) => {
                               if (sortOrder === 'grade') {
@@ -1026,7 +1027,7 @@ export function SendSurveyDrawer({
               
               <div className={cn(
                   "border rounded-md overflow-y-auto p-2 text-sm transition-all duration-300 ease-in-out dark:border-slate-700",
-                  isTargetExpanded ? "max-h-[50vh]" : "max-h-[110px]"
+                  isTargetExpanded ? "max-h-[50vh]" : "max-h-[450px]"
                 )}>
                   {(() => {
                     let processedMembers = [...members].sort((a, b) => {

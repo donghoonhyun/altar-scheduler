@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface MonthStatusDrawerProps {
   open: boolean;
@@ -49,7 +50,7 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
       if (!serverGroupId) return;
       setLoading(true);
       try {
-        const ref = doc(db, `server_groups/${serverGroupId}/month_status/${monthKey}`);
+        const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/month_status/${monthKey}`);
         const snap = await getDoc(ref);
         if (snap.exists()) {
           const data = snap.data();
@@ -81,7 +82,7 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
     if (!serverGroupId) return;
     try {
       setSaving(true);
-      const ref = doc(db, `server_groups/${serverGroupId}/month_status/${monthKey}`);
+      const ref = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/month_status/${monthKey}`);
       await setDoc(
         ref,
         {

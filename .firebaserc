@@ -1,6 +1,16 @@
 {
   "projects": {
-    "default": "altar-scheduler-dev",
-    "prod": "altar-scheduler-prod"
-  }
+    "default": "ordo-eb11a",
+    "hosting": "altar-scheduler-dev"
+  },
+  "targets": {
+    "ordo-eb11a": {
+      "hosting": {
+        "ordo-altar": [
+          "ordo-altar"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

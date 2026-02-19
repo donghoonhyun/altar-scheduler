@@ -29,6 +29,7 @@ import dayjs from 'dayjs';
 
 import { Parish } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
+import { COLLECTIONS } from '@/lib/collections';
 
 type ServerGroupItem = {
   id: string;
@@ -78,7 +79,7 @@ export default function AddMember() {
              // Group은 목록 로드 후 (아래 useEffect에서) 세팅
         } else {
              // 세션에 없으면 Firestore 조회
-             getDoc(doc(db, 'server_groups', targetSgId)).then((snap) => {
+             getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, targetSgId)).then((snap) => {
                  if (snap.exists()) {
                      const data = snap.data();
                      setSelectedParish(data.parish_code);
@@ -118,7 +119,7 @@ export default function AddMember() {
       }
       
       const q = query(
-        collection(db, 'server_groups'), 
+        collection(db, COLLECTIONS.SERVER_GROUPS), 
         where('parish_code', '==', selectedParish),
         where('active', '==', true)
       );
@@ -167,7 +168,7 @@ export default function AddMember() {
         try {
             // 1. [변경] 현재 선택된 복사단 내에서만 중복 체크
             const q = query(
-                collection(db, `server_groups/${selectedGroup}/members`), 
+                collection(db, `${COLLECTIONS.SERVER_GROUPS}/${selectedGroup}/members`), 
                 where('parent_uid', '==', user.uid)
             );
             const snap = await getDocs(q);
@@ -210,7 +211,7 @@ export default function AddMember() {
 
     try {
       // 1) server_groups/{sg}/members 에 복사 정보 저장
-      await addDoc(collection(db, `server_groups/${selectedGroup}/members`), {
+      await addDoc(collection(db, `${COLLECTIONS.SERVER_GROUPS}/${selectedGroup}/members`), {
         parent_uid: user.uid,
         name_kor: nameKor,
         baptismal_name: baptismalName,
@@ -225,7 +226,7 @@ export default function AddMember() {
       // 2) memberships/{uid}_{sg} 문서 생성
       const membershipId = `${user.uid}_${selectedGroup}`;
 
-      await setDoc(doc(db, 'memberships', membershipId), {
+      await setDoc(doc(db, COLLECTIONS.MEMBERSHIPS, membershipId), {
         uid: user.uid,
         server_group_id: selectedGroup,
         role: ['server'],

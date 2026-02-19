@@ -9,6 +9,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface RoleBadgeProps {
   serverGroupId?: string;
@@ -35,7 +36,7 @@ const RoleBadge: React.FC<RoleBadgeProps> = ({ serverGroupId }) => {
       if (!roles?.includes('server') || !session.user) return;
 
       const db = getFirestore();
-      const ref = doc(db, 'server_groups', serverGroupId, 'members', session.user.uid);
+      const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', session.user.uid);
       const snap = await getDoc(ref);
       if (snap.exists()) {
         setMemberInfo(snap.data() as MemberInfo);

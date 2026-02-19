@@ -32,6 +32,7 @@ import {
 
 import { ChevronLeft, ChevronRight, Home, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface MassEventDoc {
   id: string;
@@ -78,7 +79,7 @@ export default function ServerSurvey() {
         setLoading(true);
 
         if (targetMemberId) {
-             const mRef = doc(db, `server_groups/${serverGroupId}/members/${targetMemberId}`);
+             const mRef = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/members/${targetMemberId}`);
              getDoc(mRef).then(snap => {
                  if(snap.exists()) {
                      const data = snap.data();
@@ -93,7 +94,7 @@ export default function ServerSurvey() {
         const endStr = dayjs(yyyymm + '01').endOf('month').format('YYYYMMDD');
 
         const q = query(
-          collection(db, `server_groups/${serverGroupId}/mass_events`),
+          collection(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/mass_events`),
           where('event_date', '>=', startStr),
           where('event_date', '<=', endStr),
           orderBy('event_date', 'asc')
@@ -111,7 +112,7 @@ export default function ServerSurvey() {
         setEvents(list);
 
         // (1) 설문 문서 로드
-        const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
+        const surveyRef = doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${yyyymm}`);
         const surveySnap = await getDoc(surveyRef);
 
         if (!surveySnap.exists()) {
@@ -301,7 +302,7 @@ export default function ServerSurvey() {
       // ✅ 제출 직전 최신 상태 확인 (Double Check)
       const surveyRef = doc(
         db,
-        `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`
+        `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${yyyymm}`
       );
       const latestSnap = await getDoc(surveyRef);
 

@@ -17,7 +17,9 @@
     "dev:emu": "concurrently \"vite\" \"firebase emulators:start --import=./emulator-data --export-on-exit\" \"npm run seed:roles\"",
     "emulators:start": "npm run build:functions && firebase emulators:start",
     "import:cloud": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 tsx scripts/importToEmulator.ts",
-    "sync:cloud": "npx tsx scripts/fetchCloudData.ts && npm run import:cloud"
+    "sync:cloud": "npx tsx scripts/fetchCloudData.ts && npm run import:cloud",
+    "rules:merge": "node scripts/merge-firestore-rules.js",
+    "rules:deploy": "echo ⚠️  Rules는 Ordo 메인 앱에서만 배포하세요! && echo 1. npm run rules:merge로 Rules 병합 && echo 2. Ordo 프로젝트로 이동 && echo 3. firebase deploy --only firestore:rules 실행 && exit 1"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -36,7 +38,6 @@
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.18",
     "firebase": "^12.2.1",
-    "firebase-admin": "^13.5.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.545.0",
     "node-fetch": "^3.3.2",
@@ -64,6 +65,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "firebase-admin": "^13.6.1",
     "firebase-tools": "^14.15.2",
     "globals": "^16.3.0",
     "postcss": "^8.5.6",

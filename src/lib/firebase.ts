@@ -13,11 +13,12 @@ import { firebaseConfig } from '../config/firebaseConfig';
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const hostname = location.hostname;
-const isDev =
-  hostname === 'localhost' ||
-  hostname === '127.0.0.1' ||
-  hostname.startsWith('192.168.') ||
-  import.meta.env.DEV;
+const isDev = false;
+// const isDev =
+//   hostname === 'localhost' ||
+//   hostname === '127.0.0.1' ||
+//   hostname.startsWith('192.168.') ||
+//   import.meta.env.DEV;
 
 // ✅ 개발환경용 Firestore 인스턴스 미리 생성
 let db: Firestore;

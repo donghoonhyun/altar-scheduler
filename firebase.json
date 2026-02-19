@@ -2,27 +2,30 @@
   "firestore": {
     "database": "(default)",
     "location": "asia-northeast3",
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "../Ordo/firestore.rules",
+    "indexes": "../Ordo/firestore.indexes.json"
   },
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs20",
-    "region": "asia-northeast3",
-    "codebase": "default",
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log",
-      "*.local",
-      "lib/**/*.map"
-    ],
-    "predeploy": [
-      "npm --prefix \"$RESOURCE_DIR\" run build"
-    ]
-  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "altar-scheduler",
+      "runtime": "nodejs20",
+      "region": "asia-northeast3",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local",
+        "lib/**/*.map"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
   "hosting": {
+    "target": "ordo-altar",
     "public": "dist",
     "ignore": [
       "firebase.json",

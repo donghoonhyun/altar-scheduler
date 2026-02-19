@@ -14,6 +14,7 @@ import {
 import { getAuth } from 'firebase/auth'; // ✅ Added Auth
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface MassBackupDrawerProps {
   open: boolean;
@@ -50,7 +51,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
   // Load backups list
   const fetchBackups = async () => {
     try {
-        const ref = collection(db, 'server_groups', serverGroupId, 'mass_backups'); // ✅ mass_backups
+        const ref = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_backups'); // ✅ mass_backups
         const q = query(
             ref, 
             where('month_key', '==', monthKey), 
@@ -85,7 +86,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
         // 1. Fetch current events
         const startStr = currentMonth.startOf('month').format('YYYYMMDD');
         const endStr = currentMonth.endOf('month').format('YYYYMMDD');
-        const eventsRef = collection(db, 'server_groups', serverGroupId, 'mass_events');
+        const eventsRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events');
         const q = query(eventsRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr));
         const snap = await getDocs(q);
         
@@ -102,7 +103,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
         // 2. Save to backups
         const auth = getAuth();
         const user = auth.currentUser;
-        const backupRef = collection(db, 'server_groups', serverGroupId, 'mass_backups'); // ✅ mass_backups
+        const backupRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_backups'); // ✅ mass_backups
         
         await addDoc(backupRef, {
             month_key: monthKey,
@@ -130,7 +131,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
 
       try {
           setLoading(true);
-          const backupDocRef = doc(db, 'server_groups', serverGroupId, 'mass_backups', backupId); // ✅ mass_backups
+          const backupDocRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_backups', backupId); // ✅ mass_backups
           // We need to fetch the doc specially if we didn't load 'events' field in list (usually good practice to store big data separately or ignore in brief list, but here we loaded it all in simple query).
           // Assuming 'events' is in the loaded doc data? Wait, fetchBackups does fetch all fields by default.
           // Firestore getDocs fetches full documents.
@@ -145,7 +146,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
           // 1. Delete current events
           const startStr = currentMonth.startOf('month').format('YYYYMMDD');
           const endStr = currentMonth.endOf('month').format('YYYYMMDD');
-          const eventsRef = collection(db, 'server_groups', serverGroupId, 'mass_events');
+          const eventsRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events');
           const currentEventsQ = query(eventsRef, where('event_date', '>=', startStr), where('event_date', '<=', endStr));
           const currentSnap = await getDocs(currentEventsQ);
           
@@ -175,7 +176,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
   const handleDelete = async (backupId: string) => {
       if (!window.confirm('이 백업본을 삭제하시겠습니까?')) return;
       try {
-          await deleteDoc(doc(db, 'server_groups', serverGroupId, 'mass_backups', backupId)); // ✅ mass_backups
+          await deleteDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_backups', backupId)); // ✅ mass_backups
           toast.success('삭제되었습니다.');
           fetchBackups();
       } catch (e) {
@@ -187,7 +188,7 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
   const handleUpdateLabel = async (backupId: string) => {
       if (!editLabel.trim()) return;
       try {
-          await updateDoc(doc(db, 'server_groups', serverGroupId, 'mass_backups', backupId), {
+          await updateDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_backups', backupId), {
               label: editLabel
           });
           toast.success('이름이 수정되었습니다.');

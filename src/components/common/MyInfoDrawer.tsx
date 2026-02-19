@@ -14,6 +14,7 @@ import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { cn, formatPhoneNumber } from '@/lib/utils';
 import DrawerSectionTitle from '@/components/common/DrawerSectionTitle';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface MemberInfo {
   name_kor?: string; // from server_groups member data
@@ -83,7 +84,7 @@ export default function MyInfoDrawer({ open, onOpenChange, serverGroupId }: MyIn
     if (!serverGroupId || !session.user) return;
     const db = getFirestore();
     try {
-      const ref = doc(db, 'server_groups', serverGroupId, 'members', session.user.uid);
+      const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', session.user.uid);
       const snap = await getDoc(ref);
       if (snap.exists()) {
         setMemberInfo(snap.data() as MemberInfo);

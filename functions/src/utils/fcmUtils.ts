@@ -85,7 +85,7 @@ export async function sendMulticastNotification(
     console.log(`[sendMulticastNotification] Sent to ${uniqueTokens.length} devices. Success: ${response.successCount}, Failed: ${response.failureCount}`);
     
     // 🔔 Log to FireStore (System History)
-    console.log('[sendMulticastNotification] Attempting to write log to system_notification_logs...');
+    console.log('[sendMulticastNotification] Attempting to write log to notifications...');
     try {
         const logData = {
             created_at: new Date(), // Use JS Date object instead of serverTimestamp for safety
@@ -103,9 +103,10 @@ export async function sendMulticastNotification(
             triggered_by: payload.triggered_by || null,
             triggered_by_name: payload.triggered_by_name || null,
             trigger_status: payload.trigger_status || null,
+            app_id: 'ordo-altar',
         };
         
-        const ref = await db.collection('system_notification_logs').add(logData);
+        const ref = await db.collection('notifications').add(logData);
         console.log(`[sendMulticastNotification] Log written successfully. Doc ID: ${ref.id}`);
     } catch (logErr) {
         console.error('[sendMulticastNotification] Logging failed. Error details:', JSON.stringify(logErr, Object.getOwnPropertyNames(logErr)));

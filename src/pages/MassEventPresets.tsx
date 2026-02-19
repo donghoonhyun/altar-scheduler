@@ -4,6 +4,7 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase
 import { Container, Heading, Card, Button } from '@/components/ui';
 import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface PresetItem {
   title: string;
@@ -38,7 +39,7 @@ const MassEventPresets: React.FC = () => {
   useEffect(() => {
     if (!serverGroupId) return;
 
-    const docRef = doc(db, 'server_groups', serverGroupId, 'mass_presets', 'default');
+    const docRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_presets', 'default');
     const unsubscribe = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -86,7 +87,7 @@ const MassEventPresets: React.FC = () => {
     if (!serverGroupId) return;
     setSaving(true);
     try {
-      const docRef = doc(db, 'server_groups', serverGroupId, 'mass_presets', 'default');
+      const docRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_presets', 'default');
       await setDoc(docRef, {
         weekdays: presets,
         updated_at: serverTimestamp()

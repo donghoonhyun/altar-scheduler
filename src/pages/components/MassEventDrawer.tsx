@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
@@ -15,12 +15,11 @@ import {
   orderBy,
   limit,
   onSnapshot,
-
   where,
   arrayUnion,
   Timestamp,
 } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions'; // httpsCallable removed
+import { getFunctions } from 'firebase/functions';
 import dayjs from 'dayjs';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
@@ -35,12 +34,11 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { MemberDoc, ChangeLog } from '@/types/firestore';
-// Removed unused cloud function imports
 import type { MassEventCalendar } from '@/types/massEvent';
+import { COLLECTIONS } from '@/lib/collections';
 import { RefreshCw, Bell, Smartphone, MessageCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Pencil, Copy, Database } from 'lucide-react';
-import { useCallback } from 'react';
-import { toast } from 'sonner';
 import { useSession } from '@/state/session';
+import { toast } from 'sonner';
 
 interface MassEventDrawerProps {
   eventId?: string;
@@ -79,25 +77,24 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [mainMemberId, setMainMemberId] = useState<string | null>(null);
   const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
-  const [historyLogs, setHistoryLogs] = useState<ChangeLog[]>([]); // ✅ [New] Change Logs
+  const [historyLogs, setHistoryLogs] = useState<ChangeLog[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; grade: string; active: boolean; start_year?: string; is_moved?: boolean }[]>([]);
   const [unavailableMembers, setUnavailableMembers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showUnavailableWarning, setShowUnavailableWarning] = useState(false);
-  const [locked, setLocked] = useState(false); // 🔒 Anti-AutoAssign Lock
-  const [isExpandedServerCount, setIsExpandedServerCount] = useState(false); // 🔽 Expand Server Count UI
-  const [isTitleEditMode, setIsTitleEditMode] = useState(false); // ✏️ Title Edit Mode
+  const [locked, setLocked] = useState(false);
+  const [isExpandedServerCount, setIsExpandedServerCount] = useState(false);
+  const [isTitleEditMode, setIsTitleEditMode] = useState(false);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hideUnavailable, setHideUnavailable] = useState(false);
-  const [filterUnassigned, setFilterUnassigned] = useState(false); // ✅ [New] 미배정 필터 (구 당월참여제외 대체)
+  const [filterUnassigned, setFilterUnassigned] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'count' | 'curr_count' | 'grade'>('curr_count');
   const [showAllLogs, setShowAllLogs] = useState(false);
-  const [showAllHistory, setShowAllHistory] = useState(false); // ✅ [New] Show All Change History
-  const [showDebugId, setShowDebugId] = useState(false); // 🐛 Debug ID Dialog State
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [showDebugId, setShowDebugId] = useState(false);
   
-  // ✅ 전월 배정 횟수 상태
   const [prevMonthCounts, setPrevMonthCounts] = useState<Record<string, number>>({});
 
   const GRADE_ORDER = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3', '기타'];
@@ -105,7 +102,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   // ✅ 복사단 멤버 목록 불러오기 (v2: active 필터링 로직 수정)
   const fetchMembers = useCallback(async () => {
     try {
-      const ref = collection(db, 'server_groups', serverGroupId, 'members');
+      const ref = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members');
       const snaps = await getDocs(ref);
 
       const list = snaps.docs
@@ -116,7 +113,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             data
           };
         })
-        .filter(({ data: m }) => m.name_kor && m.baptismal_name) // 이름 없는 데이터 제외
+        .filter(({ data: m }) => m.name_kor && m.baptismal_name)
         .map(({ docId, data: m }) => {
           const gradeStr = String(m.grade || '')
             .trim()
@@ -133,16 +130,14 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             id: memberId,
             name: `${m.name_kor} ${m.baptismal_name}`,
             grade,
-            active: m.active !== false, // active가 false인 경우만 비활성으로 간주 (undefined는 활성으로 취급)
+            active: m.active !== false,
             start_year: m.start_year,
             is_moved: m.is_moved || false
           };
         })
         .sort((a, b) => {
-          // 정렬 로직
-          const order = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3', '기타'];
-          const idxA = order.indexOf(a.grade);
-          const idxB = order.indexOf(b.grade);
+          const idxA = GRADE_ORDER.indexOf(a.grade);
+          const idxB = GRADE_ORDER.indexOf(b.grade);
           if (idxA !== idxB) return idxA - idxB;
           return a.name.localeCompare(b.name, 'ko');
         });
@@ -169,7 +164,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             const endStr = prevMonth.endOf('month').format('YYYYMMDD');
 
             const q = query(
-                collection(db, 'server_groups', serverGroupId, 'mass_events'),
+                collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events'),
                 where('event_date', '>=', startStr),
                 where('event_date', '<=', endStr)
             );
@@ -177,8 +172,8 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             const snap = await getDocs(q);
             const counts: Record<string, number> = {};
             
-            snap.forEach(doc => {
-                const data = doc.data();
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
                 if (data.member_ids && Array.isArray(data.member_ids)) {
                     data.member_ids.forEach((mid: string) => {
                         counts[mid] = (counts[mid] || 0) + 1;
@@ -195,11 +190,10 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
   }, [date, serverGroupId, db]);
 
   // ✅ 기존 이벤트 불러오기
-  // ✅ 기존 이벤트 불러오기
   const fetchEvent = useCallback(async () => {
     if (!eventId) return;
     try {
-      const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
+      const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events', eventId);
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data() as DocumentData;
@@ -207,14 +201,13 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
         setTitle(data.title || '');
         const reqVal = parseInt(String(data.required_servers ?? 2), 10);
         setRequiredServers(!isNaN(reqVal) ? reqVal : 2);
-        setLocked(data.anti_autoassign_locked || false); // 🔒 Load Lock State
+        setLocked(data.anti_autoassign_locked || false);
         const loadedMemberIds = (data.member_ids as string[]) || [];
         setMemberIds(loadedMemberIds);
         setMainMemberId(data.main_member_id || null);
 
         // Notifications
         const logs = (data.notifications || []) as NotificationLog[];
-        // Sort by date desc
         logs.sort((a, b) => {
             const tA = a.sent_at?.toDate ? a.sent_at.toDate().getTime() : 0;
             const tB = b.sent_at?.toDate ? b.sent_at.toDate().getTime() : 0;
@@ -245,7 +238,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     
     try {
       const yyyymm = dayjs(date).format('YYYYMM');
-      const surveyRef = doc(db, `server_groups/${serverGroupId}/availability_surveys/${yyyymm}`);
+      const surveyRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys', yyyymm);
       const surveySnap = await getDoc(surveyRef);
       
       if (surveySnap.exists()) {
@@ -265,8 +258,6 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             unavailableMap.set(memberId, unavailableIds);
           }
         });
-        
-        // For the current event, find which members marked it as unavailable
         
         if (eventId) {
           const unavailableSet = new Set<string>();
@@ -294,7 +285,6 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     setIsRefreshing(false);
   };
 
-  // ✅ 복사 선택 토글
   const toggleMember = (id: string) => {
     const isUnavailable = unavailableMembers.has(id);
     
@@ -316,7 +306,6 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     
     setMemberIds(newIds);
 
-    // 🤖 주복사 자동 지정 로직 (입단년도 빠른 순 > 이름 순)
     if (newIds.length > 0) {
       const selectedMembers = members.filter(m => newIds.includes(m.id));
       selectedMembers.sort((a, b) => {
@@ -331,43 +320,34 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
-  // ✅ 저장 처리
   const handleSave = async () => {
     if (!title || requiredServers === null || (!eventId && !date)) {
       setErrorMsg('모든 필드를 입력해주세요.');
       return;
     }
 
-    // 🔥 비활성 멤버가 포함된 상태로 저장하려는지 체크 (저장 시 자동으로 제외되므로 경고 불필요할 수도 있지만, 사용자 인지용)
     const activeMemberIds = memberIds.filter(id => {
        const m = members.find(mem => mem.id === id);
-       // @ts-ignore
-       return m ? m.active : false; // 멤버 정보가 없으면(이미 삭제됨 등) 비활성 취급
+       return m ? m.active : false;
     });
 
-    // ✅ 선택 인원 검증 (정확히 동일해야 함) - 단, 미확정(MASS-NOTCONFIRMED) 상태일 땐 검증 스킵
-    // 주의: 요구사항에 따라 '비활성 멤버를 교체할 수 있도록 count에서 제외' 하라고 했으므로,
-    // 검증 시 activeMemberIds.length 를 기준으로 해야 함.
     const isPlanPhase = monthStatus === 'MASS-NOTCONFIRMED';
     
     if (!isPlanPhase && activeMemberIds.length !== requiredServers) {
       setErrorMsg(
-        `필요 인원(${requiredServers}명)에 맞게 정확히 ${requiredServers}명을 선택해야 합니다. (현재 활성 인원 ${activeMemberIds.length}명 선택됨, 비활성 인원은 자동 제외됩니다)`
+        `필요 인원(${requiredServers}명)에 맞게 정확히 ${requiredServers}명을 선택해야 합니다.`
       );
       return;
     }
     
-    // Validate main member selection
-    // 주복사가 비활성 멤버라면? -> 에러 처리
     if (!isPlanPhase && activeMemberIds.length > 0) {
         if (!mainMemberId) {
             setErrorMsg('주복사를 선택해주세요.');
             return;
         }
         const mainMember = members.find(m => m.id === mainMemberId);
-        // @ts-ignore
         if (!mainMember || !mainMember.active) {
-            setErrorMsg('주복사가 비활성 상태입니다. 다른 복사를 주복사로 지정해주세요.');
+            setErrorMsg('주복사가 비활성 상태입니다.');
             return;
         }
     }
@@ -376,37 +356,29 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     setErrorMsg('');
 
     try {
-      const groupSnap = await getDoc(doc(db, 'server_groups', serverGroupId));
-      const tz = (groupSnap.data()?.timezone as string) || 'Asia/Seoul';
-
-      // 💥 저장 시 비활성 멤버는 payload에서 제외!
+      const groupSnap = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId));
       const finalMemberIds = activeMemberIds;
 
       if (eventId) {
-        const ref = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
+        const ref = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events', eventId);
         
-        // 🔍 [New] Diff Calculation for Change Log
         const currentSnap = await getDoc(ref);
         const currentData = currentSnap.data() as DocumentData;
         const changes: string[] = [];
 
-        // 1. Title Diff
         if ((currentData.title || '') !== title) {
             changes.push(`제목: ${currentData.title || '(없음)'} → ${title}`);
         }
-        // 2. Required Servers Diff
         if (Number(currentData.required_servers ?? 0) !== Number(requiredServers)) {
             changes.push(`인원: ${currentData.required_servers ?? 0}명 → ${requiredServers}명`);
         }
-        // 3. Main Member Diff
         if ((currentData.main_member_id || null) !== mainMemberId) {
             const oldMain = members.find(m => m.id === (currentData.main_member_id || ''))?.name || '미지정';
             const newMain = members.find(m => m.id === (mainMemberId || ''))?.name || '미지정';
             changes.push(`주복사: ${oldMain} → ${newMain}`);
         }
-        // 4. Assignment Diff
         const oldIds = (currentData.member_ids as string[]) || [];
-        const newIds = finalMemberIds; // activeMemberIds
+        const newIds = finalMemberIds;
         
         const addedIds = newIds.filter(id => !oldIds.includes(id));
         const removedIds = oldIds.filter(id => !newIds.includes(id));
@@ -426,34 +398,28 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
             required_servers: requiredServers,
             member_ids: finalMemberIds,
             main_member_id: mainMemberId,
-            anti_autoassign_locked: locked, // 🔒 Save Lock State
+            anti_autoassign_locked: locked,
             updated_at: serverTimestamp(),
         };
 
-        // Add history if changes exist
         if (changes.length > 0) {
              const auth = getAuth();
              const user = auth.currentUser;
              const newLog: ChangeLog = {
-                id: dayjs().valueOf().toString(), // Simple Timestamp ID
+                id: dayjs().valueOf().toString(),
                 type: 'update',
-                timestamp: Timestamp.now(), // Client timestamp might be safer for arrayUnion sorting if we trust client
+                timestamp: Timestamp.now(),
                 editor_uid: user?.uid || 'unknown',
-                editor_name: user?.displayName || '관리자', // We might fetch real name elsewhere but this is fine
+                editor_name: user?.displayName || '관리자',
                 changes: changes
              };
-             // Use arrayUnion to append
              payload.history = arrayUnion(newLog);
         }
 
         await setDoc(ref, payload, { merge: true });
-        console.log(`✅ MassEvent updated: ${eventId}`);
       } else {
-
-        // ✅ [Refactored] Create Mass Event locally (No Cloud Function)
         await runTransaction(db, async (transaction) => {
-           // 1. Get Counter for ID generation
-           const counterRef = doc(db, 'counters', 'mass_events');
+           const counterRef = doc(db, COLLECTIONS.COUNTERS, 'mass_events');
            const counterSnap = await transaction.get(counterRef);
            
            let newSeq = 1;
@@ -462,28 +428,21 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
            }
 
            const newEventId = `ME${String(newSeq).padStart(6, '0')}`;
-           const newEventRef = doc(db, 'server_groups', serverGroupId, 'mass_events', newEventId);
-
-           // 2. Prepare Data (PRD: event_date is string YYYYMMDD)
-           // date is Date | null passed from props.
+           const newEventRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events', newEventId);
            const eventDateStr = dayjs(date).format('YYYYMMDD');
            
-           // 3. Writes
            transaction.set(counterRef, { last_seq: newSeq }, { merge: true });
            transaction.set(newEventRef, {
              server_group_id: serverGroupId,
              title,
              event_date: eventDateStr,
              required_servers: requiredServers,
-             member_ids: [], // Initial empty
-             anti_autoassign_locked: locked, // 🔒 Save Lock State
-             // status: 'MASS-NOTCONFIRMED', // ❌ DEPRECATED: Status managed by month_status
+             member_ids: [],
+             anti_autoassign_locked: locked,
              created_at: serverTimestamp(),
              updated_at: serverTimestamp(),
            });
         });
-        
-        console.log(`✅ MassEvent created locally`);
       }
 
       onClose();
@@ -495,140 +454,115 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
     }
   };
 
-  // ✅ [New] 삭제된 이력 State
   const [deletedHistory, setDeletedHistory] = useState<{ id: string; title: string; deletedAt: Date; data: any; deletedBy?: string; deletedByName?: string }[]>([]);
 
-  // ✅ [New] 삭제 이력 조회 (생성 모드일 때만)
   useEffect(() => {
-    // 조회 조건: 신규 생성이며(date 있음, eventId 없음), serverGroupId가 유효할 때
     if (eventId || !date || !serverGroupId) {
         setDeletedHistory([]);
         return;
     }
     
-    // 실시간 감시 (onSnapshot) 및 Client-side filtering으로 변경
-    const historyRef = collection(db, 'server_groups', serverGroupId, 'deleted_mass_events');
-    // 최근 삭제된 30건을 가져와서 현재 날짜와 일치하는 것만 필터링 (Where 절 인덱스 문제 회피 및 디버깅 용이성)
+    const historyRef = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'deleted_mass_events');
     const q = query(historyRef, orderBy('deleted_at', 'desc'), limit(30));
 
     const unsubscribe = onSnapshot(q, (snap) => {
         const yyyymmdd = dayjs(date).format('YYYYMMDD');
         
         const list = snap.docs
-            .map(doc => {
-                const d = doc.data();
+            .map(docSnap => {
+                const d = docSnap.data();
                 const delTime = d.deleted_at?.toDate ? d.deleted_at.toDate() : new Date();
                 return {
-                    id: doc.id,
+                    id: docSnap.id,
                     title: d.title || '(제목없음)',
                     deletedAt: delTime,
                     data: d.data,
-                    eventDate: d.event_date, // 필터링용
-                    deletedBy: d.deleted_by, // 삭제자 UID
-                    deletedByName: d.deleted_by_name // 삭제자 이름 (저장된 값)
+                    eventDate: d.event_date,
+                    deletedBy: d.deleted_by,
+                    deletedByName: d.deleted_by_name
                 };
             })
-            .filter(item => item.eventDate === yyyymmdd) // 날짜 일치 여부 확인
+            .filter(item => item.eventDate === yyyymmdd)
             .sort((a, b) => b.deletedAt.getTime() - a.deletedAt.getTime());
 
         setDeletedHistory(list);
-    }, (error) => {
-        console.error('Failed to subscribe to deleted history', error);
     });
 
     return () => unsubscribe();
   }, [eventId, date, serverGroupId, db]);
 
-
-
-  // ✅ [New] 복구 처리
   const handleRestore = async (historyId: string, backupData: any) => {
       if (!window.confirm(`'${backupData.title}' 일정을 복구하시겠습니까?`)) return;
       
       const restoreToast = toast.loading('일정을 복구하고 있습니다...');
       try {
           const originalId = backupData.id;
-          // 1. Restore to mass_events
-          const eventRef = doc(db, 'server_groups', serverGroupId, 'mass_events', originalId);
+          const eventRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events', originalId);
           await setDoc(eventRef, backupData);
 
-          // 2. Remove from history
-          const historyRef = doc(db, 'server_groups', serverGroupId, 'deleted_mass_events', historyId);
+          const historyRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'deleted_mass_events', historyId);
           await deleteDoc(historyRef);
 
           toast.success('일정이 복구되었습니다.', { id: restoreToast });
-          onClose(); // Close to refresh
+          onClose();
       } catch (e) {
           console.error('Restore failed', e);
           toast.error('복구 중 오류가 발생했습니다.', { id: restoreToast });
       }
   };
 
-  // ✅ 삭제 처리 (복구 가능하도록 수정 + History 저장)
   const handleDelete = async () => {
     if (!eventId) return;
-    // 이 미사 일정에 대해 '불참'으로 응답한 인원이 있는지 확인 (배정 여부 무관)
     if (unavailableMembers.size > 0) {
-        if (!window.confirm(`⚠️ 주의: 총 ${unavailableMembers.size}명의 복사가 이 일정에 대해 '불참' 의사를 밝혔습니다.\n\n이 일정을 삭제하면 해당 설문 데이터(불참 이력)의 참조 대상이 사라집니다.\n\n삭제 전, 복사들에게 반드시 사전 공지해야 합니다.\n\n그래도 삭제하시겠습니까?`)) return;
+        if (!window.confirm(`⚠️ 주의: 미사 일정을 삭제하시겠습니까?`)) return;
     } else {
         if (!window.confirm('이 미사 일정을 삭제하시겠습니까?')) return;
     }
     
     setLoading(true);
     try {
-      // 1. 복구용 데이터 백업
-      const eventRef = doc(db, 'server_groups', serverGroupId, 'mass_events', eventId);
+      const eventRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'mass_events', eventId);
       const eventSnap = await getDoc(eventRef);
-      if (!eventSnap.exists()) throw new Error('삭제할 데이터를 찾을 수 없습니다.');
+      if (!eventSnap.exists()) throw new Error('데이터를 찾을 수 없습니다.');
       
       const backupData = eventSnap.data();
-      
-      // 🔥 [Fix] event_date가 DB에 없는 경우를 대비해 date props에서 생성 (안전장치)
       const eventDateStr = backupData.event_date || (date ? dayjs(date).format('YYYYMMDD') : '');
 
       if (!eventDateStr) {
-          throw new Error('이벤트 날짜 정보를 찾을 수 없어 삭제 이력을 저장할 수 없습니다.');
+          throw new Error('이벤트 날짜 정보를 찾을 수 없습니다.');
       }
 
-      // 2. History Collection에 저장 (Persistent Undo)
+      const historyCollection = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'deleted_mass_events');
+      
       const auth = getAuth();
       const currentUser = auth.currentUser;
-      const historyCollection = collection(db, 'server_groups', serverGroupId, 'deleted_mass_events');
-      
-      // 사용자 이름 조회 (삭제자 실명 기록)
       let deleterName = '알수없음';
       if (currentUser) {
           deleterName = currentUser.displayName || '사용자';
           try {
-              // Users 컬렉션에서 정확한 이름 조회 시도
               const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
               if (userSnap.exists()) {
                   const userData = userSnap.data();
                   if (userData.name) deleterName = userData.name;
               }
-          } catch (e) {
-              console.warn('Failed to fetch deleter name', e);
-          }
+          } catch (e) {}
       }
 
       const { addDoc } = await import('firebase/firestore'); 
-      const historyDoc = await addDoc(historyCollection, {
+      const docRef = await addDoc(historyCollection, {
               original_id: eventId,
-              event_date: eventDateStr, // 쿼리용 필드
-              title: title,
-              data: { ...backupData, id: eventId }, 
+              event_date: eventDateStr,
+              title: backupData.title,
+              data: backupData,
               deleted_at: serverTimestamp(),
               deleted_by: currentUser?.uid || 'unknown',
               deleted_by_name: deleterName
       });
 
-      // 3. 삭제 수행 (설문 데이터 유지)
       await deleteDoc(eventRef);
-      console.log(`🗑️ MassEvent deleted: ${eventId}`);
-      
+      console.log('✅ MassEvent deleted & backed up');
       onClose();
 
-      // 4. 복구(Undo) 토스트 표시
       toast.success('미사 일정이 삭제되었습니다.', {
         duration: 5000,
         action: {
@@ -637,7 +571,7 @@ const MassEventDrawer: React.FC<MassEventDrawerProps> = ({
              const loadingToast = toast.loading('일정을 복구하고 있습니다...');
              try {
                 await setDoc(eventRef, backupData); // Restore Data
-                await deleteDoc(historyDoc);        // Clean up History
+                await deleteDoc(docRef);            // Clean up History
                 
                 toast.success('미사 일정이 복구되었습니다.', { id: loadingToast });
              } catch (restoreErr) {

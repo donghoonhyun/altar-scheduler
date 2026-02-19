@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { Loader2, Contact } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { COLLECTIONS } from '@/lib/collections';
 
 interface ServerMemberInfo {
   id: string;
@@ -44,7 +45,7 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
     setLoading(true);
     try {
       // 1. memberships에서 소속된 그룹 찾기
-      const q = query(collection(db, 'memberships'), where('uid', '==', uid));
+      const q = query(collection(db, COLLECTIONS.MEMBERSHIPS), where('uid', '==', uid));
       const membershipSnap = await getDocs(q);
       
       const results: ServerGroupData[] = [];
@@ -63,7 +64,7 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
         
         // 2. 그룹 및 성당 정보 가져오기
         try {
-            const groupSnap = await getDoc(doc(db, 'server_groups', groupId));
+            const groupSnap = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, groupId));
             if (groupSnap.exists()) {
                 const gData = groupSnap.data();
                 groupName = gData.name;
@@ -83,7 +84,7 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
         // 3. 해당 그룹의 members 컬렉션에서 멤버 찾기
         const groupMembers: ServerMemberInfo[] = [];
         try {
-            const membersRef = collection(db, 'server_groups', groupId, 'members');
+            const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, groupId, 'members');
             // parent_uid로 조회 (자녀들)
             const qMembers = query(membersRef, where('parent_uid', '==', uid));
             const membersSnap = await getDocs(qMembers);
@@ -103,7 +104,7 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
                 });
             } else {
                 // parent_uid로 없는 경우 -> 본인 계정(legacy or self) 확인
-                const docRef = doc(db, 'server_groups', groupId, 'members', uid);
+                const docRef = doc(db, COLLECTIONS.SERVER_GROUPS, groupId, 'members', uid);
                 const selfSnap = await getDoc(docRef);
                 
                 if (selfSnap.exists()) {

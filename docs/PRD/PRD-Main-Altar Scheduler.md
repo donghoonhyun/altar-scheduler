@@ -72,6 +72,13 @@
   ② 권한이 없으면 복사단 선택 또는 접근 불가 페이지로 안내.
 - 상태 보존: 사용자가 마지막으로 선택한 복사단은 저장해 두어, 다음 로그인 시 기본 진입 지점으로 사용.
 
+#### 2.1.3 앱 실행 모드 (Open Mode)
+- Ordo 플랫폼에서 앱을 실행할 때 두 가지 모드를 지원한다:
+  1. **iframe 모드** (기본값): Ordo 플랫폼 내부에서 탭 형태로 실행.
+  2. **standalone 모드**: 새로운 웹 브라우저 탭(창)에서 실행.
+- **SSO 통합**: Standalone 모드로 실행 시 Ordo 플랫폼에서 생성한 단발성 `authtoken`(Custom Token)을 URL 파라미터로 전달받아 자동 로그인을 수행한다.
+- **URL 보안**: 인증 완료 후 주소창의 `authtoken`은 페이지 새로고침 없이 즉시 제거하여 보안을 유지한다.
+
 ### 📍2.2 역할 및 권한 구조
 
 - 모든 기능은 사용자의 스코프(본당/복사단) 내 데이터에만 접근 가능: planner(복사단 단위) / server(복사 본인정보와 일부 복사단 내 정보).
@@ -591,14 +598,7 @@
 
 - 경로: `/superadmin` (Super Admin 권한 전용)
 - 기능:
-  ① 성당(Parish) 관리
-    . 성당 목록 조회, 추가, 수정, 삭제(논리적/물리적)
-    . 성당 추가/수정 팝업:
-      - 성당코드(ID): 교구코드 + '-' + 성당코드 (예: DAEGU-BEOMEO), 중복 체크
-      - 이름(한글): 교구명 + ' ' + 성당명 (예: 대구 범어성당), 중복 체크
-      - 이름(영문): (예: Beomeo Cathedral), 중복 체크
-      - 교구: 16개 교구 목록 콤보박스 선택 (서울, 인천, 수원, 의정부, 춘천, 대전, 대구, 부산, 광주, 전주, 제주 등)
-      - 활성 상태(Active) 토글
+  ① **(삭제됨)** 성당(Parish) 관리 -> **Ordo Admin으로 이관됨**.
   ② 사용자 지원 (User Support)
     . 사용자 목록에서 개별 [지원] 버튼 제공
     . 사용자 지원 드로어:
@@ -644,7 +644,7 @@
   ④ Notification 관리 (Notification Management)
     . 경로: `/superadmin/notifications`
     . 기능:
-      - 전체 앱 푸시 발송 이력 조회 (`system_notification_logs` 컬렉션 기반)
+      - 전체 앱 푸시 발송 이력 조회 (`notifications` (Root) 컬렉션 기반)
       - 테이블 표시 정보: 발송일시, 제목, 내용(말줄임), 대상 수(User/Device), 상태(성공/실패)
       - 상세 보기(Drawer):
         - 기본 정보: 발송일시, 제목, 내용
@@ -1122,3 +1122,57 @@
   - `feature`: 기능 구분 ('MONTH_STATUS')
 
 ---
+
+### 📍2.17 Ordo 플랫폼 통합 및 단독 실행 (Ordo Integration)
+
+#### 2.17.1 iframe 내 알림 권한 제한 해결
+- **문제**: 브라우저 보안 정책상 크로스 오리진(Cross-origin) iframe 내에서는 `Notification.requestPermission()` 호출이 금지됨.
+- **해결책**: 
+  - iframe 내에서 실행 중임을 감지 (`window.self !== window.top`).
+  - 알림 권한이 없는 경우, 설정 드로어(AppSettingsDrawer)에서 "단독 페이지로 열기" 버튼을 제공.
+  - 사용자가 단독 페이지에서 권한을 한 번만 허용하면, 이후 iframe 내에서도 푸시 알림 수신이 가능함.
+
+#### 2.17.2 PWA 서비스 워커 및 새로고침 루프 방지
+- **새로고침 루프 현상 해결**:
+  - PWA 캐싱용 SW와 FCM 알림용 SW가 루트(`/`) 스코프에서 경합하여 발생하던 무한 새로고침 현상을 수정.
+  - `vite-plugin-pwa` 설정을 `registerType: 'prompt'`로 변경하여 자동 강제 리프레쉬 방지.
+  - `useFcmToken` 훅에서 이미 등록된 서비스 워커가 있을 경우 재 사용하여 중복 등록 및 충돌을 방지함.
+
+#### 2.17.3 iframe 내 반응형 레이아웃 개선
+- Ordo 플랫폼의 메인 컨테이너 폭을 확장(`max-w-md` -> `max-w-[800px]~[960px]`)하여, iframe 내부의 앱이 데스크톱용 중단점(`md:`)을 인식할 수 있도록 함.
+- 이를 통해 iframe 내에서도 달력에 복사 이름이 표시되는 등 태블릿/데스크톱 최적화 뷰가 정상 노출됨.
+
+---
+
+## 📝 변경 이력 (Update History)
+
+### 📅 2026.02.18 (standalone 및 플랫폼 통합 고도화)
+- **Open Mode 도입**: Altar Scheduler를 Ordo 플랫폼과 독립된 새 창에서 실행할 수 있는 'standalone' 모드 구현.
+- **SSO 자동 로그인**: Ordo에서 생성한 Custom Token을 통한 단독 앱 자동 인증 프로세스 구축.
+- **새로고침 루프 해결**: PWA 서비스 워커와 FCM 서비스 워커 간의 스코프 충돌 및 자동 업데이트로 인한 무한 리프레쉬 현상 수정.
+- **iframe 알림 가이드**: iframe 내 권한 요청 불가 문제를 해결하기 위한 "단독 페이지 열기" 유도 UI 적용.
+- **반응형 뷰 개선**: Ordo 플랫폼 레이아웃 확장을 통해 iframe 내에서도 데스크톱용 대형 달력 뷰 지원.
+
+### 📅 2026.02.19 (Ordo 통합 및 알림 시스템 고도화)
+
+#### 1. Ordo Admin 이관 (Refactoring)
+- **성당 관리(Parish Management) 기능 제거**:
+  - Altar Scheduler 내 슈퍼어드민 기능에서 '성당 관리' 섹션을 완전히 제거.
+  - 해당 기능은 통합 관리 도구인 **Ordo Admin**으로 이관되어, 시스템 간 역할 분리를 명확히 함.
+  - 관련 컴포넌트(`ParishAdminManagement`, 라우트, 로직 등) 삭제.
+
+#### 2. 알림 시스템 통합 (Notification Consolidation)
+- **통합 컬렉션 전환**:
+  - 기존 앱 전용 알림 컬렉션(`app_altar/v1/notifications`)을 폐지하고, 최상위 Root 컬렉션인 `notifications`로 통합.
+  - 이를 통해 Ordo 전체 에코시스템 차원의 알림 조회 및 관리가 가능해짐.
+  - `COLLECTIONS.NOTIFICATIONS` 상수 경로 업데이트.
+- **앱 식별자 추가 (App ID Tagging)**:
+  - 모든 알림 로그 생성 시 `app_id: 'ordo-altar'` 필드를 자동 포함하도록 개선.
+  - Admin Panel Notification Management에서 앱별 필터링 및 식별 가능.
+- **클라우드 함수 고도화**:
+  - `sendMulticastNotification`: 글로벌 유틸리티로 승격, `notifications` 컬렉션 로깅 적용.
+  - `createNotification`, `onDailyMassReminder`, `onMonthlyStatusChanged`: Root 알림 컬렉션 연동 및 앱 ID 메타데이터 추가.
+  - `onMemberEvents`: 멤버십 신청/권한 요청 알림 시 `sendMulticastNotification` 유틸리티를 사용하도록 리팩토링하여 로깅 일관성 확보.
+- **관리자 UI 업데이트**:
+  - Notification Management 페이지에서 통합 컬렉션을 조회하도록 쿼리 수정.
+  - 로그 상세 보기 시 `app_id` 배지 표시를 통해 발송 출처(App) 명시.
