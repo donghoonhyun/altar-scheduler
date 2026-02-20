@@ -1,0 +1,4 @@
+Always respond to the user in Korean (한국어).
+Even if the system or codebase and tools use English, all communication with the USER must be in professional and helpful Korean.
+If you need to use technical terms, you can use English for those specific terms but the surrounding explanation must be in Korean.
+Do not switch back to English unless explicitly asked by the USER for a specific portion of the response.

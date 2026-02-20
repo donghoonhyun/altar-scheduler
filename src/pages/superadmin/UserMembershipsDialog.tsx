@@ -9,6 +9,7 @@ import {
   getDoc, 
   updateDoc, 
   deleteDoc, 
+  setDoc,
   addDoc, 
   serverTimestamp, 
   limit, 
@@ -18,8 +19,20 @@ import { db } from '@/lib/firebase';
 import { Loader2, Shield, Edit2, Trash2, Plus, Search, AlertCircle, X, ChevronRight, ArrowLeft, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { COLLECTIONS } from '@/lib/collections';
+import { Parish, getDioceseName } from '@/types/parish';
+import { useParishes } from '@/hooks/useParishes';
+import { useDioceses, Diocese } from '@/hooks/useDioceses';
+import { MapPin } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Membership {
   id: string; // document id
@@ -34,12 +47,6 @@ interface ServerGroup {
   id: string;
   name: string;
   parish_code?: string;
-}
-
-interface Parish {
-  code: string;
-  name_kor: string;
-  diocese: string;
 }
 
 interface UserMembershipsDialogProps {
@@ -61,6 +68,9 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
   const [addStep, setAddStep] = useState<'parish' | 'group' | 'role'>('parish');
   
   // Step 1: Parish
+  const { data: allParishesData } = useParishes();
+  const { data: diocesesData } = useDioceses();
+  const [selectedDiocese, setSelectedDiocese] = useState<string>('');
   const [parishSearchTerm, setParishSearchTerm] = useState('');
   const [foundParishes, setFoundParishes] = useState<Parish[]>([]);
   const [selectedParish, setSelectedParish] = useState<Parish | null>(null);
@@ -105,13 +115,13 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                 // Fetch Parish Name if available
                 if (sgData.parish_code) {
                     try {
-                        const parishQ = query(collection(db, 'parishes'), where('code', '==', sgData.parish_code));
+                        const parishQ = query(collection(db, COLLECTIONS.PARISHES), where('code', '==', sgData.parish_code));
                         const parishSnap = await getDocs(parishQ);
                         if (!parishSnap.empty) {
                             parishName = parishSnap.docs[0].data().name_kor;
                         } else {
                             // Fallback: Check if document ID matches
-                            const pDoc = await getDoc(doc(db, 'parishes', sgData.parish_code));
+                            const pDoc = await getDoc(doc(db, COLLECTIONS.PARISHES, sgData.parish_code));
                             if (pDoc.exists()) parishName = pDoc.data().name_kor;
                         }
                     } catch (err) {
@@ -228,12 +238,23 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
     if (!parishSearchTerm.trim()) return;
     setIsSearchingParish(true);
     try {
-        const q = query(
-            collection(db, 'parishes'),
-            where('name_kor', '>=', parishSearchTerm),
-            where('name_kor', '<=', parishSearchTerm + '\uf8ff'),
-            limit(10)
-        );
+        let q;
+        if (selectedDiocese) {
+            q = query(
+                collection(db, COLLECTIONS.PARISHES),
+                where('diocese', '==', selectedDiocese),
+                where('name_kor', '>=', parishSearchTerm),
+                where('name_kor', '<=', parishSearchTerm + '\uf8ff'),
+                limit(10)
+            );
+        } else {
+            q = query(
+                collection(db, COLLECTIONS.PARISHES),
+                where('name_kor', '>=', parishSearchTerm),
+                where('name_kor', '<=', parishSearchTerm + '\uf8ff'),
+                limit(10)
+            );
+        }
         const snap = await getDocs(q);
         const list = snap.docs.map(d => ({ code: d.id, ...d.data() } as Parish));
         setFoundParishes(list);
@@ -290,7 +311,10 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
     }
 
     try {
-        const newDocRef = await addDoc(collection(db, COLLECTIONS.MEMBERSHIPS), {
+        const membershipId = `${uid}_${selectedGroup.id}`;
+        const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, membershipId);
+
+        await setDoc(membershipRef, {
             uid,
             server_group_id: selectedGroup.id,
             role: newRoles,
@@ -300,7 +324,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
         });
 
         const newMembership: Membership = {
-            id: newDocRef.id,
+            id: membershipId,
             server_group_id: selectedGroup.id,
             role: newRoles,
             active: true,
@@ -366,9 +390,33 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                 <div className="min-h-[160px]">
                     {addStep === 'parish' && (
                         <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-200">
-                            <div className="flex gap-2">
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                    <MapPin size={12} />
+                                    교구 필터
+                                </Label>
+                                <Select 
+                                    value={selectedDiocese} 
+                                    onValueChange={val => {
+                                        setSelectedDiocese(val === '_all' ? '' : val);
+                                        setFoundParishes([]);
+                                    }}
+                                >
+                                    <SelectTrigger className="h-9 text-xs bg-white dark:bg-slate-800">
+                                        <SelectValue placeholder="모든 교구" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="_all">모든 교구</SelectItem>
+                                        {(diocesesData || []).map((d: Diocese) => (
+                                            <SelectItem key={d.code} value={d.code}>{d.name_kor}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                                 <Input 
-                                    placeholder="성당 이름 검색... (예: 대구 범어)" 
+                                    placeholder="성당 이름 검색..." 
                                     value={parishSearchTerm}
                                     onChange={e => setParishSearchTerm(e.target.value)}
                                     className="h-9 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
@@ -389,7 +437,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                                         >
                                             <div>
                                                 <div className="font-medium">{p.name_kor}</div>
-                                                <div className="text-xs text-gray-400">{p.diocese} | {p.code}</div>
+                                                <div className="text-xs text-gray-400">{getDioceseName(p.diocese)} | {p.code}</div>
                                             </div>
                                             <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500" />
                                         </div>

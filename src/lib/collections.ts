@@ -7,7 +7,13 @@ export const COLLECTIONS = {
   USERS: 'users',
   
   // Master Data (Full Path)
+  // Ordo App과 동일한 마스터 데이터 구조를 사용합니다.
+  MASTER_ROOT: 'sources',
+  MASTER_DOC: 'master_datas',
+  
+  DIOCESES: 'sources/master_datas/dioceses',
   PARISHES: 'sources/master_datas/parishes',
+  APPS: 'sources/master_datas/apps',
 
   // App Specific (v1)
   SERVER_GROUPS: 'app_altar/v1/server_groups',

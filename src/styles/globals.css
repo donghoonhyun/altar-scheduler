@@ -1,10 +1,39 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Custom global styles ---------- */
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+  }
 
-/* App 기본 레이아웃 */
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
+}
+
 html,
 body,
 #root {
@@ -13,25 +42,23 @@ body,
   padding: 0;
 }
 
-/* 기본 폰트 */
 body {
-  @apply font-sans bg-gray-50 text-gray-900 transition-colors duration-300;
+  @apply font-sans bg-slate-50 text-slate-900 transition-colors duration-300 antialiased;
 }
 
-/* 다크 모드 */
 .dark body {
-  @apply bg-gray-900 text-gray-100;
+  @apply bg-slate-950 text-slate-100;
 }
 
-/* 링크 스타일 */
-a {
-  @apply text-blue-600 hover:underline;
+/* Custom Scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* 버튼 공통 */
-button {
-  @apply rounded-lg px-4 py-2 font-medium transition;
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
 }
-button:disabled {
-  @apply opacity-50 cursor-not-allowed;
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 dark:bg-slate-800 rounded-full hover:bg-slate-300 dark:hover:bg-slate-700;
 }

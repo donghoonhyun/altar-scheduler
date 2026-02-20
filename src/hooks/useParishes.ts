@@ -18,7 +18,13 @@ export function useParishes(onlyActive?: boolean) {
       }
       
       const snapshot = await getDocs(q);
-      const parishes = snapshot.docs.map((doc) => doc.data() as Parish);
+      const parishes = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          code: data.code || doc.id,
+        } as Parish;
+      });
       
       return parishes;
     },

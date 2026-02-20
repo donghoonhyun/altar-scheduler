@@ -194,15 +194,16 @@ Drawer 상단에는 현재 로그인 사용자의 **역할(role)** 을 명시적
 ### 🧩6.2 폰트 시스템
 
 ```css
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css');
+  @import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
 
   :root {
-    --font-main: 'Nunito', 'Noto Sans KR', sans-serif;
+    --font-main: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   }
 ```
 
-- **Nunito** : 영어/숫자용 (따뜻하고 도넛댄김)
-- **Noto Sans KR** : 한글용 (명려하고 건질한 형태)
+- **Pretendard (font-sans)** : 기본 앱 전역 요소, 모든 UI 카드 텍스트, Label 맻 Button (모던하고 꺠끗한 룩앤필 제공). Ordo 생태계 표준 서체.
+- **Gamja Flower (font-gamja)** : 헤더의 타이틀 및 강조(친근한/따뜻한 느낌의 핸드라이팅체). 주요 페이지 상단 배너 등에 국한적으로 사용.
 
 ---
 
@@ -306,7 +307,25 @@ export const Button: React.FC<ButtonProps> = ({
 | **outline** | 보조 액션 (Auxiliary Action) | 취소, 뒤로가기, 기준정보 설정(Presets) | `border-gray-300` (회색 테두리) |
 | **ghost** | 아이콘 버튼, 약한 강조 | 닫기(X), 새로고침, 단순 토글 | 투명 (hover시 회색) |
 
-### 🧩8.2 Card
+### 🧩8.2 Card & Form 구조 시스템 (Ordo Standard)
+
+모든 데이터 입력 폼 및 정보 표시 카드는 "Ordo Profile"의 시각적 기준을 완벽히 따른다. 
+핵심은 **1픽셀 오차 없는 간격/선 배치** 와 **통일된 서체(Pretendard)** 이다.
+
+- **Card Container** : 
+  - 기본 제공되는 패딩을 무효화하기 위해 필히 `p-0` 를 부여한다.
+  - `<Card className="... p-0">`
+
+- **Card Header (Title & Divider)** : 
+  - 카드 타이틀은 `text-base font-bold font-sans` 로 사용한다.
+  - 헤더 영역 하단 가로줄이 카드 테두리(좌/우)에 100% 밀착되도록 헤더 컨테이너에 패딩과 경계선을 설정한다.
+  - `<div className="p-6 pb-3 border-b border-slate-100 dark:border-slate-700 mb-4 flex items-center gap-2">`
+
+- **Card Body** : 
+  - 본문 컨테이너에 `p-6 pt-0 space-y-4` 를 주어 위쪽 타이틀과 적당한 간격을 두고 배치한다.
+  - Label: `text-sm font-medium text-slate-600 dark:text-slate-400 font-sans`
+  - Input/Select: `h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans`
+  - Field 그룹 간 간격은 `space-y-2` 로 설정하여 촘촘하고 단단한 밀도를 형성한다.
 
 ```tsx
 import React from "react";
@@ -319,7 +338,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => (
   <div
     className={cn(
-      "bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl",
+      "bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 transition-all duration-300",
       className
     )}
     {...props}
@@ -345,6 +364,10 @@ export const Container: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   </div>
 );
 ```
+
+### 🧩8.3.1 표준 등록 버튼 (Submit Action)
+Form 하단의 단일 등록/저장 버튼은 컴포넌트 커스텀을 남발하지 않고, Shadcn(or Ordo) 기본형으로 구성한다.
+- `<Button className="w-full font-bold h-12 text-base shadow-sm">등록하기</Button>`
 
 ### 🧩8.4 Heading
 
@@ -602,6 +625,63 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
       </div>
     </DialogContent>
   </Dialog>
+  ```
+
+#### 8.5.9 Premium Header & Drawer Header UI (표준화)
+
+- 개요:
+  페이지 상단 타이틀 또는 중요한 정보 표기가 필요한 **Dialog / Drawer**에는 브랜드 아이덴티티를 강조하는 **PremiumHeader**와 **DrawerHeader** 컴포넌트를 적용한다.
+  이 컴포넌트들은 배경 오너먼트(blur 장식)와 부드러운 그라데이션, 다크 모드 호환성을 갖추어 현대적이고 고급스러운 느낌을 제공한다.
+
+- 컴포넌트 정책
+
+  1. **PremiumHeader** (`src/components/common/PremiumHeader.tsx`)
+     - 용도: 대시보드 등 첫 번째 메인 페이지에서 넘어간 **2레벨 페이지**의 상단 헤더 표시에 사용. (예: `SuperAdmin` 하위 기능 페이지, 관리자 상세 관리 페이지, 미사일정 관리 페이지, 복사단원관리, 복사배정현황, Preset설정, 설문관리 등)
+     - 높이: `h-20` (80px)
+     - 스타일: 파란색 테마 (`bg-gradient-to-br from-[#1E40AF] via-[#2563EB] to-[#3B82F6] dark:from-blue-900 dark:via-blue-950 dark:to-slate-900`) <- 다크모드도 감안해야함
+     - 모서리: 하단 둥글게 (`rounded-b-[32px]`)
+     - 폰트: Gamja Flower (타이틀 적용)
+     - 특징: 좌측 뒤로가기 버튼 지원 (`onBack`, `backUrl` prop)
+
+  2. **DrawerHeader** (`src/components/common/DrawerHeader.tsx`)
+     - 용도: 특수한 사용자 입력을 받거나 내용을 변경해야 하는 **Drawer (Sheet 컴포넌트)** 영역 내부에만 적용 목적.
+     - 높이: `h-24` (96px)
+     - 스타일: 슬레이트 테마 (`bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950`)
+     - 폰트 타이틀 컬러: 흰색 고정 (`text-white`)
+     - 특징: 우측 닫기(X) 버튼 내장 (`onClose` prop). `children` prop을 사용해 커스텀 렌더링(예: 수정 인풋 폼 등) 가능.
+
+- 코드 예시 (PremiumHeader):
+
+  ```tsx
+  import PremiumHeader from '@/components/common/PremiumHeader';
+
+  <div className="mb-6 -mx-6 -mt-6">
+    <PremiumHeader 
+      title="성당/복사단 관리"
+      subtitle="마스터 데이터를 관리하는"
+      icon={<Shield size={20} />}
+      backUrl="/superadmin"
+    />
+  </div>
+  ```
+
+- 코드 예시 (DrawerHeader):
+
+  ```tsx
+  import DrawerHeader from '@/components/common/DrawerHeader';
+
+  <DialogContent className="p-0 overflow-hidden border-0 shadow-2xl [&&>button]:hidden">
+    <DrawerHeader 
+      title="주요 제목"
+      subtitle="서브 타이틀 설명"
+      onClose={() => setOpen(false)}
+    />
+    
+    {/* Body 영역 */}
+    <div className="p-6">
+      ... 콘텐츠 ...
+    </div>
+  </DialogContent>
   ```
 
 ---

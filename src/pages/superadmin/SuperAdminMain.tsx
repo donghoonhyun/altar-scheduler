@@ -236,6 +236,31 @@ export default function SuperAdminMain() {
           </div>
         </section>
 
+        {/* 성당/복사단 관리 섹션 */}
+        <section className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden mb-10">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+               성당 / 복사단 관리
+            </h2>
+          </div>
+          <div className="p-6">
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-white">성당 복사단 조회 및 관리</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    신규 복사단을 개설하거나 기존 등록된 복사단 목록을 관리합니다.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/superadmin/server-groups')}
+                  className="gap-2"
+                >
+                  성당복사단 관리
+                </Button>
+             </div>
+          </div>
+        </section>
+
         {/* AI 관리 섹션 */}
         <section className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden mb-10">
           <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">

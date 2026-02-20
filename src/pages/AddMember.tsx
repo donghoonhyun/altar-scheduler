@@ -11,7 +11,6 @@ import {
   query,
   where,
   doc,
-  collectionGroup,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useSession } from '@/state/session';
@@ -23,13 +22,38 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import dayjs from 'dayjs';
 
-import { Parish } from '@/types/parish';
+import { Parish, getDioceseName } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
+import { useDioceses, Diocese } from '@/hooks/useDioceses';
 import { COLLECTIONS } from '@/lib/collections';
+import { 
+  UserPlus, 
+  GraduationCap, 
+  Calendar, 
+  ChevronLeft, 
+  ChevronRight, 
+  ArrowRight, 
+  User, 
+  Church, 
+  MapPin,
+  Settings,
+  Baby
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 type ServerGroupItem = {
   id: string;
@@ -43,6 +67,10 @@ export default function AddMember() {
   const session = useSession();
   const user = session.user;
   const { data: parishes } = useParishes(true);
+  const { data: diocesesData } = useDioceses();
+
+  // 교구 선택
+  const [selectedDiocese, setSelectedDiocese] = useState<string>('');
   
   // 성당 선택
   const [selectedParish, setSelectedParish] = useState<string>('');
@@ -87,26 +115,27 @@ export default function AddMember() {
              }).catch(console.error);
         }
     }
-  }, [searchParams, session.serverGroups, session.currentServerGroupId]);
+  }, [searchParams, session.serverGroups, session.currentServerGroupId, selectedParish]);
+
+  // ✅ 성당이 이미 선택된 경우 (URL 파라미터 등) 교구 자동 매칭
+  useEffect(() => {
+    if (selectedParish && parishes && !selectedDiocese) {
+        const p = parishes.find(item => item.code === selectedParish);
+        if (p) setSelectedDiocese(p.diocese);
+    }
+  }, [selectedParish, parishes, selectedDiocese]);
 
   // ✅ [수정] URL 파라미터 혹은 현재 세션 그룹으로 초기값 세팅 - 2단계: 목록 로드 후 그룹 선택
   useEffect(() => {
       let targetSgId = searchParams.get('sg');
       
-      // Removed session fallback to enforce manual selection rule (controlled by load logic)
-      /*
-      if (!targetSgId && session.currentServerGroupId) {
-          targetSgId = session.currentServerGroupId;
-      }
-      */
-
       if (targetSgId && serverGroups.length > 0 && !selectedGroup) {
           // 로드된 목록에 해당 그룹이 있는지 확인
           if (serverGroups.find(g => g.id === targetSgId)) {
               setSelectedGroup(targetSgId);
           }
       }
-  }, [serverGroups, searchParams, session.currentServerGroupId]);
+  }, [serverGroups, searchParams, selectedGroup]);
 
   /**
    * 선택된 성당 → 해당 복사단(server_groups) 로딩
@@ -147,7 +176,9 @@ export default function AddMember() {
   /**
    * 복사 등록
    */
-  const handleSubmit = async (e?: React.MouseEvent, force: boolean = false) => {
+  const handleSubmit = async (e?: React.MouseEvent | React.FormEvent, force: boolean = false) => {
+    if (e) e.preventDefault();
+    
     if (!user) {
       toast.error('로그인이 필요합니다.');
       return;
@@ -174,19 +205,12 @@ export default function AddMember() {
             const snap = await getDocs(q);
             
             // 2. 이름이 같은 멤버 중 'active' 상태이거나 '승인 대기(request_confirmed=false)' 상태인 멤버만 필터링
-            // (Firestore '==' 쿼리는 인덱스 필요 가능성이 있어 client-side 필터링 활용)
             const sameNameMembers = snap.docs.filter(d => {
                 const data = d.data();
-                // 활동 중이거나, 아직 승인 대기중인(신청 상태) 경우 중복 체크
                 return data.name_kor === nameKor && (data.active === true || data.request_confirmed === false);
             });
 
             if (sameNameMembers.length > 0) {
-                // 3. 중복된 멤버 정보 구성
-                // 현재 선택된 복사단과 성당 정보를 사용 (같은 복사단 내 중복이므로)
-                const currentParishName = parishes?.find(p => p.code === selectedParish)?.name_kor || '알 수 없음';
-                const currentGroupName = serverGroups.find(g => g.id === selectedGroup)?.name || '알 수 없음';
-
                 const detailedMembers = sameNameMembers.map((mDoc) => {
                     const mData = mDoc.data();
                     return {
@@ -201,11 +225,10 @@ export default function AddMember() {
 
                 setDuplicateMembers(detailedMembers);
                 setDuplicateConfirmOpen(true);
-                return; // 확인창 띄우고 중단
+                return;
             }
         } catch (error) {
             console.error("Duplicate check failed:", error);
-            // 에러 나면 그냥 진행? 아니면 에러 표시? 일단 진행 시도가 안전.
         }
     }
 
@@ -235,13 +258,12 @@ export default function AddMember() {
         updated_at: serverTimestamp(),
       });
 
-      // 3) 현재 선택된 groupId 변경 → ServerMain이 올바른 group으로 렌더링됨
+      // 3) 현재 선택된 groupId 변경
       session.setCurrentServerGroupId?.(selectedGroup);
 
-      setDuplicateConfirmOpen(false); // 닫기
+      setDuplicateConfirmOpen(false);
       toast.success('복사 등록 요청이 완료되었습니다! (승인 대기중)');
 
-      // 4) ServerMain 으로 이동 (세션 갱신을 위해 새로고침)
       window.location.href = '/';
     } catch (err) {
       console.error(err);
@@ -253,16 +275,13 @@ export default function AddMember() {
   const [showProfileUpdate, setShowProfileUpdate] = useState<boolean>(false);
 
   useEffect(() => {
-    // 이미 건너 뛰었으면 다시 안 띄움
     const skipped = sessionStorage.getItem('profile_skip');
     if (skipped) {
       setShowProfileUpdate(false);
       return;
     }
 
-    // 세션 로딩이 끝났고(userInfo 체크 가능), 로그인 상태일 때
     if (!session.loading && session.user) {
-      // userInfo가 아예 없거나, userName이 비어있으면 팝업
       if (!session.userInfo || !session.userInfo.userName) {
         setShowProfileUpdate(true);
       } else {
@@ -272,7 +291,23 @@ export default function AddMember() {
   }, [session.loading, session.user, session.userInfo]);
 
   return (
-    <div className="p-4 max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-200">
+      {/* 🔹 페이지 헤더 (Height reduced by 20%: h-20) */}
+      <div className="relative h-20 bg-gradient-to-br from-[#1E40AF] via-[#2563EB] to-[#3B82F6] rounded-b-[32px] shadow-lg overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
+        <div className="absolute top-4 left-6 right-6">
+            <div className="space-y-0">
+                <p className="text-sm font-medium text-white/90 tracking-tight font-gamja mb-0.5">
+                    복사단 활동을 위해
+                </p>
+                <h1 className="text-2xl font-bold text-white tracking-tight font-gamja">
+                    복사 추가하기
+                </h1>
+            </div>
+        </div>
+      </div>
+
+      <div className="px-5 mt-2 pb-12 max-w-xl mx-auto space-y-4">
       {/* 사용자 프로필 누락 시 다이얼로그 띄움 */}
       {showProfileUpdate && session.user && (
         <UpdateUserProfileDialog
@@ -285,202 +320,207 @@ export default function AddMember() {
           }}
         />
       )}
-      <h2 className="text-xl font-bold mb-4">복사 추가하기</h2>
 
-      {/* 성당 선택 */}
-      <div className="mb-3">
-        <label className="text-sm text-gray-700 dark:text-gray-300">성당 선택</label>
-        <select
-          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
-          value={selectedParish}
-          onChange={(e) => {
-            setSelectedParish(e.target.value);
-            // 사용자가 직접 성당을 바꿀 때만 그룹 초기화
-            setSelectedGroup('');
-          }}
-        >
-          <option value="">성당 선택</option>
-          {parishes?.map((p: Parish) => (
-            <option key={p.code} value={p.code}>
-              {p.name_kor}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      {/* 복사단 선택 */}
-      <div className="mb-3">
-        <label className="text-sm text-gray-700 dark:text-gray-300">복사단 선택</label>
-        <select
-          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-slate-900/50 disabled:text-gray-500 dark:disabled:text-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
-          disabled={!selectedParish}
-          value={selectedGroup}
-          onChange={(e) => setSelectedGroup(e.target.value)}
-        >
-          <option value="">복사단 선택</option>
-
-          {serverGroups.map((sg) => (
-            <option key={sg.id} value={sg.id}>
-              {sg.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* 이름 */}
-      <div className="mb-3">
-        <label className="text-sm text-gray-700 dark:text-gray-300">이름(한글)</label>
-        <input
-          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500"
-          value={nameKor}
-          onChange={(e) => setNameKor(e.target.value)}
-        />
-      </div>
-
-      {/* 세례명 */}
-      <div className="mb-3">
-        <label className="text-sm text-gray-700 dark:text-gray-300">세례명</label>
-        <input
-          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500"
-          value={baptismalName}
-          onChange={(e) => setBaptismalName(e.target.value)}
-        />
-      </div>
-
-      {/* 학년 */}
-      <div className="mb-4">
-        <label className="text-sm text-gray-700 dark:text-gray-300">학년</label>
-        <select
-          className="w-full border rounded p-2 mt-1 bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
-          value={grade}
-          onChange={(e) => setGrade(e.target.value)}
-        >
-          <option value="">학년 선택</option>
-          {['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'M1', 'M2', 'M3', 'H1', 'H2', 'H3'].map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* 복사시작년도 */}
-
-      <div className="mb-4">
-        <label className="text-sm text-gray-700 dark:text-gray-300">입단년도</label>
-        <div className="flex gap-2 mt-1">
-          <button 
-             tabIndex={-1}
-             onClick={() => {
-                const current = parseInt(startYear) || new Date().getFullYear();
-                setStartYear((current - 1).toString());
-             }}
-             className="px-3 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
-          >
-             &lt;
-          </button>
-          <input
-            type="number"
-            className="w-36 border rounded p-2 text-center bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
-            value={startYear}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-              setStartYear(val);
-            }}
-            placeholder="YYYY"
-          />
-          <button 
-             tabIndex={-1}
-             onClick={() => {
-                const current = parseInt(startYear) || new Date().getFullYear();
-                setStartYear((current + 1).toString());
-             }}
-             className="px-3 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
-          >
-             &gt;
-          </button>
-          <button 
-            tabIndex={-1}
-            onClick={() => setStartYear(new Date().getFullYear().toString())}
-            className="whitespace-nowrap px-3 text-xs bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
-          >
-            올해
-          </button>
+      <Card className="rounded-2xl border-0 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:bg-slate-900 overflow-hidden border-t-4 border-t-blue-500 bg-white/90 backdrop-blur-sm p-0">
+        <div className="p-6 pb-3 border-b border-slate-100 dark:border-slate-700 mb-4 flex items-center gap-2">
+           <User className="w-5 h-5 text-cyan-600" />
+           <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-sans">기본 정보</h3>
         </div>
-      </div>
+        <div className="p-6 pt-0 space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">이름 (필수)</Label>
+            <Input
+              className="h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans"
+              placeholder="이름을 입력하세요"
+              value={nameKor}
+              onChange={(e) => setNameKor(e.target.value)}
+            />
+          </div>
 
-      <button className="w-full bg-blue-600 text-white py-2 rounded text-lg" onClick={(e) => handleSubmit(e, false)}>
-        등록하기
-      </button>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">세례명</Label>
+            <Input
+              className="h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans"
+              placeholder="세례명을 입력하세요"
+              value={baptismalName}
+              onChange={(e) => setBaptismalName(e.target.value)}
+            />
+          </div>
+        </div>
+      </Card>
 
-      <div className="mt-8 text-center pt-6 border-t border-gray-100 dark:border-slate-800">
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">플래너로 활동하실 예정인가요?</p>
+      {/* Group 2: 신앙 정보 (Spiritual Info) */}
+      <Card className="rounded-2xl border-0 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:bg-slate-900 overflow-hidden border-t-4 border-t-indigo-500 bg-white/90 backdrop-blur-sm p-0">
+        <div className="p-6 pb-3 border-b border-slate-100 dark:border-slate-700 mb-4 flex items-center gap-2">
+           <Church className="w-5 h-5 text-cyan-600" />
+           <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-sans">신앙 정보</h3>
+        </div>
+        <div className="p-6 pt-0 space-y-4">
+          {/* 교구 선택 */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">교구</Label>
+            <Select value={selectedDiocese} onValueChange={(val) => { setSelectedDiocese(val); setSelectedParish(''); setSelectedGroup(''); }}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans">
+                    <SelectValue placeholder="교구를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl font-sans">
+                    {(diocesesData || []).map((diocese: Diocese) => (
+                        <SelectItem key={diocese.code} value={diocese.code} className="rounded-lg font-sans">{diocese.name_kor}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          </div>
+
+          {/* 성당 선택 */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">소속 본당</Label>
+            <Select disabled={!selectedDiocese} value={selectedParish} onValueChange={(val) => { setSelectedParish(val); setSelectedGroup(''); }}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans">
+                    <SelectValue placeholder={!selectedDiocese ? "교구를 먼저 선택하세요" : "성당을 선택하세요"} />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl font-sans">
+                    {parishes?.filter(p => !selectedDiocese || p.diocese === selectedDiocese).map((p: Parish) => (
+                        <SelectItem key={p.code} value={p.code} className="rounded-lg font-sans">{p.name_kor}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          </div>
+
+          {/* 복사단 선택 */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">복사단</Label>
+            <Select disabled={!selectedParish} value={selectedGroup} onValueChange={setSelectedGroup}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans">
+                    <SelectValue placeholder={!selectedParish ? "성당을 먼저 선택하세요" : "복사단을 선택하세요"} />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl font-sans">
+                    {serverGroups.map((sg) => (
+                        <SelectItem key={sg.id} value={sg.id} className="rounded-lg font-sans">{sg.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          </div>
+
+          {/* 학년 & 입단년도 (Grid) */}
+          <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">학년</Label>
+                <Select value={grade} onValueChange={setGrade}>
+                    <SelectTrigger className="h-10 rounded-xl bg-slate-50/50 border-slate-100 font-sans">
+                        <SelectValue placeholder="학년 선택" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-none shadow-xl font-sans">
+                        {[
+                            { val: 'E1', lab: '초등 1학년' }, { val: 'E2', lab: '초등 2학년' }, { val: 'E3', lab: '초등 3학년' },
+                            { val: 'E4', lab: '초등 4학년' }, { val: 'E5', lab: '초등 5학년' }, { val: 'E6', lab: '초등 6학년' },
+                            { val: 'M1', lab: '중등 1학년' }, { val: 'M2', lab: '중등 2학년' }, { val: 'M3', lab: '중등 3학년' },
+                            { val: 'H1', lab: '고등 1학년' }, { val: 'H2', lab: '고등 2학년' }, { val: 'H3', lab: '고등 3학년' },
+                            { val: 'etc', lab: '기타' },
+                        ].map((g) => (
+                            <SelectItem key={g.val} value={g.val} className="rounded-lg font-sans">{g.lab}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-600 dark:text-slate-400 font-sans">입단년도</Label>
+                <div className="flex gap-1 items-center">
+                  <Button variant="outline" size="icon" className="h-10 w-9 rounded-xl bg-slate-50/50 border-slate-100" onClick={() => { const current = parseInt(startYear) || new Date().getFullYear(); setStartYear((current - 1).toString()); }}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Input type="number" className="h-10 rounded-xl bg-slate-50/50 border-slate-100 text-center font-bold px-1 font-sans" value={startYear} onChange={(e) => setStartYear(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} placeholder="YYYY" />
+                  <Button variant="outline" size="icon" className="h-10 w-9 rounded-xl bg-slate-50/50 border-slate-100" onClick={() => { const current = parseInt(startYear) || new Date().getFullYear(); setStartYear((current + 1).toString()); }}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+          </div>
+        </div>
+      </Card>
+
+      <Button 
+        type="button"
+        className="w-full font-bold h-12 text-base shadow-sm" 
+        onClick={(e) => handleSubmit(e, false)}
+      >
+        복사 등록 신청하기
+      </Button>
+
+      <div className="text-center py-8">
+        <p className="text-xs text-slate-400 mb-3">플래너(관리자)로 활동하실 예정인가요?</p>
         <button 
           onClick={() => navigate('/request-planner-role')}
-          className="text-sm text-blue-600 dark:text-blue-400 font-medium underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300"
+          className="text-xs text-blue-500 font-bold hover:text-blue-700 underline underline-offset-4 decoration-blue-200"
         >
-          플래너 권한 신청하기
+          플래너 권한 신청 페이지로 이동
         </button>
       </div>
 
       {/* 중복 확인 다이얼로그 */}
       <Dialog open={duplicateConfirmOpen} onOpenChange={setDuplicateConfirmOpen}>
-        <DialogContent className="fixed left-[50%] top-[50%] z-50 w-[90%] max-w-2xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-lg rounded-xl h-auto">
-            <DialogHeader>
-                <DialogTitle>🚨 동일한 이름의 복사가 있습니다</DialogTitle>
-                <DialogDescription>
-                    이미 등록하신 정보와 동일한 이름의 복사가 발견되었습니다.<br/>
-                    정보를 확인하시고 계속 진행할지 결정해주세요.
+        <DialogContent className="fixed left-[50%] top-[50%] z-50 w-[90%] max-w-lg translate-x-[-50%] translate-y-[-50%] border bg-white dark:bg-slate-900 p-0 shadow-2xl rounded-2xl overflow-hidden">
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-6 border-b border-amber-100 dark:border-amber-900/30">
+                <DialogTitle className="text-xl font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    🚨 동일한 이름의 복사가 존재합니다
+                </DialogTitle>
+                <DialogDescription className="text-amber-700/80 dark:text-amber-300/60 mt-2">
+                    이미 등록된 정보 중에 동일한 이름의 복사가 발견되었습니다. 정보를 다시 한 번 확인해주세요.
                 </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 my-2">
-                {duplicateMembers.map((m) => {
-                    let statusLabel = '상태미상';
-                    let statusColor = 'bg-gray-100 text-gray-600';
-
-                    if (m.active) {
-                        statusLabel = '기등록';
-                        statusColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-                    } else if (!m.requestConfirmed) {
-                        statusLabel = '신청중';
-                        statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-                    }
-
-                    return (
-                    <div key={m.id} className="border rounded-lg p-3 bg-gray-50 dark:bg-slate-800 text-sm">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${statusColor}`}>
-                                {statusLabel}
-                            </span>
-                            <span className="text-gray-500 text-xs font-normal">
-                                {m.createdAt ? dayjs(m.createdAt).format('YYYY-MM-DD') : '날짜없음'} 등록됨
-                            </span>
-                        </div>
-                        <div className="font-bold text-base mt-1">
-                            {m.name} ({m.baptismalName})
-                        </div>
-                    </div>
-                    );
-                })}
             </div>
 
-            <div className="flex gap-3 justify-end mt-4">
-                <button
-                    className="flex-1 sm:flex-none px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800 dark:border-slate-600 transition-colors"
-                    onClick={() => setDuplicateConfirmOpen(false)}
-                >
-                    취소
-                </button>
-                <button
-                    className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors"
-                    onClick={(e) => handleSubmit(e as unknown as React.MouseEvent, true)}
-                >
-                    그래도 신청하기
-                </button>
+            <div className="p-6">
+                <div className="space-y-3">
+                    {duplicateMembers.map((m) => {
+                        let statusLabel = '상태미상';
+                        let statusColor = 'bg-gray-100 text-gray-600';
+
+                        if (m.active) {
+                            statusLabel = '활동 중';
+                            statusColor = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
+                        } else if (!m.requestConfirmed) {
+                            statusLabel = '승인 대기 중';
+                            statusColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+                        }
+
+                        return (
+                        <div key={m.id} className="border border-slate-100 dark:border-slate-800 rounded-xl p-4 bg-slate-50 dark:bg-slate-800/50">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider", statusColor)}>
+                                    {statusLabel}
+                                </span>
+                                <span className="text-slate-400 text-[10px]">
+                                    {m.createdAt ? dayjs(m.createdAt).format('YYYY.MM.DD') : '날짜 정보 없음'} 등록
+                                </span>
+                            </div>
+                            <div className="font-bold text-lg text-slate-800 dark:text-slate-100">
+                                {m.name} <span className="font-normal text-slate-500">({m.baptismalName})</span>
+                            </div>
+                        </div>
+                        );
+                    })}
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                    <Button
+                        variant="ghost"
+                        className="flex-1"
+                        onClick={() => setDuplicateConfirmOpen(false)}
+                    >
+                        취소
+                    </Button>
+                    <Button
+                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                        onClick={(e) => handleSubmit(e, true)}
+                    >
+                        그래도 신청하기
+                    </Button>
+                </div>
             </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

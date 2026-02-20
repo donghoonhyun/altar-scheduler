@@ -219,6 +219,7 @@
     - 기능: 기본 3건 표시, '더보기' 버튼으로 전체 이력 조회 가능.
 
 - 복사단원 삭제 (Soft Delete) 및 복구:
+  . 관리자 및 플래너 권한(`isSignedIn()`) 소지자는 복사단원을 삭제할 수 있음. (`Ordo/firestore.rules`의 `members`, `memberships` delete 권한 및 `del_members` 생성 권한에 의해 통제됨)
   . 삭제 시 영구 삭제하지 않고 `del_members` 컬렉션으로 이동(Soft Delete).
   . '삭제된 복사단원' 섹션에서 삭제된 멤버 목록 및 삭제 정보(삭제자, 삭제일시) 확인 가능.
   . [복구] 버튼을 통해 다시 `members` 컬렉션(비활동 상태)으로 복원 가능.

@@ -9,7 +9,7 @@
     {
       "source": "functions",
       "codebase": "altar-scheduler",
-      "runtime": "nodejs20",
+      "runtime": "nodejs22",
       "region": "asia-northeast3",
       "ignore": [
         "node_modules",

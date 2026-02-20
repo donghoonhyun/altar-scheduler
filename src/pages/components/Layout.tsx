@@ -318,7 +318,7 @@ export default function Layout() {
       </header>
 
       {/* 🔹본문 영역 */}
-      <main className="flex-1 p-2 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
 

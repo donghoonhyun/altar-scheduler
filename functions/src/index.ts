@@ -40,7 +40,7 @@ export { onSurveyOpened as altar_onSurveyOpened } from './notifications/onSurvey
 export { onSurveyClosed as altar_onSurveyClosed } from './notifications/onSurveyClosed';
 export { sendTestNotification as altar_sendTestNotification } from './notifications/sendTestNotification';
 export { onUserCreated as altar_onUserCreated } from './notifications/onUserCreated';
-export { onMemberCreated as altar_onMemberCreated, onRoleRequestCreated as altar_onRoleRequestCreated } from './notifications/onMemberEvents';
+export { onMemberCreated as altar_onMemberCreated, onRoleRequestCreated as altar_onRoleRequestCreated, onMemberUpdated as altar_onMemberUpdated } from './notifications/onMemberEvents';
 export { onMonthlyStatusChanged as altar_onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
 export { onDailyMassReminder as altar_onDailyMassReminder, manualDailyMassReminder as altar_manualDailyMassReminder } from './notifications/onDailyMassReminder';
 export { sendSurveyNotification as altar_sendSurveyNotification } from './notifications/sendSurveyNotification';

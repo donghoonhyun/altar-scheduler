@@ -86,3 +86,31 @@ export const onRoleRequestCreated = functions.region(REGION_V1).firestore
           );
       }
   });
+
+// 3. Member Approved (active: false -> true)
+export const onMemberUpdated = functions.region(REGION_V1).firestore
+  .document('server_groups/{groupId}/members/{memberId}')
+  .onUpdate(async (change, context) => {
+      const { groupId } = context.params;
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
+
+      // Check if it was just approved (active was false, now true)
+      if (beforeData.active === false && afterData.active === true) {
+          const targetUid = afterData.parent_uid || afterData.uid;
+          const memberName = afterData.name_kor || '복사단원';
+
+          if (targetUid) {
+              await sendMulticastNotification(
+                  [targetUid],
+                  {
+                      title: '복사단 가입 승인',
+                      body: `${memberName} 님의 복사단 가입이 승인되었습니다!`,
+                      clickAction: `/server-groups/${groupId}`,
+                      feature: 'MEMBER_APPLICATION',
+                      serverGroupId: groupId
+                  }
+              );
+          }
+      }
+  });

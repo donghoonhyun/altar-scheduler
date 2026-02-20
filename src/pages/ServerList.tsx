@@ -15,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, Pencil } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, Pencil, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +23,8 @@ import dayjs from 'dayjs';
 import { cn } from '@/lib/utils';
 import AddServerDrawer from '@/pages/components/AddServerDrawer';
 import MoveMembersDrawer from '@/pages/components/MoveMembersDrawer';
+import PremiumHeader from '@/components/common/PremiumHeader';
+import DrawerHeader from '@/components/common/DrawerHeader';
 import { UserRoleIcon } from '@/components/ui';
 import { useSession } from '@/state/session';
 import { COLLECTIONS } from '@/lib/collections';
@@ -438,12 +440,15 @@ export default function ServerList() {
       });
 
       // (2) memberships 컬렉션 업데이트 (active: true)
-      const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${serverGroupId}`);
-      // memberships 문서가 반드시 존재한다고 가정 (AddMember에서 생성됨)
-      batch.update(membershipRef, {
+      // 멤버 문서에 parent_uid가 있으면 그 UID를 사용, 없으면 멤버 ID(uid 인자)를 UID로 간주
+      const targetUid = targetMember.parent_uid || uid;
+      const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${targetUid}_${serverGroupId}`);
+      
+      // memberships 문서가 없을 수도 있으므로 (예: 수동 추가 등) set with merge 사용
+      batch.set(membershipRef, {
         active: true,
-        updated_at: new Date()
-      });
+        updated_at: serverTimestamp()
+      }, { merge: true });
 
       await batch.commit();
 
@@ -509,10 +514,14 @@ export default function ServerList() {
       const memberRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members', uid);
       batch.delete(memberRef);
 
-      // 3. memberships 문서 삭제
-      const membershipId = `${uid}_${serverGroupId}`;
-      const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, membershipId);
-      batch.delete(membershipRef);
+      // 3. memberships 문서 삭제 여부 결정
+      // 멤버 ID와 parent_uid가 다르면(즉, 계정 소유자가 아닌 가족 구성원 등) 멤버십은 삭제하지 않음
+      const targetUid = targetMember.parent_uid || uid;
+      if (targetUid === uid) {
+          const membershipId = `${uid}_${serverGroupId}`;
+          const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, membershipId);
+          batch.delete(membershipRef);
+      }
 
       await batch.commit();
 
@@ -564,16 +573,17 @@ export default function ServerList() {
               history_logs: [newLog, ...existingLogs]
           });
 
-          // 2. memberships 생성
-          const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${serverGroupId}`);
+          // 2. memberships 생성/활성화
+          // 멤버 데이터에 parent_uid가 있으면 그것을 UID로 사용
+          const targetUid = originalData.parent_uid || uid;
+          const membershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${targetUid}_${serverGroupId}`);
           batch.set(membershipRef, {
-              uid,
+              uid: targetUid,
               server_group_id: serverGroupId,
               role: ['server'],
-              active: false,
-              created_at: serverTimestamp(),
+              active: true, // 복구 시 멤버십도 같이 활성화 (단, 이미 활성 상태일 수 있음)
               updated_at: serverTimestamp()
-          });
+          }, { merge: true });
 
           // 3. del_members에서 제거
           const delRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'del_members', uid);
@@ -774,12 +784,12 @@ export default function ServerList() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6 fade-in">
-      {/* ✅ 상단 네비게이션 */}
-      <div className="flex items-center gap-2 mb-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
-          <ArrowLeft size={24} />
-        </Button>
-        <h1 className="text-2xl font-bold dark:text-white">복사단원 관리</h1>
+      {/* ✅ Premium Page Header */}
+      <div className="mb-6 -mx-6 -mt-6">
+        <PremiumHeader 
+          title="복사단원 관리"
+          subtitle="복사단 명단을 확인하고 승인 및 정보를 수정합니다."
+        />
       </div>
 
 
@@ -1397,51 +1407,63 @@ export default function ServerList() {
         if (!open) handleCloseDrawer();
         else setIsDrawerOpen(true);
       }}>
-        <SheetContent className="w-[310px] sm:w-[360px] sm:max-w-[360px] overflow-y-auto">
-          <SheetHeader className="pb-2">
-            <SheetTitle className="text-xl font-bold flex flex-col gap-2 dark:text-gray-100">
+        <SheetContent className="p-0 border-0 shadow-2xl rounded-l-[32px] overflow-hidden bg-white dark:bg-slate-900 outline-none w-[310px] sm:w-[360px] sm:max-w-[360px] flex flex-col [&&>button]:hidden">
+          <DrawerHeader 
+            onClose={handleCloseDrawer}
+          >
+              {isEditingName ? (
+                 <div className="flex items-center gap-2 w-full pr-2">
+                    <input 
+                        className="flex-1 min-w-0 bg-white/10 border-b-2 border-white/30 focus:border-white outline-none text-lg font-bold text-white placeholder:text-white/40 px-2 py-1 rounded"
+                        value={editNameKor}
+                        onChange={(e) => setEditNameKor(e.target.value)}
+                        placeholder="이름"
+                        autoFocus
+                    />
+                    <input 
+                        className="flex-1 min-w-0 bg-white/10 border-b-2 border-white/30 focus:border-white outline-none text-sm font-normal text-slate-300 placeholder:text-white/40 px-2 py-1 rounded"
+                        value={editBaptismalName}
+                        onChange={(e) => setEditBaptismalName(e.target.value)}
+                        placeholder="세례명"
+                    />
+                    <button 
+                      onClick={() => setIsEditingName(false)} 
+                      className="shrink-0 text-[10px] bg-white text-slate-800 font-bold px-2 py-1 rounded-lg hover:bg-slate-200 transition-colors"
+                    >
+                      완료
+                    </button>
+                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">
+                      {selectedMember?.name_kor}
+                    </h2>
+                    <span className="text-sm font-medium text-slate-300">
+                      ({selectedMember?.baptismal_name})
+                    </span>
+                    <button 
+                      onClick={() => setIsEditingName(true)}
+                      className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-95"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    {isSuperAdmin && selectedMember && (
+                      <span 
+                          onClick={(e) => handleCopyId(e, selectedMember.id)}
+                          className="text-[8px] bg-white/10 text-white/60 px-1.5 py-0.5 rounded border border-white/20 cursor-copy hover:bg-white/20 hover:text-white transition-all ml-1 font-bold"
+                          title="ID 복사"
+                      >S</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    복사단원 상세 정보 및 배정 현황을 확인합니다.
+                  </p>
+                </>
+              )}
+          </DrawerHeader>
 
-                 {isEditingName ? (
-                   <div className="flex items-center gap-2 w-full">
-                      <input 
-                          className="w-20 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none text-lg font-bold text-gray-900 dark:text-gray-100 placeholder:text-gray-400 text-center"
-                          value={editNameKor}
-                          onChange={(e) => setEditNameKor(e.target.value)}
-                          placeholder="이름"
-                          autoFocus
-                      />
-                      <input 
-                          className="w-28 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none text-base font-normal text-gray-500 dark:text-gray-400 placeholder:text-gray-400"
-                          value={editBaptismalName}
-                          onChange={(e) => setEditBaptismalName(e.target.value)}
-                          placeholder="세례명"
-                      />
-                      <button onClick={() => setIsEditingName(false)} className="shrink-0 text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">완료</button>
-                   </div>
-                 ) : (
-                   <div className="flex items-center gap-2">
-                     <span>{selectedMember?.name_kor}</span>
-                     <span className="text-base font-normal text-gray-500 dark:text-gray-400">
-                       ({selectedMember?.baptismal_name})
-                     </span>
-                     <button 
-                       onClick={() => setIsEditingName(true)}
-                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                     >
-                       <Pencil size={14} />
-                     </button>
-                     {isSuperAdmin && selectedMember && (
-                       <span 
-                           onClick={(e) => handleCopyId(e, selectedMember.id)}
-                           className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1 rounded cursor-copy hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 ml-1"
-                           title="ID 복사"
-                       >S</span>
-                     )}
-                   </div>
-                 )}
-              </SheetTitle>
-            </SheetHeader>
-            <div className="space-y-6 pt-0">
+          <div className="flex-1 overflow-y-auto px-6 py-6">
                {/* 1. 복사단원 상세 정보 */}
                <div className="space-y-3 text-sm">
                  <h4 className="font-bold text-gray-900 dark:text-gray-100 border-l-4 border-blue-500 pl-2 text-sm mb-3">

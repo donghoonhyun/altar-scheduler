@@ -71,7 +71,7 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
                 
                 // parish_code로 성당 이름 조회
                 if (gData.parish_code) {
-                     const parishSnap = await getDoc(doc(db, 'parishes', gData.parish_code));
+                     const parishSnap = await getDoc(doc(db, COLLECTIONS.PARISHES, gData.parish_code));
                      if (parishSnap.exists()) {
                          parishName = parishSnap.data().name_kor;
                      }

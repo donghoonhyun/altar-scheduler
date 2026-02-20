@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
         registerType: 'prompt',
         devOptions: {
           enabled: true, // 개발 모드에서도 PWA 활성화
+          suppressWarnings: true,
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
         manifest: {

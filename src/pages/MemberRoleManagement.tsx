@@ -7,18 +7,28 @@ import {
   getDocs, 
   doc, 
   updateDoc,
+  setDoc,
   Timestamp,
   getDoc,
-  deleteDoc
+  deleteDoc,
+  addDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Container, Card, Heading, Button, InfoBox } from '@/components/ui';
-import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info, Trash2, Mail } from 'lucide-react';
+import { Container, Card, Heading, Button, InfoBox, Input } from '@/components/ui';
+import { ArrowLeft, User, Shield, Calendar, Edit2, Check, X, Info, Trash2, Mail, Plus, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS } from '@/lib/collections';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import DrawerHeader from '@/components/common/DrawerHeader';
 
 interface MembershipWithUser {
   id: string;
@@ -44,6 +54,14 @@ const MemberRoleManagement: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [hideInactive, setHideInactive] = useState<boolean>(false);
   const [editActive, setEditActive] = useState<boolean>(false);
+
+  // Add Member State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'email' | 'name'>('email');
+  const [searchResult, setSearchResult] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [addRoles, setAddRoles] = useState<string[]>([]);
 
   const fetchMemberships = async () => {
     if (!serverGroupId) return;
@@ -135,6 +153,72 @@ const MemberRoleManagement: React.FC = () => {
     }
   };
 
+  
+  const handleSearchUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      toast.error(searchMode === 'email' ? '이메일을 입력해주세요.' : '이름을 입력해주세요.');
+      return;
+    }
+    setIsSearching(true);
+    setSearchResult(null);
+    try {
+      const field = searchMode === 'email' ? 'email' : 'user_name';
+      const q = query(collection(db, 'users'), where(field, '==', searchQuery.trim()));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        toast.error('해당 정보로 가입된 유저를 찾을 수 없습니다.');
+      } else {
+        // If multiple found via name, we just take the first for now as per simple implementation
+        setSearchResult({ uid: snap.docs[0].id, ...snap.docs[0].data() });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('검색 중 오류가 발생했습니다.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!searchResult || !serverGroupId) return;
+    if (addRoles.length === 0) {
+      toast.error('최소 하나 이상의 역할을 선택해주세요.');
+      return;
+    }
+    const exists = memberships.some(m => m.uid === searchResult.uid);
+    if (exists) {
+      toast.error('이미 이 복사단에 등록된 유저입니다.');
+      return;
+    }
+
+    try {
+      const sgDoc = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId));
+      const parishCode = sgDoc.exists() ? sgDoc.data().parish_code : '';
+
+      const membershipId = `${searchResult.uid}_${serverGroupId}`;
+
+    await setDoc(doc(db, COLLECTIONS.MEMBERSHIPS, membershipId), {
+      uid: searchResult.uid,
+      server_group_id: serverGroupId,
+      parish_code: parishCode,
+      role: addRoles,
+      active: true,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp()
+    });
+      toast.success('새 멤버가 성공적으로 추가되었습니다.');
+      setIsAddModalOpen(false);
+      setSearchQuery('');
+      setSearchResult(null);
+      setAddRoles([]);
+      fetchMemberships();
+    } catch (err) {
+      console.error('Add member failed:', err);
+      toast.error('가입 처리에 실패했습니다.');
+    }
+  };
+
   const availableRoles = ['admin', 'planner', 'server'];
 
   const filteredMemberships = memberships.filter(m => {
@@ -153,7 +237,8 @@ const MemberRoleManagement: React.FC = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="dark:text-gray-200">
           <ArrowLeft size={24} />
         </Button>
-        <div>
+        
+        <div className="flex-1">
           <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
             멤버십 역할 관리
           </Heading>
@@ -161,6 +246,13 @@ const MemberRoleManagement: React.FC = () => {
             복사단의 멤버별 권한과 정보를 관리합니다.
           </p>
         </div>
+        <Button 
+            onClick={() => { setIsAddModalOpen(true); setSearchQuery(''); setSearchResult(null); setAddRoles([]); }}
+            className="gap-1.5 font-bold font-sans dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700"
+        >
+            <Plus size={16} />
+            새 멤버 추가
+        </Button>
       </div>
 
       {/* Header with Count & Filter */}
@@ -378,11 +470,122 @@ const MemberRoleManagement: React.FC = () => {
         </div>
       )}
       
+      
       <InfoBox title="역할 부여 안내" className="mt-8">
         한 멤버에게 여러 역할을 동시에 부여할 수 있습니다. 
         변경 사항은 저장 즉시 반영되며 다음 로그인부터 해당 권한이 활성화됩니다.
         어드민은 모든 설정을 변경할 수 있으며, 플래너는 일정 관리 권한을 가집니다.
       </InfoBox>
+
+      {/* 새 멤버 추가 모달 */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="sm:max-w-[425px] p-0 font-sans border-0 shadow-2xl rounded-l-[32px] rounded-br-[32px] overflow-hidden bg-white dark:bg-slate-900 outline-none [&>button]:text-white [&>button]:opacity-100 [&>button:hover]:bg-white/10 [&&>button]:hidden">
+          <DrawerHeader 
+            title="새 멤버 추가하기" 
+            subtitle="기존 가입 검색을 통해"
+            onClose={() => setIsAddModalOpen(false)}
+          >
+            <div className="space-y-0 text-left pt-2 pb-1 text-white">
+              <p className="text-sm font-medium text-white/90 tracking-tight font-gamja mb-0.5 mt-2">
+                기존 가입 검색을 통해
+              </p>
+              <DialogTitle className="text-2xl font-bold text-white tracking-tight font-gamja flex items-center gap-1.5 justify-start p-0 m-0">
+                <User size={20} className="text-white opacity-80" />
+                새 멤버 추가하기
+              </DialogTitle>
+            </div>
+          </DrawerHeader>
+          <div className="p-6 pt-6 space-y-6">
+            <div className="space-y-4">
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
+                    <button 
+                        onClick={() => { setSearchMode('email'); setSearchResult(null); }}
+                        className={cn(
+                            "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                            searchMode === 'email' ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400" : "text-gray-500 hover:text-gray-700"
+                        )}
+                    >이메일 검색</button>
+                    <button 
+                        onClick={() => { setSearchMode('name'); setSearchResult(null); }}
+                        className={cn(
+                            "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                            searchMode === 'name' ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400" : "text-gray-500 hover:text-gray-700"
+                        )}
+                    >이름 검색</button>
+                </div>
+
+                <form onSubmit={handleSearchUser} className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        {searchMode === 'email' ? '유저 검색 (이메일)' : '유저 검색 (이름)'}
+                    </label>
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input 
+                                type={searchMode === 'email' ? "email" : "text"}
+                                placeholder={searchMode === 'email' ? "user@example.com" : "이름 입력"} 
+                                className="bg-gray-50 dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 disabled:opacity-50 h-11 pl-9 w-full transition-shadow dark:text-white rounded-xl font-sans"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <Button type="submit" variant="secondary" disabled={isSearching} className="h-11 px-4 font-bold shrink-0">
+                            {isSearching ? '검색중...' : '검색'}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+
+            {searchResult && (
+                <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-100 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex justify-center items-center text-blue-600 dark:bg-blue-900/30 shrink-0">
+                            <User size={20} />
+                        </div>
+                        <div>
+                            <p className="font-bold text-gray-900 dark:text-white text-sm">{searchResult.user_name} {searchResult.baptismal_name && <span className="text-xs text-gray-500 font-normal">({searchResult.baptismal_name})</span>}</p>
+                            <p className="text-xs text-gray-500">{searchResult.email}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400">부여할 역할 (다중선택 가능)</label>
+                        <div className="flex flex-wrap gap-1.5">
+                            {['admin', 'planner', 'server'].map(r => (
+                                <button
+                                    type="button"
+                                    key={r}
+                                    onClick={() => setAddRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                                        addRoles.includes(r)
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                        : 'bg-white text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                                    }`}
+                                >
+                                    {r === 'admin' ? '어드민' : r === 'planner' ? '플래너' : '복사(Server)'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-8 pt-4 border-t border-gray-100 dark:border-slate-800">
+                <Button variant="outline" type="button" onClick={() => setIsAddModalOpen(false)}>취소</Button>
+                <Button 
+                    variant="primary" 
+                    type="button"
+                    onClick={handleAddMember} 
+                    disabled={!searchResult}
+                    className="font-bold gap-1.5"
+                >
+                    <Plus size={16} /> 추가하기
+                </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </Container>
   );
 };
