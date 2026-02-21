@@ -22,6 +22,7 @@ export const COLLECTIONS = {
   
   // System Collections
   NOTIFICATIONS: 'notifications',
+  FCM_LOGS: 'logs/fcm_logs/items',
   SETTINGS: 'app_altar/v1/settings',
   SMS_LOGS: 'app_altar/v1/sms_logs',
 } as const;

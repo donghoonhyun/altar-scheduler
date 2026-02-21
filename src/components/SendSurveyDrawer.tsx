@@ -16,7 +16,7 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { fromLocalDateToFirestore } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
@@ -26,6 +26,7 @@ import { RefreshCw, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS } from '@/lib/collections';
+import { callNotificationApi } from '@/lib/notificationApi';
 
 // ---------- 🔹 Type Definitions ----------
 interface NotificationLog {
@@ -238,17 +239,14 @@ export function SendSurveyDrawer({
         if (import.meta.env.DEV) {
              connectFunctionsEmulator(functions, '127.0.0.1', 5001);
         }
-        const sendFn = httpsCallable(functions, 'altar_sendSurveyNotification');
-        
-        const result = await sendFn({
-            serverGroupId,
-            month: currentMonth,
-            type: type
+        const data = await callNotificationApi<any>(functions, {
+          action: 'enqueue_survey',
+          serverGroupId,
+          month: currentMonth,
+          type
         });
-        
-        const data = result.data as any;
         if (data.success) {
-            toast.success(`알림이 발송되었습니다. (성공: ${data.sent_count}건)`);
+            toast.success(`알림이 대기열에 등록되었습니다. (대상: ${data.queued_count ?? 0}명)`);
         } else {
             toast.error(`알림 발송 실패: ${data.message}`);
         }
@@ -292,7 +290,9 @@ export function SendSurveyDrawer({
       const url = `https://altar-scheduler.web.app/survey/${serverGroupId}/${currentMonth}`;
       setSurveyUrl(url);
       // setExistingSurvey({ status: 'OPEN' }); // onSnapshot will handle this
-      toast.success('설문이 시작되었습니다.');
+      toast.success('설문이 시작되었습니다.', {
+        description: '대상자에게 알림이 곧 보내집니다.',
+      });
     } catch (err) {
       console.error('Firestore setDoc error:', err);
       toast.error('Firestore 저장 중 오류가 발생했습니다.');

@@ -223,6 +223,14 @@
   . 삭제 시 영구 삭제하지 않고 `del_members` 컬렉션으로 이동(Soft Delete).
   . '삭제된 복사단원' 섹션에서 삭제된 멤버 목록 및 삭제 정보(삭제자, 삭제일시) 확인 가능.
   . [복구] 버튼을 통해 다시 `members` 컬렉션(비활동 상태)으로 복원 가능.
+  . **[주의] 자녀 복사 삭제 시**: 복사단원의 `parent_uid`가 존재하면(부모 계정으로 가입된 자녀), 해당 `memberships` 문서는 삭제하지 않음. (부모 권한은 유지)
+
+- 복사단원 가입 승인 처리:
+  . 관리자가 [승인] 버튼 클릭 시 `members` 문서의 `active: true`, `request_confirmed: true` 로 업데이트.
+  . **Memberships 처리**: 관련 `memberships` 문서도 `active: true`로 업데이트. 이 때 문서가 없을 수도 있으므로 `setDoc(..., { merge: true })`를 사용하여 안전하게 처리.
+  . **Memberships 문서 ID 표준**: `{uid}_{serverGroupId}` 형식으로 고정. (`addDoc`으로 랜덤 ID 사용 금지)
+    - `parent_uid`가 있는 자녀 복사의 경우: `{parent_uid}_{serverGroupId}`
+    - 본인 가입의 경우: `{uid}_{serverGroupId}`
 
 - 슈퍼 어드민 기능 (Super Admin Only):
   . **ID 복사 배지 ("S")**: 복사단원의 Firestore Document ID를 클립보드에 복사하는 기능.
@@ -736,8 +744,112 @@
 
 ### 📍2.16 알림 시스템 (Notifications)
 
-- **기술 스택**: Firebase Cloud Messaging (FCM) + Cloud Functions + Solapi (SMS/Kakao)
+- **기술 스택**: Firebase Cloud Messaging (FCM) + Cloud Functions + 옵션 Solapi (SMS/Kakao)
+- **알림 아키텍처**: **비동기 큐(Async Queue) 방식** (v2 변경)
+
+#### 2.16.0 알림 아키텍처 (v2 비동기 큐 방식)
+
+> **배경**: 기존에는 이벤트 발생 시 Cloud Function 트리거에서 직접 FCM을 발송하는 동기 방식이었으나,
+> Function 수가 많아지고 서버 부하 및 유지보수 부담이 커짐에 따라 비동기 큐 방식으로 전환.
+
+**처리 흐름**:
+```
+① 이벤트 발생
+   (복사 신청, 권한 신청, 상태 변경 등)
+         ↓
+② notifications 컬렉션에 저장
+   (fcm_status: 'pending')
+         ↓
+   ┌─────────────────────────────────────┐
+   │ 사용자 앱: Firestore 실시간 리스너로   │
+   │ 앱 내 알림 즉시 확인 (지연 없음) ✅  │
+   └─────────────────────────────────────┘
+         ↓
+③ [admin_processNotificationQueue]
+   Scheduled Function (매 1분 실행)
+   → pending 상태 알림 최대 50건 배치 처리
+   → target_uids에서 FCM 토큰 수집
+   → FCM sendEachForMulticast 발송
+   → 결과 → fcm_status: sent / partial / failed
+   → fcm_logs 컬렉션에 상세 이력 기록
+   → retry_count 기반 최대 3회 자동 재시도
+         ↓
+④ 실패 건 발생 시
+   → 관리자 Admin 화면에서 확인
+   → [admin_manualSendNotification] Callable Function으로 수동 재발송
+```
+
+**Cloud Functions (2개로 통합)**:
+| Function | 유형 | 역할 |
+|---|---|---|
+| `admin_processNotificationQueue` | Scheduled (매 1분) | pending 알림 배치 FCM 발송 |
+| `admin_manualSendNotification` | Callable | 관리자 수동 발송/재발송 |
+
+**notifications 컬렉션 문서 구조**:
+```ts
+// notifications/{notificationId}
+{
+  // 콘텐츠
+  title: string;
+  body: string;
+  click_action: string;         // 앱 내 이동 경로
+
+  // 대상
+  target_uids: string[];        // 수신 UID 목록
+  app_id: string;               // 'ordo-altar' | 'ordo-verbum' | ...
+  feature: string;              // 'MEMBER_APPLICATION' | 'ROLE_REQUEST' | 'SURVEY_OPENED' | ...
+  server_group_id?: string;
+  triggered_by?: string;        // 발생시킨 사용자 UID
+  triggered_by_name?: string;
+  fcm_data?: Record<string, string>;  // FCM data payload
+
+  // FCM 상태
+  fcm_status: 'pending' | 'processing' | 'sent' | 'partial' | 'failed';
+  fcm_sent_at?: Timestamp;
+  fcm_batch_id?: string;        // 배치 실행 ID (추적용)
+  fcm_result?: {
+    success_count: number;
+    failure_count: number;
+    errors: { uid: string; token: string; error: string }[];
+  };
+  retry_count: number;          // 재시도 횟수 (기본 0, 최대 3)
+  last_error?: string;          // 마지막 오류 메시지
+
+  // 수동 재발송 이력
+  manual_retry_by?: string;    // 수동 재발송 관리자 UID
+  manual_retry_at?: Timestamp;
+
+  // 타임스탬프
+  created_at: Timestamp;
+  updated_at?: Timestamp;
+}
+```
+
+**fcm_logs 컬렉션 (발송 이력)**:
+```ts
+// fcm_logs/{logId}
+{
+  notification_id: string;     // notifications 문서 ID
+  batch_id: string;            // 배치 ID ('manual_xxx' or 'batch_xxx')
+  app_id: string;
+  feature: string;
+  title: string;
+  body: string;
+  target_uid_count: number;
+  token_count: number;
+  success_count: number;
+  failure_count: number;
+  status: 'sent' | 'partial' | 'failed';
+  errors: { uid: string; token: string; error: string }[];
+  invalid_tokens_removed: number;
+  trigger_type: 'scheduled' | 'manual';
+  triggered_by?: string;       // 수동 발송 시 관리자 UID
+  created_at: Timestamp;
+}
+```
+
 - **알림 정책**:
+  - **이중 접근 원칙**: 알림은 Firestore `notifications` 컬렉션에 먼저 저장되어 앱 내에서 실시간 확인 가능하며, FCM 푸시는 비동기로 1분 이내 발송됨.
   - **Soft Opt-out**: 브라우저 권한과 별개로 앱 내 설정에서 알림 수신 여부(ON/OFF) 제어.
     . OFF: LocalStorage 저장 및 Firestore 토큰 삭제.
     . ON: 토큰 재발급 및 Firestore 등록.
@@ -746,19 +858,29 @@
 1. **설문 관련 알림 (Manual Trigger)**
    - **설문 시작**: Month Status `MASS-CONFIRMED` 상태에서 Planner가 [📢 설문시작 알림발송] 버튼 클릭 시
    - **설문 종료**: Month Status `SURVEY-CONFIRMED` 상태에서 Planner가 [🔒 설문종료 알림발송] 버튼 클릭 시
-   - **최종 확정**: Status `FINAL-CONFIRMED` 상태 변경 후 별도 확정 알림 필요 시 (현재 확정 알림도 수동 버튼 필요 여부 검토 중, 우선 설문 시작/종료는 완전 수동화)
    - 수신자: 해당 복사단 전체 인원 (Admin, Planner, Server)
    - 채널: 앱 푸시 (App Push)
+   - **구현**: 클라이언트에서 `sendSurveyNotification` Callable Function 호출
+     → 내부에서 `notifications`에 pending 저장 → `processNotificationQueue`가 FCM 발송
 2. **주기적 미사 알림 (하루 전 발송)**
    - 트리거: 매일 저녁 8시 (Cron Job), 다음날 미사(MassEvent) 일정 확인 후 발송
    - 수신자: 해당 미사에 배정된 복사(`member_id`)의 **부모(`parent_uid`)**
      . **엄격한 부모 우선 정책**: `users` 컬렉션에서 `parent_uid`로 조회된 부모의 전화번호(`phone`)와 이름(`user_name`)을 사용한다.
      . 복사 정보(`members`)에 저장된 본인 전화번호는 사용하지 않는다. (미성년자 직접 수신 배제)
    - 채널: 앱 푸시, SMS, 알림톡 (사용자별/복사단별 설정에 따름)
+   - **구현**: 기존 `altar_onDailyMassReminder`는 제거됨 (알림 처리 함수 통합 정책 적용)
 3. **권한 신청 시**
-   - 트리거: 신규 복사 등록 또는 플래너 권한 신청 발생 시
-   - 수신자: 해당 복사단의 Admin, Planner 그룹
+   - 트리거: 신규 복사 등록(`members` onCreate) 또는 플래너 권한 신청(`role_requests` onCreate) 발생 시
+   - 수신자: 해당 복사단의 Admin, Planner 그룹 (`memberships`에서 `role array-contains-any ['admin','planner']`)
    - 채널: 앱 푸시
+   - **구현**: 기존 Firestore 트리거 Functions(`altar_onMemberCreated`, `altar_onRoleRequestCreated`)는 제거됨
+     → `notifications`에 pending 저장 → `processNotificationQueue`가 FCM 발송 *(향후 마이그레이션 예정)*
+4. **복사단원 가입 승인 시** (`altar_onMemberUpdated`)
+   - 트리거: `app_altar/v1/server_groups/{groupId}/members/{memberId}` 문서의 `active` 필드가 `false → true`로 변경될 때
+   - 수신자: 해당 복사단원의 부모(`parent_uid`) 또는 본인 계정(`uid`)
+   - 내용: "[복사단원 이름] 님의 복사단 가입이 승인되었습니다!"
+   - 채널: 앱 푸시
+   - **구현**: `altar_onMemberUpdated` Function → `notifications`에 pending 저장 *(향후 마이그레이션 예정)*
 
 #### 2.16.2 문자 알림 설정 (SMS Service Configuration)
 - **설정 항목 (`sms_service_active`)**:
@@ -937,6 +1059,12 @@
 - 모든 함수는 Seoul 리전(asia-northeast3) 에서 실행되며,
   서버 환경의 Timezone은 process.env.TZ = 'Asia/Seoul' 로 고정한다.
 - UI, Functions, Firestore 모두 KST 기준으로 동작한다.  
+- **Firestore Rules 운영 정책(중요)**:
+  - Firestore Rules 원본 파일은 **Ordo 루트 프로젝트(`../Ordo/firestore.rules`)에서만 관리**한다.
+  - Altar Scheduler 같은 자식 앱은 Rules 변경 시 원본을 수정한 뒤,
+    배포 시점에만 임시 파일을 현재 프로젝트로 복사하여 `firestore:rules`를 배포한다.
+  - 배포 완료 후 임시 복사 파일은 반드시 삭제한다.
+  - 즉, 자식 앱 저장소에는 Rules를 상시 보관/관리하지 않는다.
 
 ### 3.5 비용 및 성능 최적화 (Cost & Performance Optimization)
 
@@ -1177,3 +1305,56 @@
 - **관리자 UI 업데이트**:
   - Notification Management 페이지에서 통합 컬렉션을 조회하도록 쿼리 수정.
   - 로그 상세 보기 시 `app_id` 배지 표시를 통해 발송 출처(App) 명시.
+
+### 📅 2026.02.21 (알림 표준화 2차 및 운영 UX 개선)
+
+#### 1. Notification Callable 표준화 (2차)
+- **표준 엔트리 파일/함수명 정렬**:
+  - 파일: `functions/src/notifications/enqueueNotification.ts`
+  - export 함수명: `enqueueNotification`
+  - 배포 함수명은 기존 호환 유지:
+    - `admin_enqueueNotification`
+    - `admin_manualSendNotification` (alias, 동일 구현)
+- **핸들러 레지스트리 구조 도입**:
+  - 액션 분기 하드코딩을 엔트리에서 제거하고, `action -> handler` 매핑 방식으로 표준화.
+  - 입력 검증(`validatePayload`)과 액션 파싱(`parseAction`)을 공통 레이어로 분리.
+  - 목적: 향후 신규 알림 타입 추가 시, 엔트리 수정 없이 액션 핸들러만 추가 가능.
+- **비표준/중복 로직 외부 분리**:
+  - 공통 유틸(`core.ts`)로 분리:
+    - `createQueuedNotification`
+    - `resolveApproverUids`
+    - `sendFcmDirect`
+    - `ensureSuperAdmin`
+
+#### 2. Add Member 요청 알림 누락 보완
+- **문제**: `/add-member`에서 복사 등록 시 승인 요청 알림이 생성되지 않던 이슈.
+- **개선**:
+  - 프론트(`AddMember.tsx`)에서 등록 성공 직후 `enqueue_member_requested` 호출.
+  - 백엔드에서 대상자를 `memberships` 기반으로 계산:
+    - 동일 `server_group_id`
+    - `active == true`
+    - `role`에 `admin` 또는 `planner` 포함
+    - 요청자 본인 제외
+- **결과**: 복사 등록 요청이 알림 큐(`notifications`)에 즉시 적재되고, 승인권자 대상 FCM 배치 처리 가능.
+
+#### 3. FCM 상태 정확성 보강
+- **문제**: `target_uids`는 있으나 `users/{uid}.fcm_tokens`가 없을 때 `sent`처럼 보이던 케이스.
+- **개선**:
+  - 토큰 0건을 명시적 실패로 집계.
+  - `last_error`에 `NO_FCM_TOKENS: N uid(s)` 기록.
+  - 알림 상세/운영자가 실제 실패 원인을 즉시 식별 가능.
+
+#### 4. Notification Management UI 운영성 개선
+- **최근 시간 표시**:
+  - 최근 10분 이내 건에 대해 상대시간 표시 (`방금`, `N분전`).
+  - 브라우저 타이머(30초 주기)로 페이지 리프레시 없이 자동 갱신.
+- **상세 Drawer 발신자 정보 표시**:
+  - `triggered_by_name` / `triggered_by` 노출.
+- **앱 설정 테스트 기능 강화**:
+  - 복사 메인 앱 설정 드로어에 `테스트 알림 발송 (FCM)` 추가.
+  - `/superadmin/notifications`의 `나에게 테스트`와 동일한 enqueue 경로 사용.
+
+#### 5. iframe 권한 UX 명확화
+- Ordo iframe 내부 알림 권한 제한 상황에서 버튼/문구를 명확화:
+  - `단독 페이지로 열기` -> `알림 설정 열기`
+  - 단독 페이지에서 권한 허용 유도 플로우 유지.

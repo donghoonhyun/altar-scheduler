@@ -34,7 +34,6 @@ import ServerGroupManagement from '@/pages/superadmin/ServerGroupManagement';
 import SurveyManagement from '../pages/SurveyManagement';
 import SurveyCalendar from '@/pages/SurveyCalendar';
 import SurveyByServer from '@/pages/SurveyByServer';
-import WelcomeStandby from '../pages/WelcomeStandby';
 import PendingApproval from '../pages/PendingApproval';
 import Support from '@/pages/Support';
 import ServerSchedulePrint from '@/pages/ServerSchedulePrint';
@@ -101,13 +100,19 @@ export default function AppRoutes() {
 
       // 5) 승인 대기 중인 내역이 있으면
       if (session.hasPending) {
+        const pendingGroupIds = Object.keys(session.pendingRoles);
+        if (pendingGroupIds.length > 0) {
+          // 승인 대기 중인 첫 번째 그룹의 메인 페이지로 이동
+          navigate(`/server-groups/${pendingGroupIds[0]}`, { replace: true });
+          return;
+        }
         navigate('/pending-approval', { replace: true });
         return;
       }
 
-      // 6) 어떤 역할도 없으면 WelcomeStandby 로
-      navigate('/welcome-standby', { replace: true });
-    }, [session.loading, session.groupRolesLoaded, session.groupRoles, navigate]);
+      // 6) 어떤 역할도 없으면 복사 등록 페이지로
+      navigate('/add-member', { replace: true });
+    }, [session.loading, session.groupRolesLoaded, session.groupRoles, session.pendingRoles, navigate]);
 
     return <LoadingSpinner label="홈으로 이동 중..." />;
   };
@@ -128,13 +133,17 @@ export default function AppRoutes() {
     }
 
     const userRoles = session.groupRoles[serverGroupId] || [];
+    const pendingRoles = session.pendingRoles[serverGroupId] || [];
 
     // Admin 또는 SuperAdmin 은 AdminMain 으로
     if (session.isSuperAdmin || userRoles.includes('admin')) return <AdminMain />;
     // Planner 는 Dashboard 로 진입
     if (userRoles.includes('planner')) return <Dashboard />;
-    // Server 는 ServerMain 으로 진입
-    if (userRoles.includes('server')) return <ServerMain />;
+    // Server 는 ServerMain 으로 진입 (승격 대기 중인 server 도 포함)
+    if (userRoles.includes('server') || pendingRoles.includes('server')) return <ServerMain />;
+
+    // 역할은 없지만 다른 대기 중인 역할이 있다면 (예: planner 대기 중)
+    if (pendingRoles.length > 0) return <ServerMain />;
 
     return <Navigate to="/request-planner-role" replace />;
   };
@@ -165,7 +174,6 @@ export default function AppRoutes() {
       {/* 4) 메인 앱 레이아웃 (Layout 적용) */}
       <Route element={<Layout />}>
         {/* 대기 페이지 (Layout 적용) */}
-        <Route path="/welcome-standby" element={<WelcomeStandby />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
 
         {/* 복사 추가 페이지 (Layout 적용, RoleGuard 없음) */}

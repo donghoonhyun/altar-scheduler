@@ -25,7 +25,8 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'prompt',
         devOptions: {
-          enabled: true, // 개발 모드에서도 PWA 활성화
+          // 개발 중에는 dev-sw가 오래된 번들을 캐시해 디버깅을 방해하므로 비활성화
+          enabled: false,
           suppressWarnings: true,
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png'],

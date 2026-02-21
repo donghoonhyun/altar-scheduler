@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useSession } from '../../state/session';
-import { getFirestore, collectionGroup, getDocs, query, where } from 'firebase/firestore';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -20,8 +19,6 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   const session = useSession();
   const [checked, setChecked] = useState(false);
   const [hasServerRole, setHasServerRole] = useState(false);
-  const db = getFirestore();
-
   const rolePriority: Record<string, number> = {
     'admin': 3,
     'planner': 2,
@@ -35,18 +32,12 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
         return;
       }
 
-      // 현재 유저가 가진 member(active=true)가 있는가?
+      // 현재 유저가 가진 server 역할이 있는가?
       try {
-        const q = query(
-          collectionGroup(db, 'members'),
-          where('parent_uid', '==', session.user.uid),
-          where('active', '==', true)
+        const hasServerInSession = Object.values(session.groupRoles).some((roles) =>
+          roles.includes('server')
         );
-        const snap = await getDocs(q);
-
-        if (!snap.empty) {
-          setHasServerRole(true);
-        }
+        setHasServerRole(hasServerInSession);
       } catch (err) {
         console.error('checkMemberStatus error:', err);
       } finally {
@@ -57,7 +48,7 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
     if (session.user && !session.loading && session.groupRolesLoaded) {
       checkMemberStatus();
     }
-  }, [session.user, session.loading, session.groupRolesLoaded, db]);
+  }, [session.user, session.loading, session.groupRolesLoaded, session.groupRoles]);
 
   // 1) 초기 로딩 중일 때
   const isReady = !session.loading && session.groupRolesLoaded;

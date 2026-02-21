@@ -94,7 +94,9 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
         },
         { merge: true }
       );
-      toast.success(`✅ ${monthLabel} 상태가 "${STATUS_LABELS[selectedStatus]}"로 변경되었습니다.`);
+      toast.success(`✅ ${monthLabel} 상태가 "${STATUS_LABELS[selectedStatus]}"로 변경되었습니다.`, {
+        description: '대상자에게 알림이 곧 보내집니다.',
+      });
       onClose();
     } catch (err) {
       console.error(err);

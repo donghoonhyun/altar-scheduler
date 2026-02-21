@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import { REGION_V1 } from '../config';
+import { paths } from '../firestorePaths';
 
 // --------------------------------------------------------------------------
 // [CRITICAL] Version Note
@@ -77,7 +78,7 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
       const endDate = dayjs(`${year}-${month}-01`).endOf('month').format('YYYYMMDD');
 
       // 2. Fetch Target Events (All events in range)
-      const eventsRef = db.collection(`server_groups/${serverGroupId}/mass_events`);
+      const eventsRef = db.collection(paths.massEvents(serverGroupId));
       const eventsSnap = await eventsRef
         .where('event_date', '>=', startDate)
         .where('event_date', '<=', endDate)
@@ -91,7 +92,7 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
       const events = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AssignedEvent));
 
       // 3. Fetch Active Members
-      const membersRef = db.collection(`server_groups/${serverGroupId}/members`);
+      const membersRef = db.collection(paths.members(serverGroupId));
       const membersSnap = await membersRef.where('active', '==', true).get();
       const members = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Member));
       
@@ -116,7 +117,7 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
       console.log(`🔎 [AutoAssign] Max Start Year (Int): ${maxStartYear} (Limit: ${currentYearNum})`);
 
       // 4. Fetch Survey Responses
-      const surveyDocRef = db.doc(`server_groups/${serverGroupId}/availability_surveys/${targetMonthStr}`);
+      const surveyDocRef = db.doc(paths.survey(serverGroupId, targetMonthStr));
       const surveySnap = await surveyDocRef.get();
       const surveyData = surveySnap.exists ? surveySnap.data() : null;
       const responses = surveyData?.responses || {};
@@ -365,7 +366,7 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
             mainMemberId = sortedForMain[0].id;
           }
 
-          const evRef = db.doc(`server_groups/${serverGroupId}/mass_events/${ev.id}`);
+          const evRef = db.doc(paths.massEvent(serverGroupId, ev.id));
           batch.update(evRef, { 
             member_ids: selectedIds,
             main_member_id: mainMemberId || FieldValue.delete(),

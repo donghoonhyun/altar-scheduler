@@ -5,12 +5,14 @@ import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import {
   collection,
-  collectionGroup,
   query,
   where,
   getDocs,
+  QueryDocumentSnapshot,
+  DocumentData,
   doc,
   getDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import dayjs, { Dayjs } from 'dayjs';
 import { COLLECTIONS } from '@/lib/collections';
@@ -24,7 +26,8 @@ export interface Session {
   serverGroups: Record<string, { parishCode: string; parishName: string; groupName: string }>;
   managerParishes: string[];
   hasPending: boolean;
-  userInfo: { userName: string; baptismalName: string; userCategory?: string } | null;
+  pendingRoles: Record<string, string[]>; // 승인 대기 중인 역할들
+  userInfo: { userName: string; baptismalName: string; userCategory?: string; parishId?: string } | null;
   isSuperAdmin: boolean;
   currentViewDate: Dayjs | null; 
   setCurrentServerGroupId?: (id: string | null) => void;
@@ -41,6 +44,7 @@ const initialSession: Session = {
   serverGroups: {},
   managerParishes: [],
   hasPending: false,
+  pendingRoles: {},
   userInfo: null,
   isSuperAdmin: false,
   currentViewDate: null, 
@@ -63,11 +67,23 @@ try {
 // 초기 캐시 상태
 let cachedSession: Session = { 
   ...initialSession,
+  pendingRoles: {},
   currentViewDate: savedViewDate // 여기서 넣어줘야 초기 마운트 시에도 적용됨
 };
 
 export function useSession() {
   const [session, setSession] = useState<Session>(cachedSession);
+  const mergeUniqueDocs = (
+    first: QueryDocumentSnapshot<DocumentData>[],
+    second: QueryDocumentSnapshot<DocumentData>[]
+  ) => {
+    const merged = [...first];
+    const seen = new Set(first.map((d) => d.ref.path));
+    second.forEach((d) => {
+      if (!seen.has(d.ref.path)) merged.push(d);
+    });
+    return merged;
+  };
 
   // 세션 데이터 로드 함수
   const fetchSessionData = useCallback(async (user: User) => {
@@ -85,6 +101,7 @@ export function useSession() {
 
     try {
       const roles: Record<string, string[]> = {};
+      const pendingRoles: Record<string, string[]> = {};
       const serverGroups: Session['serverGroups'] = {};
       const userUid = user.uid;
 
@@ -95,9 +112,10 @@ export function useSession() {
         if (userDoc.exists()) {
           const ud = userDoc.data();
           userInfoData = {
-            userName: ud.user_name || ud.displayName || '', 
-            baptismalName: ud.baptismal_name || '',
+            userName: ud.user_name || ud.display_name || ud.displayName || '', 
+            baptismalName: ud.baptismal_name || ud.catholic_info?.baptismal_name || '',
             userCategory: ud.user_category || 'Layman',
+            parishId: ud.catholic_info?.parish_id || '',
           };
         }
       } catch (e) {
@@ -117,12 +135,18 @@ export function useSession() {
         const sgId = data.server_group_id;
         if (!sgId || !data.role) continue;
 
+        const rolesInDoc = Array.isArray(data.role) ? data.role : [data.role];
+
         if (data.active !== true) {
           newSession.hasPending = true;
+          if (!pendingRoles[sgId]) pendingRoles[sgId] = [];
+          rolesInDoc.forEach(r => {
+            if (r && !pendingRoles[sgId].includes(r)) pendingRoles[sgId].push(r);
+          });
+          // 승인 대기 중이라도 성당 정보는 필요하므로 targetSgIds에 추가
+          targetSgIds.add(sgId);
           continue;
         }
-
-        const rolesInDoc = Array.isArray(data.role) ? data.role : [data.role];
         
         if (sgId === 'global' || data.role.includes('superadmin')) {
           if (rolesInDoc.includes('superadmin')) {
@@ -141,24 +165,40 @@ export function useSession() {
       }
 
       /** 2) server_groups/{sg}/members 에서 복사 취득 (가입 내역 확인용) */
-      const memberSnap = await getDocs(
-        query(
-          collectionGroup(db, 'members'),
-          where('parent_uid', '==', userUid)
-        )
-      );
-
-      for (const d of memberSnap.docs) {
-        const data = d.data();
-        if (data.active !== true) {
-          newSession.hasPending = true;
-          continue;
+      // memberships에서 확보한 그룹 범위 내에서 members를 조회한다.
+      const memberByParentDocs: QueryDocumentSnapshot<DocumentData>[] = [];
+      const memberByUidDocs: QueryDocumentSnapshot<DocumentData>[] = [];
+      const sgIdsForUidLookup = Array.from(targetSgIds);
+      for (const sgId of sgIdsForUidLookup) {
+        try {
+          const membersSnap = await getDocs(
+            collection(db, COLLECTIONS.SERVER_GROUPS, sgId, 'members')
+          );
+          membersSnap.docs.forEach((mDoc) => {
+            const m = mDoc.data() as any;
+            if (m?.parent_uid === userUid) memberByParentDocs.push(mDoc);
+            if (m?.uid === userUid) memberByUidDocs.push(mDoc);
+          });
+        } catch (memberQueryErr) {
+          console.warn(`[session] member lookup failed for ${sgId}:`, memberQueryErr);
         }
+      }
 
+      const memberDocs = mergeUniqueDocs(memberByParentDocs, memberByUidDocs);
+
+      for (const d of memberDocs) {
+        const data = d.data();
         const path = d.ref.path.split('/');
-        // Path: app_altar/v1/server_groups/{sgId}/members/{memberId}
         const sgId = path[3]; 
         if (!sgId) continue;
+
+        if (data.active !== true) {
+          newSession.hasPending = true;
+          if (!pendingRoles[sgId]) pendingRoles[sgId] = [];
+          if (!pendingRoles[sgId].includes('server')) pendingRoles[sgId].push('server');
+          targetSgIds.add(sgId);
+          continue;
+        }
 
         if (!roles[sgId]) roles[sgId] = [];
         if (!roles[sgId].includes('server')) {
@@ -215,6 +255,7 @@ export function useSession() {
       });
 
       newSession.groupRoles = roles;
+      newSession.pendingRoles = pendingRoles;
       newSession.serverGroups = serverGroups;
       newSession.groupRolesLoaded = true;
 
@@ -286,9 +327,38 @@ export function useSession() {
 
   // Auth Observer
   useEffect(() => {
+    let roleUnsubs: Array<() => void> = [];
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearRoleUnsubs = () => {
+      roleUnsubs.forEach((u) => {
+        try { u(); } catch { /* noop */ }
+      });
+      roleUnsubs = [];
+    };
+
+    const clearRefreshTimer = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+    };
+
+    const scheduleSessionRefresh = (user: User) => {
+      clearRefreshTimer();
+      refreshTimer = setTimeout(async () => {
+        const updatedSession = await fetchSessionData(user);
+        const restoreDate = cachedSession.currentViewDate || savedViewDate;
+        updatedSession.currentViewDate = restoreDate;
+        cachedSession = updatedSession;
+        setSession(updatedSession);
+      }, 200);
+    };
 
 
     const unsub = onAuthStateChanged(auth, async (user) => {
+      clearRoleUnsubs();
+      clearRefreshTimer();
 
       if (!user) {
         // 로그아웃 시 스토리지도 클리어? -> 선택사항 (일단 유지)
@@ -305,9 +375,23 @@ export function useSession() {
       
       cachedSession = updatedSession;
       setSession(updatedSession);
+
+      // memberships / members 변경을 실시간 감시하여 승인/권한 상태를 즉시 반영
+      const membershipQuery = query(
+        collection(db, COLLECTIONS.MEMBERSHIPS),
+        where('uid', '==', user.uid)
+      );
+      const unsubMembership = onSnapshot(membershipQuery, () => {
+        scheduleSessionRefresh(user);
+      });
+      roleUnsubs.push(unsubMembership);
     });
 
-    return () => unsub();
+    return () => {
+      clearRoleUnsubs();
+      clearRefreshTimer();
+      unsub();
+    };
   }, [fetchSessionData]);
 
   return {

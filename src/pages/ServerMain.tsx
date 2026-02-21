@@ -1,7 +1,18 @@
 // src/pages/ServerMain.tsx
 import { useEffect, useState } from 'react';
 import { useSession } from '@/state/session';
-import { collection, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocsFromServer,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  QuerySnapshot,
+  DocumentData,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import { COLLECTIONS } from '@/lib/collections';
 import { db } from '@/lib/firebase';
 import dayjs, { Dayjs } from 'dayjs';
@@ -61,20 +72,73 @@ export default function ServerMain() {
       return;
     }
 
-    const q = query(
-      collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members'),
-      where('parent_uid', '==', session.user.uid)
-    );
+    const membersCol = collection(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'members');
 
-    const unsub = onSnapshot(q, (snap) => {
-      const list: MemberItem[] = snap.docs.map((d) => ({
+    const mergeUniqueDocs = (
+      first: QueryDocumentSnapshot<DocumentData>[],
+      second: QueryDocumentSnapshot<DocumentData>[]
+    ) => {
+      const merged = [...first];
+      const seen = new Set(first.map((d) => d.ref.path));
+      second.forEach((d) => {
+        if (!seen.has(d.ref.path)) merged.push(d);
+      });
+      return merged;
+    };
+
+    const applyMemberDocs = (docs: QueryDocumentSnapshot<DocumentData>[]) => {
+      const list: MemberItem[] = docs.map((d) => ({
         memberId: d.id,
         ...(d.data() as MemberDoc),
       }));
       setMembers(list);
+    };
+
+    let parentSnapCache: QuerySnapshot<DocumentData> | null = null;
+
+    const renderFiltered = () => {
+      const allDocs = parentSnapCache?.docs ?? [];
+      const parentDocs = allDocs.filter((d) => {
+        const data = d.data() as any;
+        return data?.parent_uid === session.user?.uid;
+      });
+      const uidDocs = allDocs.filter((d) => {
+        const data = d.data() as any;
+        return data?.uid === session.user?.uid;
+      });
+      applyMemberDocs(mergeUniqueDocs(parentDocs, uidDocs));
+    };
+
+    const syncServerOnce = () => {
+      const shouldSync = parentSnapCache && parentSnapCache.metadata.fromCache;
+      if (!shouldSync) return;
+
+      void getDocsFromServer(membersCol)
+        .then((serverSnap) => {
+          const parentDocs = serverSnap.docs.filter((d) => {
+            const data = d.data() as any;
+            return data?.parent_uid === session.user?.uid;
+          });
+          const uidDocs = serverSnap.docs.filter((d) => {
+            const data = d.data() as any;
+            return data?.uid === session.user?.uid;
+          });
+          applyMemberDocs(mergeUniqueDocs(parentDocs, uidDocs));
+        })
+        .catch(() => {
+          // 네트워크 불안정 시 onSnapshot 재시도를 신뢰
+        });
+    };
+
+    const unsubParent = onSnapshot(membersCol, { includeMetadataChanges: true }, (snap) => {
+      parentSnapCache = snap;
+      renderFiltered();
+      syncServerOnce();
     });
 
-    return () => unsub();
+    return () => {
+      unsubParent();
+    };
   }, [serverGroupId, session.user]);
 
   const [checkedMemberIds, setCheckedMemberIds] = useState<string[]>([]);

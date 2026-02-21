@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { MessageSquare, RefreshCw, Send, AlertTriangle, Trash2, Smartphone, ChevronDown, ChevronRight } from 'lucide-react';
-import { httpsCallable } from 'firebase/functions';
 import { functions, db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { callNotificationApi } from '@/lib/notificationApi';
 
 interface UserSupportDrawerProps {
   open: boolean;
@@ -66,15 +66,14 @@ export default function UserSupportDrawer({ open, onOpenChange, uid, userName, e
     try {
         // ... (existing logic)
       setSending(true);
-      const sendTest = httpsCallable(functions, 'altar_sendTestNotification');
       
       const iconUrl = new URL('/pwa-icon.png', window.location.origin).href;
-      const result = await sendTest({ targetUid: uid, iconUrl });
+      const result = await callNotificationApi<any>(functions, { action: 'enqueue_test', targetUid: uid, iconUrl });
       
-      if ((result.data as any).success) {
-          toast.success('테스트 메세지를 발송했습니다.');
+      if (result.success) {
+          toast.success('테스트 메세지를 대기열에 등록했습니다.');
       } else {
-          throw new Error((result.data as any).message || 'Unknown error');
+          throw new Error(result.message || 'Unknown error');
       }
     } catch (e: any) {
       console.error(e);

@@ -326,7 +326,9 @@ export default function RequestPlannerRole() {
         }, { merge: true });
       }
 
-      toast.success('플래너 권한 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
+      toast.success('플래너 권한 신청이 완료되었습니다. 관리자 승인을 기다려주세요.', {
+        description: '대상자에게 알림이 곧 보내집니다.',
+      });
       window.location.reload(); 
     } catch (err) {
       console.error(err);

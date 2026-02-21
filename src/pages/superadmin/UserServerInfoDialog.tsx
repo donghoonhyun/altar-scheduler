@@ -52,7 +52,7 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
       const processedGroupIds = new Set<string>();
 
       for (const mDoc of membershipSnap.docs) {
-        const mData = mDoc.data();
+        const mData = mDoc.data() as any;
         const groupId = mData.server_group_id;
 
         if (!groupId || groupId === 'global' || processedGroupIds.has(groupId)) continue;
@@ -85,12 +85,14 @@ export default function UserServerInfoDialog({ open, onOpenChange, uid, userName
         const groupMembers: ServerMemberInfo[] = [];
         try {
             const membersRef = collection(db, COLLECTIONS.SERVER_GROUPS, groupId, 'members');
-            // parent_uid로 조회 (자녀들)
-            const qMembers = query(membersRef, where('parent_uid', '==', uid));
-            const membersSnap = await getDocs(qMembers);
+            const membersSnap = await getDocs(membersRef);
+            const ownedMembers = membersSnap.docs.filter((memberDoc) => {
+                const memberData = memberDoc.data() as any;
+                return memberData?.parent_uid === uid;
+            });
 
-            if (!membersSnap.empty) {
-                membersSnap.forEach(memberDoc => {
+            if (ownedMembers.length > 0) {
+                ownedMembers.forEach(memberDoc => {
                     const memberData = memberDoc.data();
                     groupMembers.push({
                         id: memberDoc.id,

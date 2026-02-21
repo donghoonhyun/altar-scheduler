@@ -1,6 +1,7 @@
 import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { COMMON_OPTIONS_V2 } from '../config';
+import { COL_SERVER_GROUPS } from '../firestorePaths';
 
 interface CreateServerGroupRequest {
   parishCode: string;
@@ -21,7 +22,7 @@ export const createServerGroup = onCall(
     const { parishCode, name, active } = request.data;
 
     const db = admin.firestore();
-    const ref = db.collection('server_groups').doc();
+    const ref = db.collection(COL_SERVER_GROUPS).doc();
 
     await ref.set({
       parishCode,

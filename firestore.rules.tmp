@@ -1,0 +1,230 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 🔒 헬퍼 함수
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isSuperAdmin() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() && exists(userPath) && get(userPath).data.roles.hasAny(['superadmin']);
+    }
+
+    // 1️⃣ Users: 프로필은 누구나 읽기 가능, 수정은 본인 또는 슈퍼어드민
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if true; // 개발 용 시딩 허용
+      allow update, delete: if true; // 개발 용 시딩 허용
+    }
+
+    // 1️⃣.1 Verbum Users Data (NEW)
+    // Verbum 앱 사용자 데이터: 본인 데이터만 읽기/쓰기 가능
+    match /users_verbum/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 2️⃣ Parishes: 읽기 전용 (공개 정보), 쓰기는 슈퍼어드민만
+    match /parishes/{parishCode} {
+      allow read: if true;
+      allow write: if true; // 개발 중 데이터 시딩을 위해 허용
+    }
+
+
+    // 3.9 Dashboard News (공지사항)
+    match /dashboard_news/{newsId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // 3.10 System Notification Logs (시스템 알림 로그)
+    match /system_notification_logs/{logId} {
+      allow read: if isSuperAdmin();
+    }
+
+    // 3.10.1 FCM Logs (logs/fcm_logs/items/*)
+    match /logs/{logType}/items/{logId} {
+      allow read: if isSuperAdmin();
+    }
+
+    // 🔔 Notifications (알림)
+    match /notifications/{notificationId} {
+      // 본인의 알림이거나 슈퍼어드민이면 읽기/쓰기 가능
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isSuperAdmin());
+      allow create: if isSignedIn(); // 테스트 생성을 위해 로그인 사용자 허용
+      allow update, delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isSuperAdmin());
+    }
+
+    match /daily_verses/{verseId} {
+        allow read: if true;
+        allow write: if isSuperAdmin();
+    }
+    
+    match /sources/daily_missa/dates/{dateKey} {
+        allow read: if true;
+        allow write: if isSuperAdmin();
+    }
+
+    match /sources/daily_saints/dates/{dateKey} {
+        allow read: if true;
+        allow write: if isSuperAdmin();
+    }
+    
+    match /sources/saints/items/{saintId} {
+        allow read: if true;
+        allow write: if isSuperAdmin();
+    }
+
+    // 💡 Settings Collection (AI Config, etc)
+    match /settings/{document=**} {
+      allow read, write: if true; 
+    }
+
+    // 3.11 System Settings (AI 프롬프트 설정 등)
+    match /system_settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+    
+    // 🚩 4. Ordo Apps (Deprecated Path): 메타데이터는 누구나 읽기 가능
+    match /apps/{appId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // 🚩 5. Master Data (New Location)
+    match /sources/master_datas {
+        // Parishes
+        match /parishes/{parishCode} {
+            allow read: if true;
+            allow write: if true; // 개발 편의상 허용 (Production에서는 isSuperAdmin() 권장)
+        }
+        
+        // Apps
+        match /apps/{appId} {
+            allow read: if true;
+            allow write: if isSignedIn();
+        }
+
+        // Dioceses
+        match /dioceses/{dioceseCode} {
+            allow read: if true;
+            allow write: if isSuperAdmin();
+        }
+    }
+
+    // 🚩 6. User Installed Apps: 본인만 관리 가능
+    match /users/{userId}/installed_apps/{appId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && (
+        // 설치하려는 앱이 admin 카테고리인 경우 superadmin 권한 필요
+        // (새로운 경로 우선 확인, 없으면 기존 경로 확인 - 마이그레이션 과도기 지원)
+        (exists(/databases/$(database)/documents/sources/master_datas/apps/$(appId)) && 
+         get(/databases/$(database)/documents/sources/master_datas/apps/$(appId)).data.category != 'admin') ||
+        
+        (!exists(/databases/$(database)/documents/sources/master_datas/apps/$(appId)) && 
+         get(/databases/$(database)/documents/apps/$(appId)).data.category != 'admin') ||
+         
+        isSuperAdmin()
+      );
+    }
+
+    // ========================================
+    // 📂 7. ALTAR SCHEDULER (v1)
+    // ========================================
+    match /app_altar/v1 {
+      // 7.1 Memberships: 역할 정보 (본인 것만 조회/등록)
+      match /memberships/{membershipId} {
+        allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isSuperAdmin());
+        allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if isSignedIn(); // 관리자/플래너 권한용 (개발/임시운영 중 허용) 
+      }
+
+      // 7.2 Server Groups: 그룹 정보
+      match /server_groups/{sgId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn(); // 개발 중 마이그레이션 등을 위해 임시 허용
+
+        // 7.2.1 Members: 복사 명단
+        match /members/{memberId} {
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn(); // 본인 또는 관리자 (현재는 누구나 허용)
+          allow delete: if isSignedIn(); // 관리자/플래너 권한용
+        }
+
+        // 7.2.1-1 del_members: 휴지통
+        match /del_members/{memberId} {
+          allow read, write: if isSignedIn();
+        }
+
+        // 7.2.2 Mass Events: 미사 일정
+        match /mass_events/{eventId} {
+          allow read: if isSignedIn();
+          allow write: if isSignedIn();
+        }
+
+        // 7.2.3 Role Requests: 권한 신청
+        match /role_requests/{requestId} {
+          allow read, write: if isSignedIn();
+        }
+        
+        // 7.2.4 Month Status: 월별 상태
+        match /month_status/{statusId} {
+          allow read, write: if isSignedIn();
+        }
+
+        // 7.2.5 Availability Surveys: 가용성 설문
+        match /availability_surveys/{yyyymm} {
+          allow read, write: if isSignedIn();
+          match /responses/{memberId} {
+            allow read, write: if isSignedIn();
+          }
+        }
+
+        // 7.2.6 AI Insights: AI 분석 결과
+        match /ai_insights/{yyyymm} {
+          allow read, write: if isSignedIn();
+          match /history/{docId} {
+            allow read, write: if isSignedIn();
+          }
+        }
+
+        // 7.2.7 Auto Assign Logs: 자동배정 로그
+        match /auto_assign_logs/{yyyymm} {
+          allow read, write: if isSignedIn();
+        }
+
+        // 7.2.8 Mass Presets: 미사 프리셋
+        match /mass_presets/{presetId} {
+          allow read, write: if isSignedIn();
+        }
+      }
+
+      // 7.3 Counters: 채번 카운터
+      match /counters/{counterId} {
+        allow read, write: if isSignedIn();
+      }
+      
+      // 7.4 Settings: 앱 설정
+      match /settings/{docId} {
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin();
+      }
+    }
+
+    // 7.2.1+ Collection Group Rules: members (전체 경로 대응)
+    match /{path=**}/members/{memberId} {
+      allow read: if isSignedIn(); 
+    }
+
+    // 7.2.3+ Collection Group Rules: role_requests (전체 경로 대응)
+    match /{path=**}/role_requests/{requestId} {
+      allow read: if isSignedIn() && (requestId == request.auth.uid || isSuperAdmin());
+    }
+
+    // 8️⃣ 나머지: 기본 차단 (명시되지 않은 경로는 접근 불가)
+  }
+}

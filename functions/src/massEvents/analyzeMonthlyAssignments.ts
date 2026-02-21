@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import dayjs from 'dayjs';
 import { REGION_V1 } from '../config';
+import { paths } from '../firestorePaths';
 
 const db = admin.firestore();
 
@@ -33,7 +34,7 @@ export const analyzeMonthlyAssignments = functions.region(REGION_V1).runWith({ s
   try {
     // 2. Data Fetching
     // (1) Members (Active only)
-    const membersSnap = await db.collection(`server_groups/${serverGroupId}/members`)
+    const membersSnap = await db.collection(paths.members(serverGroupId))
       .where('active', '==', true)
       .get();
     
@@ -49,7 +50,7 @@ export const analyzeMonthlyAssignments = functions.region(REGION_V1).runWith({ s
     const startStr = `${currentMonthPrefix}01`;
     const endStr = `${currentMonthPrefix}31`;
 
-    const thisMonthEventsSnap = await db.collection(`server_groups/${serverGroupId}/mass_events`)
+    const thisMonthEventsSnap = await db.collection(paths.massEvents(serverGroupId))
         .where('event_date', '>=', startStr)
         .where('event_date', '<=', endStr)
         .get();
@@ -60,13 +61,13 @@ export const analyzeMonthlyAssignments = functions.region(REGION_V1).runWith({ s
     const prevStartStr = `${prevMonthPrefix}01`;
     const prevEndStr = `${prevMonthPrefix}31`;
 
-    const prevMonthEventsSnap = await db.collection(`server_groups/${serverGroupId}/mass_events`)
+    const prevMonthEventsSnap = await db.collection(paths.massEvents(serverGroupId))
         .where('event_date', '>=', prevStartStr)
         .where('event_date', '<=', prevEndStr)
         .get();
 
     // (4) Availability Survey
-    const surveySnap = await db.collection(`server_groups/${serverGroupId}/availability_surveys/${currentMonthPrefix}/responses`).get();
+    const surveySnap = await db.collection(paths.surveyResponses(serverGroupId, currentMonthPrefix)).get();
     
     const unavailableMap: Record<string, string[]> = {}; 
     surveySnap.docs.forEach(doc => {
@@ -209,7 +210,7 @@ export const analyzeMonthlyAssignments = functions.region(REGION_V1).runWith({ s
     }
 
     // 5. Save Insight with History
-    const insightRef = db.doc(`server_groups/${serverGroupId}/ai_insights/${currentMonthPrefix}`);
+    const insightRef = db.doc(paths.aiInsight(serverGroupId, currentMonthPrefix));
 
     await db.runTransaction(async (t) => {
         const doc = await t.get(insightRef);

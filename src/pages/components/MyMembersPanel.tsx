@@ -43,10 +43,12 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
 
   // members 컬렉션의 active 필드 및 request_confirmed 필드 기준 분리
   const approved = members.filter((m) => m.active === true);
-  // Pending: Active=false AND request_confirmed!=true
-  const pending = members.filter((m) => m.active === false && !m.request_confirmed);
-  // Inactive: Active=false AND request_confirmed=true
-  const inactive = members.filter((m) => m.active === false && m.request_confirmed);
+  // Pending: Active=false AND request_confirmed===false (엄격 비교로 오탐 방지)
+  const pending = members.filter((m) => m.active === false && m.request_confirmed === false);
+  // Inactive: Active=false AND (request_confirmed===true OR legacy undefined/null)
+  const inactive = members.filter(
+    (m) => m.active === false && (m.request_confirmed === true || m.request_confirmed == null)
+  );
 
   return (
     <div className="p-3 border rounded-xl mb-4 bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 shadow-sm">

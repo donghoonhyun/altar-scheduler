@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { doc, getFirestore, setDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import { useSession } from '@/state/session';
 import { firebaseConfig } from '@/config/firebaseConfig';
+
+const MAX_FCM_TOKENS_PER_USER = 20;
 
 export function useFcmToken() {
   const { user, userInfo } = useSession();
@@ -61,18 +63,26 @@ export function useFcmToken() {
                   setToken(currentToken);
                   const db = getFirestore();
                   const userRef = doc(db, 'users', user.uid);
+                  const userSnap = await getDoc(userRef);
+                  const existingTokens = Array.isArray(userSnap.data()?.fcm_tokens)
+                    ? (userSnap.data()?.fcm_tokens as string[])
+                    : [];
 
                   if (enable) {
+                      // dedupe + 최신 토큰 우선 + 최대 개수 제한
+                      const merged = [...existingTokens.filter((t) => t !== currentToken), currentToken];
+                      const trimmed = merged.slice(-MAX_FCM_TOKENS_PER_USER);
                       await setDoc(userRef, {
-                          fcm_tokens: arrayUnion(currentToken),
+                          fcm_tokens: trimmed,
                           last_fcm_update: new Date()
                       }, { merge: true });
                       if (import.meta.env.DEV) {
                           console.log('✅ FCM Token saved:', currentToken);
                       }
                   } else {
+                      const filtered = existingTokens.filter((t) => t !== currentToken);
                       await setDoc(userRef, {
-                          fcm_tokens: arrayRemove(currentToken),
+                          fcm_tokens: filtered,
                           last_fcm_update: new Date()
                       }, { merge: true });
                       if (import.meta.env.DEV) {

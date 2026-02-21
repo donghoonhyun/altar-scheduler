@@ -1,13 +1,14 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION_V1 } from '../config';
+import { TRIGGER_PATHS } from '../firestorePaths';
 
 /**
  * 플래너 권한 요청 상태 변경 시 트리거
  * - 승인(approved) 시: 사용자의 글로벌 프로필 정보(users 컬렉션)를 최신 신청 정보로 업데이트
  */
 export const onRoleRequestUpdated = functions.region(REGION_V1).firestore
-  .document('server_groups/{groupId}/role_requests/{requestId}')
+  .document(TRIGGER_PATHS.ROLE_REQUEST)
   .onUpdate(async (change, context) => {
     const newData = change.after.data();
     const oldData = change.before.data();

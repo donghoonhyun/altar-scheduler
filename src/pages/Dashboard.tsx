@@ -105,7 +105,10 @@ const Dashboard: React.FC = () => {
             <NextMonthPlan serverGroupId={serverGroupId} />
           </Card>
           <Card className="fade-in">
-            <ServerStats parishCode="SG00001" serverGroupId={serverGroupId} />
+            <ServerStats 
+              parishCode={session.serverGroups[serverGroupId]?.parishCode || ''} 
+              serverGroupId={serverGroupId} 
+            />
           </Card>
         </div>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, Timestamp, writeBatch, setDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { db } from '@/lib/firebase';
+import { db, functions } from '@/lib/firebase';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -28,6 +28,7 @@ import DrawerHeader from '@/components/common/DrawerHeader';
 import { UserRoleIcon } from '@/components/ui';
 import { useSession } from '@/state/session';
 import { COLLECTIONS } from '@/lib/collections';
+import { callNotificationApi } from '@/lib/notificationApi';
 
 interface Member {
   id: string;
@@ -395,6 +396,10 @@ export default function ServerList() {
 
     // 1. Check for duplicates in active members
     const targetMember = pendingMembers.find(m => m.id === uid);
+    if (!targetMember) {
+      toast.error('승인 대상 정보를 찾을 수 없습니다.');
+      return;
+    }
     if (targetMember) {
         const duplicate = activeMembers.find(m => 
             m.name_kor === targetMember.name_kor && 
@@ -452,7 +457,21 @@ export default function ServerList() {
 
       await batch.commit();
 
-      toast.success('✅ 회원이 승인되었습니다.');
+      // (3) 비동기 알림 큐 등록
+      try {
+        await callNotificationApi(functions, {
+          action: 'enqueue_member_approved',
+          targetUid,
+          serverGroupId,
+          memberName: targetMember.name_kor,
+        });
+      } catch (notifyErr) {
+        console.error('approve notification enqueue failed:', notifyErr);
+      }
+
+      toast.success('✅ 회원이 승인되었습니다.', {
+        description: '대상자에게 알림이 곧 보내집니다.',
+      });
     } catch (err) {
       console.error(err);
       toast.error('승인 처리 중 오류가 발생했습니다.');

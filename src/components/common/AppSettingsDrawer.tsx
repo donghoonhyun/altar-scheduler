@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useFcmToken } from '@/hooks/useFcmToken';
+import { useSession } from '@/state/session';
+import { functions } from '@/lib/firebase';
+import { callNotificationApi } from '@/lib/notificationApi';
 import { Bell, CheckCircle2, XCircle, AlertCircle, Monitor, Sun, Moon, Laptop } from 'lucide-react';
 import { useTheme } from '@/components/common/ThemeProvider';
 import { cn } from '@/lib/utils';
@@ -16,6 +19,7 @@ interface AppSettingsDrawerProps {
 export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDrawerProps) {
   const { theme, setTheme } = useTheme();
   const { permission, toggleNotification } = useFcmToken();
+  const { user } = useSession();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
   const isInIframe = window.self !== window.top;
 
@@ -27,6 +31,12 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
 
   const handleToggle = async (checked: boolean) => {
     if (checked) {
+        if (isInIframe && permission !== 'granted') {
+             toast.error('Ordo 앱 내부에서는 알림 권한 요청이 차단됩니다. 아래 "알림 설정 열기"로 단독 페이지에서 허용해 주세요.');
+             setIsNotificationsEnabled(false);
+             return;
+        }
+
         if (permission === 'denied') {
              toast.error('알림 권한이 차단되어 있습니다. 브라우저 설정(주소창 자물쇠)에서 권한을 허용해주세요.');
              // Force UI refresh to off
@@ -94,6 +104,28 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
       toast.error('알림 발송에 실패했습니다.', {
         description: e instanceof Error ? e.message : '알 수 없는 오류'
       });
+    }
+  };
+
+  const handleTestFcmNotification = async () => {
+    if (!user?.uid) {
+      toast.error('로그인 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      const res = await callNotificationApi<any>(functions, {
+        action: 'enqueue_test',
+        targetUid: user.uid,
+      });
+
+      if (res?.success) {
+        toast.success('테스트 FCM 알림이 대기열에 등록되었습니다.');
+      } else {
+        toast.error(`실패: ${res?.message || '알 수 없는 오류'}`);
+      }
+    } catch (e: any) {
+      toast.error(`FCM 테스트 등록 실패: ${e?.message || '알 수 없는 오류'}`);
     }
   };
 
@@ -229,16 +261,19 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
                     {isInIframe && permission !== 'granted' && (
                         <div className="mt-1 border-t border-gray-200 dark:border-gray-700 pt-2">
                             <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mb-2">
-                                * Ordo 플랫폼(iframe) 내부에서는 보안을 위해 알림 권한 요청이 차단됩니다. 단독 페이지에서 한 번만 허용해 주세요.
+                                * Ordo 앱(iframe) 내부에서는 보안을 위해 알림 권한 요청이 차단됩니다. 단독 페이지에서 알림 권한을 허용해 주세요.
                             </p>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 className="w-full text-[10px] h-7 bg-white dark:bg-slate-800 font-bold border-indigo-200 text-indigo-600"
-                                onClick={() => window.open('/', '_blank')}
+                                onClick={() => {
+                                  const standaloneUrl = `${window.location.origin}/?openSettings=notifications`;
+                                  window.open(standaloneUrl, '_blank', 'noopener,noreferrer');
+                                }}
                             >
                                 <Monitor size={12} className="mr-1" />
-                                단독 페이지로 열기
+                                알림 설정 열기
                             </Button>
                             <p className="text-[9px] text-gray-400 mt-1 text-center">
                                 (보안 정책에 따라 한 번 더 로그인이 필요할 수 있습니다.)
@@ -258,6 +293,17 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
                     >
                         <Bell size={14} />
                         <span className="text-xs">테스트 알림 발송 (로컬)</span>
+                    </Button>
+                </div>
+                <div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2 h-9 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200 border dark:border-gray-600"
+                        onClick={handleTestFcmNotification}
+                    >
+                        <Bell size={14} />
+                        <span className="text-xs">테스트 알림 발송 (FCM)</span>
                     </Button>
                 </div>
             </div>

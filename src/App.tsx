@@ -72,6 +72,19 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    // 개발환경에서는 vite pwa dev-sw/workbox 캐시를 정리해 최신 번들을 강제 사용
+    if (!import.meta.env.DEV || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        const swUrl = registration.active?.scriptURL || registration.installing?.scriptURL || registration.waiting?.scriptURL || '';
+        if (swUrl.includes('dev-sw') || swUrl.includes('workbox')) {
+          registration.unregister().catch(() => {});
+        }
+      });
+    });
+  }, []);
+
   // 인앱 브라우저 감지 시 안내 페이지 렌더링 (라우팅 진입 전 차단)
   if (isInAppBrowser()) {
     return <InAppBrowserGuide />;

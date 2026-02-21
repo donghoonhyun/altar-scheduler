@@ -35,17 +35,11 @@ export { autoAssignMassEvents as altar_autoAssignMassEvents } from './massEvents
 export { analyzeMonthlyAssignments as altar_analyzeMonthlyAssignments } from './massEvents/analyzeMonthlyAssignments';
 
 // 📌 Notifications
-export { createNotification as altar_createNotification } from './notifications/createNotification';
-export { onSurveyOpened as altar_onSurveyOpened } from './notifications/onSurveyOpened';
-export { onSurveyClosed as altar_onSurveyClosed } from './notifications/onSurveyClosed';
-export { sendTestNotification as altar_sendTestNotification } from './notifications/sendTestNotification';
-export { onUserCreated as altar_onUserCreated } from './notifications/onUserCreated';
-export { onMemberCreated as altar_onMemberCreated, onRoleRequestCreated as altar_onRoleRequestCreated, onMemberUpdated as altar_onMemberUpdated } from './notifications/onMemberEvents';
-export { onMonthlyStatusChanged as altar_onMonthlyStatusChanged } from './notifications/onMonthlyStatusChanged';
-export { onDailyMassReminder as altar_onDailyMassReminder, manualDailyMassReminder as altar_manualDailyMassReminder } from './notifications/onDailyMassReminder';
-export { sendSurveyNotification as altar_sendSurveyNotification } from './notifications/sendSurveyNotification';
-
-
+// 📌 Notification Queue (비동기 FCM 배치 처리)
+export { enqueueDailyMassReminder as altar_enqueueDailyMassReminder } from './notifications/enqueueDailyMassReminder';
+export { processNotificationQueue as admin_processNotificationQueue } from './notifications/processNotificationQueue';
+export { enqueueNotification as admin_enqueueNotification } from './notifications/enqueueNotification';
+export { enqueueNotification as admin_manualSendNotification } from './notifications/enqueueNotification';
 
 // 📌 SMS
 export { sendSms as altar_sendSms } from './sms/sendSms';
