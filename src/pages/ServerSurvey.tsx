@@ -30,7 +30,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import PremiumHeader from '@/components/common/PremiumHeader';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS } from '@/lib/collections';
@@ -72,6 +72,9 @@ export default function ServerSurvey() {
 
   const [accessDenied, setAccessDenied] = useState(false);
 
+  const [targetWarningType, setTargetWarningType] = useState<'inactive' | 'no_parent' | null>(null);
+  const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+
   // 1. 데이터 로드
   useEffect(() => {
     const fetchSurveyData = async () => {
@@ -86,6 +89,14 @@ export default function ServerSurvey() {
                      const data = snap.data();
                      setTargetMemberName(data.name_kor);
                      if (data.baptismal_name) setBaptismalName(data.baptismal_name);
+
+                     if (data.active === false) {
+                         setTargetWarningType('inactive');
+                         setWarningDialogOpen(true);
+                     } else if (!data.parent_uid) {
+                         setTargetWarningType('no_parent');
+                         setWarningDialogOpen(true);
+                     }
                  }
              }).catch(console.error);
         }
@@ -371,7 +382,19 @@ export default function ServerSurvey() {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20 transition-colors duration-300">
       {/* Header */}
       <PremiumHeader
-        subtitle={targetMemberName ? `${targetMemberName}${baptismalName ? ' ' + baptismalName : ''}` : dayjs(yyyymm).format('YYYY년 M월')}
+        subtitle={
+          <div className="flex items-center gap-1.5 w-full">
+            <span className="truncate">
+              {targetMemberName ? `${targetMemberName}${baptismalName ? ' ' + baptismalName : ''}` : dayjs(yyyymm).format('YYYY년 M월')}
+            </span>
+            {targetWarningType && (
+              <span className="shrink-0 text-[10px] bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 px-1 py-0.5 rounded flex items-center gap-0.5 border border-red-200 dark:border-red-800">
+                <AlertCircle size={10} />
+                {targetWarningType === 'inactive' ? '비활성 복사' : '부모 연동 없음'}
+              </span>
+            )}
+          </div>
+        }
         title={targetMemberName ? `${dayjs(yyyymm).format('YYYY년 M월')} 설문` : '미사 배정 설문'}
         onBack={() => {
           if (window.opener && window.opener !== window) {
@@ -708,6 +731,30 @@ export default function ServerSurvey() {
                       제출하기
                   </Button>
               </div>
+          </DialogContent>
+      </Dialog>
+      
+      {/* Warning Dialog (Inactive or No Parent) */}
+      <Dialog open={warningDialogOpen} onOpenChange={setWarningDialogOpen}>
+          <DialogContent className="max-w-sm rounded-[16px] p-4 bg-white dark:bg-slate-900 border dark:border-slate-800 focus:outline-none">
+              <DialogHeader className="text-left">
+                  <DialogTitle className="text-lg flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                      <AlertCircle size={20} />
+                      확인 필요
+                  </DialogTitle>
+                  <DialogDescription className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      {targetWarningType === 'inactive' ? (
+                          <>현재 <strong className="text-gray-800 dark:text-gray-200">{targetMemberName}</strong> 복사는 <strong>비활성 상태</strong>입니다.<br/>설문 진행에 문제가 없는지 확인해주세요.</>
+                      ) : (
+                          <>현재 <strong className="text-gray-800 dark:text-gray-200">{targetMemberName}</strong> 복사는 <strong>부모(보호자) 계정 연동 정보가 없습니다.</strong><br/>앱 설치나 로그인 안내가 필요할 수 있습니다.</>
+                      )}
+                  </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="mt-4">
+                  <Button variant="primary" onClick={() => setWarningDialogOpen(false)} className="w-full">
+                      확인했습니다
+                  </Button>
+              </DialogFooter>
           </DialogContent>
       </Dialog>
     </div>
