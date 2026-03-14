@@ -27,7 +27,7 @@ export interface Session {
   managerParishes: string[];
   hasPending: boolean;
   pendingRoles: Record<string, string[]>; // 승인 대기 중인 역할들
-  userInfo: { userName: string; baptismalName: string; userCategory?: string; parishId?: string } | null;
+  userInfo: { userName: string; baptismalName: string; userCategory?: string; parishId?: string; photoUrl?: string } | null;
   isSuperAdmin: boolean;
   currentViewDate: Dayjs | null; 
   setCurrentServerGroupId?: (id: string | null) => void;
@@ -112,10 +112,11 @@ export function useSession() {
         if (userDoc.exists()) {
           const ud = userDoc.data();
           userInfoData = {
-            userName: ud.user_name || ud.display_name || ud.displayName || '', 
+            userName: ud.user_name || ud.display_name || ud.displayName || '',
             baptismalName: ud.baptismal_name || ud.catholic_info?.baptismal_name || '',
             userCategory: ud.user_category || 'Layman',
             parishId: ud.catholic_info?.parish_id || '',
+            photoUrl: ud.photo_url || ud.photoURL || user.photoURL || '',
           };
         }
       } catch (e) {

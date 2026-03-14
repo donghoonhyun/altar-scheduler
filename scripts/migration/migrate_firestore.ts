@@ -5,7 +5,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 // -------------------------------------------------------------
 // 0. Configuration: Target Paths
 // -------------------------------------------------------------
-const TARGET_ROOT = 'app_altar/v1';
+const TARGET_ROOT = 'app_datas/ordo-altar';
 
 const COLLECTION_MAPPING: Record<string, string> = {
   // Source Collection -> Target Collection (Relative to dbRoot or under 'v1')
@@ -27,10 +27,10 @@ export async function migrateFirestoreData() {
 
   // 1-1. Migrate App-Specific Collections
   // Ensure the root document exists so it can be discovered by export scripts
-  console.log('📦 Ensuring root document [app_altar/v1] exists...');
-  await targetDB.doc('app_altar/v1').set({
-      created_at: Timestamp.now(), 
-      description: 'Root document for Altar Scheduler v1'
+  console.log('📦 Ensuring root document [app_datas/ordo-altar] exists...');
+  await targetDB.doc('app_datas/ordo-altar').set({
+      created_at: Timestamp.now(),
+      description: 'Root document for Altar Scheduler (ordo-altar)'
   }, { merge: true });
 
   for (const [sourceCol, targetPath] of Object.entries(COLLECTION_MAPPING)) {

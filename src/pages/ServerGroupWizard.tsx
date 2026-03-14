@@ -33,16 +33,16 @@ export default function ServerGroupWizard() {
       setLoading(true);
       setError(null);
 
-      const counterRef = doc(db, COLLECTIONS.COUNTERS, COLLECTIONS.SERVER_GROUPS);
-      
+      const counterRef = doc(db, 'settings', 'counters');
+
       const newSgId = await runTransaction(db, async (transaction) => {
         // 1) 카운터 조회 및 증가
         const counterDoc = await transaction.get(counterRef);
         let nextSeq = 1;
         if (counterDoc.exists()) {
-          nextSeq = (Number(counterDoc.data()?.last_seq) || 0) + 1;
+          nextSeq = (Number(counterDoc.data()?.seq_server_groups) || 0) + 1;
         }
-        transaction.set(counterRef, { last_seq: nextSeq }, { merge: true });
+        transaction.set(counterRef, { seq_server_groups: nextSeq }, { merge: true });
 
         // 2) SG00000 포맷 ID 생성
         const sgId = `SG${nextSeq.toString().padStart(5, '0')}`;

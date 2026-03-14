@@ -55,48 +55,33 @@ export async function seedMassEvents(
   const baseEvents: MassEventSeed[] = []; // generateMassEventsForMonth 제거 (테스트 전용)
   const allEvents = [...baseEvents, ...extra];
 
-  let seq = 1;
   for (const ev of allEvents) {
     // ✅ event_date: string 보장
     const event_date =
       typeof ev.event_date === 'string' ? ev.event_date : dayjs(ev.event_date).format('YYYYMMDD');
 
-    const eventId = `ME${String(seq).padStart(6, '0')}`;
-
     // 로그 표시용 Date 객체
     const dateObj = dayjs(event_date, 'YYYYMMDD').toDate();
     const title = formatMassTitle(dateObj, ev.title);
 
-    await sgRef
-      .collection('mass_events')
-      .doc(eventId)
-      .set({
-        server_group_id: serverGroupId,
-        title,
-        event_date, // ✅ Firestore에는 문자열로 저장
-        required_servers: ev.required_servers,
-        // status: ev.status || 'MASS-NOTCONFIRMED', // ❌ DEPRECATED
-        member_ids: Array.isArray(ev.member_ids) ? ev.member_ids : [],
-        notifications: ev.notifications || [],
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
+    const newRef = sgRef.collection('mass_events').doc();
+    await newRef.set({
+      server_group_id: serverGroupId,
+      title,
+      event_date,
+      required_servers: ev.required_servers,
+      // status: ev.status || 'MASS-NOTCONFIRMED', // ❌ DEPRECATED
+      member_ids: Array.isArray(ev.member_ids) ? ev.member_ids : [],
+      notifications: ev.notifications || [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
 
     // ✅ 확인용 로그 출력
     const readableDate = dayjs(event_date, 'YYYYMMDD').format('YYYY-MM-DD (ddd)');
     const nameList = ev.names && ev.names.length ? ev.names.join(', ') : '—';
     console.log(
-      `✅ ${eventId} → ${readableDate} ${title} (${ev.required_servers}명) [${nameList}]`
+      `✅ ${newRef.id} → ${readableDate} ${title} (${ev.required_servers}명) [${nameList}]`
     );
-
-    seq++;
   }
-
-  // counter 업데이트
-  await db
-    .collection('counters')
-    .doc('mass_events')
-    .set({ last_seq: seq - 1, updated_at: new Date() }, { merge: true });
-
-  console.log(`📌 counters/mass_events.last_seq = ${seq - 1}`);
 }

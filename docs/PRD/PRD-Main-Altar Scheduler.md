@@ -175,9 +175,8 @@
 
 - 형식: "SG" + zero-padding(5자리) → SG00001, SG00002 … SG99999 (최대 99,999개 그룹)
 - 운영 단계: 전역(Global) 시퀀스 증가 방식
-  . `counters/server_groups` 문서에 `last_seq` 보관
-  . 새 복사단 생성 시 Firestore 트랜잭션으로 `last_seq + 1` → SG00001, SG00002 ... 순차 채번(본당 구분 없이 전역 고유)
-- 확장성: counters 컬렉션을 공통으로 사용하며, server_groups 외에도 mass_events, notifications 등 확장 가능
+  . **`/settings/counters` 문서의 `seq_server_groups` 필드**에 현재 seq 보관 (Ordo 글로벌 카운터)
+  . 새 복사단 생성 시 Firestore 트랜잭션으로 `seq_server_groups + 1` → SG00001, SG00002 ... 순차 채번(본당 구분 없이 전역 고유)
 
 #### 2.3.4 복사단별 플래너(planner) 지정
 
@@ -370,11 +369,12 @@
 ##### 2.4.2.2 미사일정(Mass Event) 저장 로직
 
 - 신규 생성
-  . Cloud Function createMassEvent 호출
+  . MassEventDrawer에서 직접 Firestore `addDoc()` 호출 (Firestore auto-ID 사용)
   . 기능:
-    EventId 자동채번
-    기본 status = MASS-NOTCONFIRMED 설정
-    Firestore server_groups/{sg}/mass_events/{eventId}에 문서 생성
+    `add_type: 'manual'` 필드 저장
+    Firestore server_groups/{sg}/mass_events/{autoId}에 문서 생성
+  . ~~Cloud Function createMassEvent 경유 방식 폐지~~
+  . ~~ME000001 형태 시퀀스 채번 폐지 (counters/mass_events 폐지)~~
 - 건별 수정
   . Planner UI에서 MassEventDrawer 통해 수정
   . Firestore setDoc(..., { merge: true }) 방식 사용
@@ -730,17 +730,12 @@
 
 #### 2.15.1 Counter 관리
 
-- 모든 시퀀스 ID는 counters/{counterName} 문서에서 관리한다.
-- 채번 방식 : counters/{counterName} 문서에서 last_seq 관리 → 트랜잭션으로 +1 후 ID 발급.
-- ID형식 : prefix + zero-padding(고정 길이 숫자)
-- PREFIX : SG(server group), ME(mass event)
-- 자릿수: 5자리를 기본으로 사용 (최대 99,999개). 확장성을 고려해야 할 경우, 6자리 이상(ME000001)도 설정가능
-  . Server Group은 5자리로 함 : 예) SG00001
-  . Mass Event는 6자리로 함 : 예) ME000001
-- 예시:
-  counters/
-  ├── server_groups { last_seq: 3 }  
-  └── notifications { last_seq: 102 }
+- **server_groups**: `/settings/counters` 문서의 `seq_server_groups` 필드 (Ordo 글로벌 카운터)
+  . 새 복사단 생성 시 Firestore 트랜잭션으로 `seq_server_groups + 1` → SG00001, SG00002 ... 순차 채번
+  . ID 형식: "SG" + zero-padding(5자리) → SG00001 ~ SG99999
+- **mass_events**: Firestore auto-ID 사용 (시퀀스 채번 폐지)
+  . `addDoc()` / `doc(collection(...))` 으로 자동 생성
+  . ME000001 형태 채번 및 `counters/mass_events` 문서 **폐지**
 
 ### 📍2.16 알림 시스템 (Notifications)
 
@@ -1355,6 +1350,30 @@
   - `/superadmin/notifications`의 `나에게 테스트`와 동일한 enqueue 경로 사용.
 
 #### 5. iframe 권한 UX 명확화
-- Ordo iframe 내부 알림 권한 제한 상황에서 버튼/문구를 명확화:
-  - `단독 페이지로 열기` -> `알림 설정 열기`
   - 단독 페이지에서 권한 허용 유도 플로우 유지.
+
+### 📅 2026.02.21 (운영 안정화: SSO/인덱스 의존 제거)
+
+#### 1. 신규 사용자 진입 플로우 단순화
+- `/welcome-standby` 라우트를 제거하고, 권한 없음 사용자는 기본적으로 `/add-member` 또는 `/pending-approval` 분기로 일원화.
+- 관련 페이지(`WelcomeStandby.tsx`) 삭제 및 라우팅 정리.
+
+#### 2. Add Member 온보딩 정보 자동 반영 강화
+- `/add-member` 진입 시 이름/세례명/소속본당을 자동 채움:
+  - 1차: `session.userInfo`
+  - 2차 fallback: `users/{uid}` 직접 조회 (`user_name`, `display_name`, `baptismal_name`, `catholic_info.parish_id`)
+- 프로필 보완 팝업(`UpdateUserProfileDialog`) 자동 표시 로직 제거.
+
+#### 3. Firestore 인덱스 의존 쿼리 제거 (운영 콘솔 에러 대응)
+- 문제: 운영 환경에서 `members` 대상 복합 인덱스 부재로 `failed-precondition` 반복 발생.
+- 대응 원칙:
+  - `where('parent_uid'...)`, `where('uid'...)` 중심 쿼리를 단계적으로 제거.
+  - 서버그룹 범위를 먼저 확정한 뒤 `members` 전체 조회 + 클라이언트 필터 방식으로 대체.
+- 반영 범위:
+  - `session` 권한 계산 로직
+  - `add-member` 중복 체크
+  - `server main` 멤버 로딩
+  - `superadmin user server info` 조회
+- 효과:
+  - 운영 콘솔의 `members + parent_uid(uid)` 인덱스 오류 해소
+  - SSO 환경/legacy 데이터 혼재 상황에서도 동일 동작 확보

@@ -6,7 +6,7 @@ import timezone from 'dayjs/plugin/timezone';
 import Loader from '@/components/common/LoadingSpinner';
 import { useSession } from '@/state/session';
 import { Button } from '@/components/ui/button';
-import { Printer, ZoomIn, ZoomOut, X, CalendarDays } from 'lucide-react';
+import { Printer, ZoomIn, ZoomOut, X, CalendarDays, Minus, Plus } from 'lucide-react';
 import { COLLECTIONS } from '@/lib/collections';
 
 dayjs.extend(timezone);
@@ -30,12 +30,30 @@ export default function ServerSchedulePrint() {
   const db = getFirestore();
   const session = useSession();
 
+  // 인쇄 페이지는 항상 라이트모드 (새탭으로 열릴 때 Ordo 다크모드 클래스 제거)
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [groupName, setGroupName] = useState('');
   const [events, setEvents] = useState<MassEventDoc[]>([]);
   const [memberMap, setMemberMap] = useState<Record<string, MemberDoc>>({});
-  const [fontSize, setFontSize] = useState(15); // Default size
+  const STORAGE_KEY = 'altar_print_settings';
+  const loadSettings = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; } };
+  const savedSettings = loadSettings();
+
+  const [fontSize, setFontSize] = useState<number>(savedSettings.fontSize ?? 15);
   const [isWeekendOnly, setIsWeekendOnly] = useState(false);
+  const [rowHeight, setRowHeight] = useState<number>(savedSettings.rowHeightNormal ?? 185);
+
+  useEffect(() => {
+    try {
+      const s = loadSettings();
+      const rowKey = isWeekendOnly ? 'rowHeightWeekend' : 'rowHeightNormal';
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...s, fontSize, [rowKey]: rowHeight }));
+    } catch {}
+  }, [fontSize, rowHeight, isWeekendOnly]);
 
   useEffect(() => {
     if (!serverGroupId || !yyyymm) return;
@@ -252,7 +270,7 @@ export default function ServerSchedulePrint() {
                             </div>
                             
                             {/* Events Content Row */}
-                            <div className="grid grid-cols-7 min-h-[185px]">
+                            <div className="grid grid-cols-7" style={{ minHeight: `${rowHeight}px` }}>
                                 {week.map((date, dIdx) => {
                                     const dateStr = date.format('YYYYMMDD');
                                     const dayEvents = eventsByDate[dateStr] || [];
@@ -317,7 +335,7 @@ export default function ServerSchedulePrint() {
                                 })}
                             </div>
                             {/* Members Content */}
-                            <div className="flex min-h-[100px]">
+                            <div className="flex" style={{ minHeight: `${rowHeight}px` }}>
                                 {weekendData.columns.map((col, cIdx) => {
                                     const targetDate = col.day === 6 ? row.sat : row.sun;
                                     const dateStr = targetDate.format('YYYYMMDD');
@@ -363,9 +381,14 @@ export default function ServerSchedulePrint() {
              <div className="print:hidden flex flex-col items-center gap-2">
                  <div className="flex flex-wrap items-center justify-center gap-4">
                      {/* Weekend Toggle */}
-                     <Button 
-                        variant={isWeekendOnly ? undefined : "outline"} 
-                        onClick={() => setIsWeekendOnly(!isWeekendOnly)}
+                     <Button
+                        variant={isWeekendOnly ? undefined : "outline"}
+                        onClick={() => {
+                            const next = !isWeekendOnly;
+                            setIsWeekendOnly(next);
+                            const s = loadSettings();
+                            setRowHeight(next ? (s.rowHeightWeekend ?? 100) : (s.rowHeightNormal ?? 185));
+                        }}
                         className={`h-8 gap-2 ${isWeekendOnly ? 'bg-blue-600 hover:bg-blue-700' : 'text-blue-600 border-blue-200 hover:bg-blue-50'}`}
                      >
                         <CalendarDays size={16} />
@@ -380,6 +403,17 @@ export default function ServerSchedulePrint() {
                         <span className="text-sm w-8 text-center">{fontSize}px</span>
                         <Button variant="outline" size="icon" onClick={() => setFontSize(s => Math.min(24, s + 1))} className="h-8 w-8">
                             <ZoomIn size={14} />
+                        </Button>
+                     </div>
+
+                     <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-lg">
+                        <span className="text-sm font-medium text-gray-600">행 높이:</span>
+                        <Button variant="outline" size="icon" onClick={() => setRowHeight(h => Math.max(40, h - 5))} className="h-8 w-8">
+                            <Minus size={14} />
+                        </Button>
+                        <span className="text-sm w-12 text-center">{rowHeight}px</span>
+                        <Button variant="outline" size="icon" onClick={() => setRowHeight(h => Math.min(400, h + 5))} className="h-8 w-8">
+                            <Plus size={14} />
                         </Button>
                      </div>
 

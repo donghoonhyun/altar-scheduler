@@ -206,18 +206,27 @@ export default function RequestPlannerRole() {
 
   // Load User Profile & Pre-fill Context
   useEffect(() => {
-    if (existingRequest || checkingStatus) return; 
+    // 신청 이력(approved/rejected)이 있어도 기본값 프리필은 동작해야 한다.
+    if (checkingStatus) return;
 
     const loadProfile = async () => {
       if (!user) return;
       try {
+        // 세션에 이미 있는 사용자 정보를 먼저 반영해 초기 렌더에서 바로 표시
+        if (session.userInfo) {
+          setUserName(session.userInfo.userName || user.displayName || '');
+          setBaptismalName(session.userInfo.baptismalName || '');
+        } else {
+          setUserName(user.displayName || '');
+        }
+
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          setUserName(data.user_name || user.displayName || '');
-          setBaptismalName(data.baptismal_name || '');
-          setPhone(data.phone || '');
-          if (!data.phone) setIsPhoneEditable(true);
+          setUserName(data.user_name || data.display_name || user.displayName || '');
+          setBaptismalName(data.baptismal_name || data.catholic_info?.baptismal_name || '');
+          setPhone(data.phone || data.phone_number || '');
+          if (!data.phone && !data.phone_number) setIsPhoneEditable(true);
         } else {
             setUserName(user.displayName || '');
             setIsPhoneEditable(true);
@@ -228,17 +237,28 @@ export default function RequestPlannerRole() {
     };
     loadProfile();
 
-    if (session.currentServerGroupId && session.serverGroups[session.currentServerGroupId]) {
-        const groupInfo = session.serverGroups[session.currentServerGroupId];
-        setSelectedParish(groupInfo.parishCode);
-    }
-  }, [user, existingRequest, checkingStatus, session.currentServerGroupId, session.serverGroups]);
+    // 🏠 교구/성당/복사단 초기값 세팅
+    // 우선순위 1: 현재 세션에서 선택된 복사단
+    // 우선순위 2: 세션에 있는 첫 번째 복사단
+    const fallbackSgId = Object.keys(session.serverGroups)[0];
+    const seedSgId = session.currentServerGroupId || fallbackSgId;
 
-  // 성당이 이미 선택된 경우 교구 자동 매칭
+    if (seedSgId && session.serverGroups[seedSgId]) {
+        const groupInfo = session.serverGroups[seedSgId];
+        setSelectedParish(groupInfo.parishCode);
+        setSelectedGroup(seedSgId);
+        // 교구는 parishes 로드 후 아래 useEffect에서 자동 매칭
+    } else if (session.userInfo?.parishId) {
+        // 우선순위 2: 유저 프로필의 parish_id
+        setSelectedParish(session.userInfo.parishId);
+    }
+  }, [user, checkingStatus, session.currentServerGroupId, session.serverGroups, session.userInfo]);
+
+  // 성당이 선택된 경우 교구 자동 매칭
   useEffect(() => {
-    if (selectedParish && parishes && !selectedDiocese) {
+    if (selectedParish && parishes) {
         const p = parishes.find(item => item.code === selectedParish);
-        if (p) setSelectedDiocese(p.diocese);
+        if (p && p.diocese !== selectedDiocese) setSelectedDiocese(p.diocese);
     }
   }, [selectedParish, parishes, selectedDiocese]);
 
@@ -263,10 +283,13 @@ export default function RequestPlannerRole() {
           }));
         
         setServerGroups(list);
-        if (list.length === 1) {
-            setSelectedGroup(list[0].id);
-        } else {
-            setSelectedGroup(''); 
+        // 이미 selectedGroup이 세팅된 경우(세션에서 자동 세팅) 유지, 아닐 때만 자동 세팅
+        if (!selectedGroup) {
+          if (list.length === 1) {
+              setSelectedGroup(list[0].id);
+          } else {
+              setSelectedGroup(''); 
+          }
         }
       } catch (e) {
         console.error('Failed to load server groups', e);
@@ -274,6 +297,16 @@ export default function RequestPlannerRole() {
     };
     loadGroups();
   }, [selectedParish]);
+
+  const selectedParishName =
+    parishes?.find((p) => p.code === selectedParish)?.name_kor ||
+    (selectedGroup ? session.serverGroups[selectedGroup]?.parishName : '') ||
+    '';
+  const selectedGroupName =
+    serverGroups.find((sg) => sg.id === selectedGroup)?.name ||
+    (selectedGroup ? session.serverGroups[selectedGroup]?.groupName : '') ||
+    '';
+  const selectedDioceseName = selectedDiocese ? getDioceseName(selectedDiocese) : '';
 
   const handleSubmit = async () => {
     if (!user) {
@@ -413,10 +446,11 @@ export default function RequestPlannerRole() {
             </div>
         </Card>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
+        <div className="grid grid-cols-2 gap-3 w-full">
             <Button 
                 variant="outline"
-                className="flex-1 h-12"
+                size="md"
+                className="w-full"
                 onClick={() => navigate('/')}
             >
                 <Home className="w-4 h-4 mr-2" />
@@ -425,7 +459,8 @@ export default function RequestPlannerRole() {
 
             <Button 
                 variant="destructive"
-                className="flex-1 h-12 font-bold"
+                size="md"
+                className="w-full"
                 onClick={() => cancelRequestById(existingRequest)}
                 disabled={loading}
             >
@@ -470,6 +505,11 @@ export default function RequestPlannerRole() {
                         <Church className="w-4 h-4 text-slate-400" />
                         1. 소속 선택
                     </Label>
+                    {(selectedDioceseName || selectedParishName || selectedGroupName) && (
+                        <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-lg px-3 py-2">
+                            세션 기본값: {selectedDioceseName || '-'} / {selectedParishName || '-'} / {selectedGroupName || '-'}
+                        </div>
+                    )}
                     <div className="grid gap-4">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase tracking-wider text-slate-400">교구</Label>
@@ -549,11 +589,11 @@ export default function RequestPlannerRole() {
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-5 space-y-4 border border-slate-100 dark:border-slate-800">
                         <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-slate-400">이름</span>
-                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{userName}</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{userName || session.userInfo?.userName || user?.displayName || '-'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-slate-400">세례명</span>
-                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{baptismalName || '-'}</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{baptismalName || session.userInfo?.baptismalName || '-'}</span>
                         </div>
                         <div className="flex items-center justify-between gap-4">
                             <span className="text-xs font-semibold text-slate-400 shrink-0">연락처</span>
@@ -589,18 +629,21 @@ export default function RequestPlannerRole() {
                     </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="grid grid-cols-2 gap-3 pt-2">
                     <Button 
-                        variant="ghost" 
+                        variant="outline" 
+                        size="md"
                         onClick={() => navigate(-1)} 
-                        className="flex-1 h-12"
+                        className="w-full"
                         disabled={loading}
                     >
                         취소
                     </Button>
                     <Button 
+                        variant="primary"
+                        size="md"
                         onClick={handleSubmit} 
-                        className="flex-2 h-12 font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
+                        className="w-full"
                         disabled={loading}
                     >
                         {loading ? '신청 중...' : '신청하기'}

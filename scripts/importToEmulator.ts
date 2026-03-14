@@ -45,7 +45,7 @@ const CRITICAL_USERS = [
     baptismalName: '알퐁소',
     roleDocs: [
       {
-        collection: 'app_altar/v1/memberships',
+        collection: 'app_datas/ordo-altar/memberships',
         docId: `pongso-hyun-uid_${TEST_SERVER_GROUP_ID}`,
         data: {
           uid: 'pongso-hyun-uid',
@@ -56,7 +56,7 @@ const CRITICAL_USERS = [
         },
       },
       {
-        collection: 'app_altar/v1/memberships',
+        collection: 'app_datas/ordo-altar/memberships',
         docId: `pongso-hyun-uid_global`,
         data: {
           uid: 'pongso-hyun-uid',

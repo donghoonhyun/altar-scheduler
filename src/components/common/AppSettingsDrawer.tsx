@@ -7,9 +7,7 @@ import { useFcmToken } from '@/hooks/useFcmToken';
 import { useSession } from '@/state/session';
 import { functions } from '@/lib/firebase';
 import { callNotificationApi } from '@/lib/notificationApi';
-import { Bell, CheckCircle2, XCircle, AlertCircle, Monitor, Sun, Moon, Laptop } from 'lucide-react';
-import { useTheme } from '@/components/common/ThemeProvider';
-import { cn } from '@/lib/utils';
+import { Bell, CheckCircle2, XCircle, AlertCircle, Monitor } from 'lucide-react';
 
 interface AppSettingsDrawerProps {
   open: boolean;
@@ -17,7 +15,6 @@ interface AppSettingsDrawerProps {
 }
 
 export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDrawerProps) {
-  const { theme, setTheme } = useTheme();
   const { permission, toggleNotification } = useFcmToken();
   const { user } = useSession();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
@@ -137,58 +134,6 @@ export default function AppSettingsDrawer({ open, onOpenChange }: AppSettingsDra
         </SheetHeader>
         
         <div className="py-4 space-y-4">
-          {/* Display Settings */}
-          <section className="space-y-3">
-            <div className="px-1">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <Monitor size={16} className="text-emerald-500" />
-                    화면 설정
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    앱의 화면 모드를 설정합니다.
-                </p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-1.5 shadow-sm grid grid-cols-3 gap-1">
-                <button
-                    onClick={() => setTheme('light')}
-                    className={cn(
-                        "flex flex-col items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
-                        theme === 'light' 
-                            ? "bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-gray-600" 
-                            : "text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400"
-                    )}
-                >
-                    <Sun size={20} />
-                    라이트
-                </button>
-                <button
-                    onClick={() => setTheme('dark')}
-                    className={cn(
-                        "flex flex-col items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
-                        theme === 'dark' 
-                             ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-gray-600" 
-                            : "text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400"
-                    )}
-                >
-                    <Moon size={20} />
-                    다크
-                </button>
-                <button
-                    onClick={() => setTheme('system')}
-                    className={cn(
-                        "flex flex-col items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
-                        theme === 'system' 
-                             ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-gray-600" 
-                            : "text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400"
-                    )}
-                >
-                    <Laptop size={20} />
-                    시스템
-                </button>
-            </div>
-          </section>
-
           {/* Notification Settings */}
           <section className="space-y-3">
             <div className="px-1">

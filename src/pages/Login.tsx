@@ -40,6 +40,14 @@ const Login: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      // Firebase OAuth는 localhost는 기본 허용되는 경우가 많지만 127.0.0.1은 미등록인 경우가 잦다.
+      // 로컬 개발 시 127.0.0.1 접속이면 localhost로 정규화해 로그인 실패를 방지한다.
+      if (window.location.hostname === '127.0.0.1') {
+        const { protocol, port, pathname, search, hash } = window.location;
+        window.location.replace(`${protocol}//localhost${port ? `:${port}` : ''}${pathname}${search}${hash}`);
+        return;
+      }
+
       setProcessing(true); 
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
@@ -57,6 +65,9 @@ const Login: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Google 로그인 에러:', error);
+      if (error?.code === 'auth/unauthorized-domain') {
+        alert('Firebase Authorized domains에 현재 도메인을 추가해주세요. (Authentication > Settings > Authorized domains)');
+      }
       setProcessing(false);
     }
   };

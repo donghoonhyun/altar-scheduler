@@ -276,7 +276,7 @@ export default function MassCalendar({
             <Button
               variant="outline"
               size="sm"
-              className="text-[11px] px-2 py-0 h-6 ml-1 whitespace-nowrap"
+              className="ml-1 whitespace-nowrap h-7 px-2 text-[11px]"
               onClick={handleToday}
             >
               <CalendarDays size={12} className="mr-1 hidden md:block" /> 오늘

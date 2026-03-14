@@ -2,33 +2,33 @@ import { useSession } from "../../state/session";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Church, Menu, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus, Settings, Mail, X, HelpCircle } from "lucide-react";
+import { Church, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus, Settings, HelpCircle, Moon, Sun } from "lucide-react";
 import ServerGroupSelector from "./ServerGroupSelector";
 import AppSettingsDrawer from "../../components/common/AppSettingsDrawer";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import DrawerHeader from "@/components/common/DrawerHeader";
+import { useTheme } from "@/components/common/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import MyInfoDrawer from "../../components/common/MyInfoDrawer";
 import { useState, useEffect } from "react";
 import { getAppIconPath, getAppTitleWithEnv } from "@/lib/env";
-import { useInstallPrompt } from "@/hooks/useInstallPrompt";
-import { Download, CheckCircle2 } from "lucide-react";
 import { useFcmToken } from "@/hooks/useFcmToken"; // ✅ FCM Hook
 
 export default function Layout() {
   const { user, userInfo, groupRoles, isSuperAdmin } = useSession();
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const toggleTheme = () => setTheme(isDark ? "light" : "dark");
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const [isMyInfoOpen, setIsMyInfoOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isContactOpen, setIsContactOpen] = useState(false);
-  const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
   
   // ✅ PWA 진입 시 FCM 토큰 관리 (권한 요청 및 저장)
   useFcmToken();
@@ -97,41 +97,56 @@ export default function Layout() {
 
             <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-800 dark:text-gray-100 transition-transform duration-300 hover:rotate-12 hover:scale-110 active:scale-90 dark:hover:bg-purple-800/50">
-                    <Menu size={35} strokeWidth={2.5} />
-                </Button>
+                <button className="w-9 h-9 rounded-full overflow-hidden shadow-sm border-2 border-purple-300 dark:border-purple-700 transition-transform active:scale-90 hover:scale-105 hover:border-purple-400 dark:hover:border-purple-500">
+                  {userInfo?.photoUrl ? (
+                    <img src={userInfo.photoUrl} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="w-full h-full flex items-center justify-center bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold text-sm">
+                      {userInfo?.baptismalName
+                        ? userInfo.baptismalName.charAt(0)
+                        : userInfo?.userName
+                        ? userInfo.userName.charAt(0)
+                        : user?.email?.charAt(0)?.toUpperCase() ?? '?'}
+                    </span>
+                  )}
+                </button>
                 </SheetTrigger>
-            <SheetContent className="w-[310px] sm:w-[360px] sm:max-w-[360px]">
-              <SheetHeader>
-                <SheetTitle className="hidden">메뉴</SheetTitle>
-              </SheetHeader>
-              
-              <div className="flex flex-col gap-2 pt-2">
-                {/* 사용자 정보 & 설정 버튼 - 위로 이동 및 여백 축소 */}
-                <div className="mb-1 px-1 flex justify-between items-start">
-                  <div>
-                    <p className="text-xl font-extrabold text-gray-900 dark:text-white">
-                      {userInfo?.userName}
+            <SheetContent className="w-[310px] sm:w-[360px] sm:max-w-[360px] p-0 flex flex-col overflow-hidden" hideClose>
+              <DrawerHeader onClose={() => setIsMenuOpen(false)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <SheetTitle className="text-xl font-bold text-white tracking-tight font-gamja flex items-center gap-1.5">
+                      {userInfo?.userName ?? ''}
                       {userInfo?.baptismalName && (
-                        <span className="ml-1 text-sm font-bold text-purple-600 dark:text-purple-400">
-                          {userInfo.baptismalName}
-                        </span>
+                        <span className="text-sm font-semibold text-purple-300">{userInfo.baptismalName}</span>
                       )}
+                    </SheetTitle>
+                    <p className="text-[11px] text-slate-100/80 font-medium tracking-tight font-gamja">
+                      {user?.email}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-0"
-                    onClick={() => {
-                        setIsSettingsOpen(true);
-                    }}
+                  {/* 다크/라이트 모드 토글 */}
+                  <button
+                    onClick={toggleTheme}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors border border-white/20 ${
+                      isDark ? "bg-slate-900/60" : "bg-amber-300/70"
+                    }`}
+                    aria-label="Toggle Dark Mode"
                   >
-                      <Settings size={20} />
-                  </Button>
+                    <span className={`${
+                      isDark ? "translate-x-4 bg-slate-700" : "translate-x-0.5 bg-white"
+                    } pointer-events-none h-4 w-4 rounded-full shadow transition-transform duration-200 flex items-center justify-center`}>
+                      {isDark ? (
+                        <Moon className="h-2.5 w-2.5 text-cyan-400 fill-current" />
+                      ) : (
+                        <Sun className="h-2.5 w-2.5 text-orange-500 fill-current" />
+                      )}
+                    </span>
+                  </button>
                 </div>
+              </DrawerHeader>
 
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
                 {/* 역할 표시 */}
                 {(rolesInGroup.length > 0 || isSuperAdmin) && (
                   <div className="text-xs font-semibold text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 italic">
@@ -143,16 +158,24 @@ export default function Layout() {
                 )}
 
                 <nav className="flex flex-col gap-1.5">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="justify-start gap-3 h-9 text-sm font-medium rounded-xl"
                     onClick={() => setIsMyInfoOpen(true)}
                   >
                     <UserIcon size={18} className="text-gray-400" />
                     내정보 수정
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
+                    className="justify-start gap-3 h-9 text-sm font-medium rounded-xl"
+                    onClick={() => setIsSettingsOpen(true)}
+                  >
+                    <Settings size={18} className="text-gray-400" />
+                    앱 설정
+                  </Button>
+                  <Button
+                    variant="ghost"
                     className="justify-start gap-3 h-9 text-sm font-medium rounded-xl"
                     onClick={() => {
                         navigate('/add-member');
@@ -160,56 +183,15 @@ export default function Layout() {
                     }}
                   >
                     <UserPlus size={18} className="text-gray-400" />
-                    권한 신청
+                    신규 복사 신청
                   </Button>
                 </nav>
 
-                {/* 역할별 바로가기 및 앱 설치 */}
-                {((serverGroupId && rolesInGroup.length > 0) || !isInstalled || isSuperAdmin) && (
+                {/* 역할별 바로가기 */}
+                {((serverGroupId && rolesInGroup.length > 0) || isSuperAdmin) && (
                   <div className="mt-2 pt-3 border-t border-gray-100 dark:border-gray-600 flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between px-1 mb-0.5">
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-300">바로가기</span>
-                        <div className="relative">
-                            <button 
-                                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-blue-500 dark:text-gray-300 dark:hover:text-blue-400"
-                                onClick={() => setIsContactOpen(!isContactOpen)}
-                            >
-                                <Mail size={12} />
-                                <span>문의</span>
-                            </button>
-                            
-                            {isContactOpen && (
-                                <div className="absolute right-0 top-6 z-50 bg-white p-3 rounded-xl shadow-xl border w-64 text-left animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h4 className="text-xs font-bold text-gray-900">문의사항이 있으신가요?</h4>
-                                        <button onClick={() => setIsContactOpen(false)} className="text-gray-400 hover:text-gray-600">
-                                            <X size={14} />
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-gray-500 mb-2 leading-snug">
-                                        아래 이메일로 편하게 연락주세요.
-                                    </p>
-                                    <div className="bg-gray-50 p-2 rounded-lg text-[10px] space-y-1 text-gray-600 border border-gray-100">
-                                        <div>
-                                            <span className="font-bold text-gray-800 mr-1">수신:</span> 
-                                            jagalchi@naver.com
-                                        </div>
-                                        <div>
-                                            <span className="font-bold text-gray-800 mr-1">제목:</span> 
-                                            [Altar 앱문의] 문구포함
-                                        </div>
-                                        <div>
-                                            <span className="font-bold text-gray-800 mr-1">내용:</span> 
-                                            이용중이신 본당명, 복사단명 포함하여 문의사항을 작성해 주시면 감사하겠습니다.
-                                        </div>
-                                    </div>
-                                    <div className="absolute -top-1 right-2 w-2 h-2 bg-white border-t border-l transform rotate-45" />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 px-1">바로가기</span>
+                    <div className="grid grid-cols-4 gap-1.5">
                       {isSuperAdmin && (
                         <Button
                           variant="ghost"
@@ -228,7 +210,7 @@ export default function Layout() {
                         <>
                           {rolesInGroup.includes('admin') && (
                             <Button
-                              variant="ghost" 
+                              variant="ghost"
                               className="flex flex-col items-center justify-center h-auto py-2.5 px-0 text-[10px] font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded-xl gap-1"
                               onClick={() => {
                                 navigate(`/server-groups/${serverGroupId}/admin`);
@@ -270,46 +252,22 @@ export default function Layout() {
                         </>
                       )}
                     </div>
-
-                    {/* 앱 설치 버튼 */}
-                    {!isInstalled && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          if (isInstallable) {
-                            promptInstall();
-                          } else {
-                            alert('현재 브라우저에서는 설치 기능을 지원하지 않거나, 이미 설치되어 있을 수 있습니다. \n브라우저 메뉴(⋮)에서 [앱 설치]를 확인해주세요.');
-                          }
-                        }}
-                        className="w-full text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-auto py-2 flex items-center justify-center gap-1.5 transition-colors"
-                      >
-                        <Download size={14} />
-                        앱으로 설치하고 간편하게 접속하세요
-                      </Button>
-                    )}
-                  </div>
-                )}
-                
-                {/* 이미 설치됨 표시 (선택사항) */}
-                {isInstalled && (
-                  <div className="mt-auto px-4 py-2 bg-gray-50 rounded-xl flex items-center justify-center gap-2 text-gray-500 text-xs font-medium">
-                    <CheckCircle2 size={16} className="text-green-500" />
-                    앱이 설치되어 있습니다
                   </div>
                 )}
 
-                {/* 로그아웃 버튼 (최하단 이동) */}
-                <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-600">
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start gap-3 h-9 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
-                    onClick={handleLogout}
-                  >
-                    <LogOut size={18} className="text-red-400" />
-                    로그아웃
-                  </Button>
-                </div>
+                {/* 로그아웃 버튼 (개발자 전용) */}
+                {user?.email === "pongso.hyun@gmail.com" && (
+                  <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-600">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start gap-3 h-9 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
+                      onClick={handleLogout}
+                    >
+                      <LogOut size={18} className="text-red-400" />
+                      로그아웃
+                    </Button>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>

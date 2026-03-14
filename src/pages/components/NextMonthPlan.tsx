@@ -16,23 +16,26 @@ const NextMonthPlan: React.FC<Props> = ({ serverGroupId }) => {
       <div className="flex flex-col gap-2">
         <Button
           variant="primary"
+          size="md"
           onClick={() => navigate(`/server-groups/${serverGroupId}/mass-events`)}
-          className="w-full flex-1"
+          className="w-full"
         >
           미사일정 계획
         </Button>
         <div className="flex gap-2">
            <Button
              variant="outline"
+             size="md"
              onClick={() => navigate(`/server-groups/${serverGroupId}/presets`)}
              className="flex-1"
            >
              Preset 설정
            </Button>
            <Button
-             variant="ghost" 
+             variant="secondary"
+             size="md"
              onClick={() => navigate(`/server-groups/${serverGroupId}/surveys`)}
-             className="flex-1 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 dark:hover:bg-purple-900/50"
+             className="flex-1"
            >
              설문 관리
            </Button>

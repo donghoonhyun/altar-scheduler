@@ -11,6 +11,8 @@ interface DrawerHeaderProps {
   children?: React.ReactNode;
 }
 
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
 /**
  * DrawerHeader
  * Standardized header for Drawers and specific Dialogs
@@ -25,25 +27,25 @@ export default function DrawerHeader({
 }: DrawerHeaderProps) {
   return (
     <div className={cn(
-      "relative h-24 bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950 shadow flex items-center shrink-0 w-full overflow-hidden",
+      "relative h-20 bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950 shadow flex items-center shrink-0 w-full overflow-hidden",
       className
     )}>
       {/* Background Ornaments */}
       <div className="absolute top-[-20px] right-[-20px] w-40 h-40 bg-white/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-[-10px] left-[10%] w-24 h-24 bg-blue-400/10 rounded-full blur-2xl pointer-events-none" />
       
-      <div className="px-6 flex flex-col justify-center gap-0.5 z-10 w-full pr-14">
+      <div className="px-6 flex flex-col justify-center gap-0.5 z-10 w-full pr-20">
         {children ? (
           children
         ) : (
           <>
-            <h2 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <DialogTitle className="text-xl font-bold text-white tracking-tight flex items-center gap-2 font-gamja">
               {title}
-            </h2>
+            </DialogTitle>
             {subtitle && (
-              <p className="text-[11px] text-slate-300 font-medium tracking-tight">
+              <DialogDescription className="text-[11px] text-slate-100/80 font-medium tracking-tight font-gamja">
                 {subtitle}
-              </p>
+              </DialogDescription>
             )}
           </>
         )}

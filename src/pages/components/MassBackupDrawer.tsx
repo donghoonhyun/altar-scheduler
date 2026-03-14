@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { DialogDescription } from '@/components/ui/dialog-description';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save, Archive, RotateCcw, Trash2, Pencil, X, Check } from 'lucide-react';
+import { Loader2, Save, RotateCcw, Trash2, Pencil, X, Check } from 'lucide-react';
+import DrawerHeader from '@/components/common/DrawerHeader';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -207,21 +207,14 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg p-6 max-h-[85vh] flex flex-col">
-        <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-2">
-          <Archive size={20} className="text-gray-600" />
-          미사 일정 백업 및 복원
-          <span className="text-gray-500 text-base ml-1">
-            ({currentMonth.format('YYYY년 M월')})
-          </span>
-        </DialogTitle>
+      <DialogContent className="max-w-lg p-0 max-h-[85vh] flex flex-col overflow-hidden" hideClose>
+        <DrawerHeader
+          title="미사 백업"
+          subtitle={currentMonth.format('YYYY년 M월')}
+          onClose={onClose}
+        />
 
-        <DialogDescription className="text-sm text-gray-600 mb-3">
-            자동 배정 등을 실행하기 전에 현재 상태를 백업해두면 언제든 복원할 수 있습니다.
-        </DialogDescription>
-
-        <div className="border-b border-gray-200 dark:border-gray-700 my-2" />
-
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
         {/* Create Backup Section */}
         <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg space-y-3">
              <Label htmlFor="backup-label">새 백업 생성</Label>
@@ -313,8 +306,9 @@ const MassBackupDrawer: React.FC<MassBackupDrawerProps> = ({
                  </div>
              )}
         </div>
+        </div>
 
-        <div className="flex justify-end pt-4 mt-auto border-t">
+        <div className="flex justify-end px-6 py-4 border-t border-gray-200 dark:border-slate-700 shrink-0">
           <Button variant="ghost" onClick={onClose}>닫기</Button>
         </div>
       </DialogContent>

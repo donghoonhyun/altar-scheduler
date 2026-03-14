@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Clipboard, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import DrawerHeader from '@/components/common/DrawerHeader';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
@@ -86,6 +87,7 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
               event_date: dateStr,
               required_servers: p.required_servers || 2,
               member_ids: [],
+              add_type: 'preset',
               // status: 'MASS-NOTCONFIRMED', // ❌ DEPRECATED: Status managed by month_status
               created_at: serverTimestamp(),
               updated_at: serverTimestamp()
@@ -120,30 +122,24 @@ const ApplyPresetDrawer: React.FC<ApplyPresetDrawerProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md p-6">
-        <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-2">
-          <Clipboard size={20} className="text-blue-600" />
-          Preset 초기화
-          <span className="text-gray-500 text-base ml-1">
-            ({currentMonth.format('YYYY년 M월')})
-          </span>
-        </DialogTitle>
+      <DialogContent className="max-w-md p-0 flex flex-col overflow-hidden" hideClose>
+        <DrawerHeader
+          title="프리셋 초기화"
+          subtitle={currentMonth.format('YYYY년 M월')}
+          onClose={onClose}
+        />
 
-        <DialogDescription asChild>
-          <div className="text-sm text-gray-600 mb-3">
-            미리 설정된 <b>주간 반복 Preset</b>을 사용하여
-            <br/>
+        <div className="p-6 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+          <p className="text-gray-600 dark:text-gray-400">
+            미리 설정된 <b>주간 반복 Preset</b>을 사용하여{' '}
             <b>{currentMonth.format('M월')}</b>의 전체 미사 일정을 자동 생성합니다.
-          </div>
-        </DialogDescription>
-
-        <div className="border-b border-gray-200 dark:border-gray-700 my-3" />
-        <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+          </p>
+          <div className="border-b border-gray-200 dark:border-gray-700 my-3" />
           <p className="text-red-600 font-bold">⚠️ 주의: 현재 월의 기존 일정이 모두 삭제됩니다.</p>
           <p>초기화 후에는 되돌릴 수 없습니다.</p>
         </div>
 
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 px-6 pb-6">
           <Button variant="outline" onClick={onClose} disabled={loading}>
             취소
           </Button>

@@ -1,0 +1,31 @@
+[2026-02-22T04:31:42.294Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"emulatorHub"}
+(node:24864) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[2026-02-22T04:31:42.309Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2026-02-22T04:31:42.310Z] > authorizing via signed-in user (pongso.hyun@gmail.com)
+[2026-02-22T04:31:42.310Z] [iam] checking project ordo-eb11a for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[2026-02-22T04:31:42.313Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:31:42.313Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:31:42.329Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions [none]
+[2026-02-22T04:31:42.329Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions  x-goog-user-project=ordo-eb11a
+[2026-02-22T04:31:42.331Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[2026-02-22T04:31:42.754Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions 200
+[2026-02-22T04:31:42.754Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[2026-02-22T04:31:42.755Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:31:42.755Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:31:42.755Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions [none]
+[2026-02-22T04:31:42.755Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[2026-02-22T04:31:43.977Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions 200
+[2026-02-22T04:31:43.978Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+
+=== Deploying to 'ordo-eb11a'...
+
+i  deploying functions 
+Running command: npm --prefix "$RESOURCE_DIR" run build
+
+> build
+> tsc -p tsconfig.json
+
++  functions: Finished running predeploy script. 
+
+Error: ../OrdoAdmin/functions is outside of project directory

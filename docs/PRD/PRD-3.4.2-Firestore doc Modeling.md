@@ -1,5 +1,22 @@
 # PRD 3.4.2 Firestore Collections Structure (Altar Scheduler)
 
+## ⚠️ 컬렉션 경로 변경 이력 (2026-02-23)
+
+|기존 경로|변경된 경로|
+|---|---|
+|`app_altar/v1/`|`app_datas/ordo-altar/`|
+|`users_verbum/{uid}/saved_verses`|`app_datas/ordo-verbum/users/{uid}/saved_verses`|
+|`daily_verses/{verseId}`|`ordo_contents/daily_contents/daily_verses/{verseId}`|
+|`dashboard_news/{newsId}`|`ordo_contents/dashboard_news/items/{newsId}`|
+
+경로 상수 파일:
+
+- altar-scheduler: [src/lib/collections.ts](../../src/lib/collections.ts) (`COLLECTIONS` 객체)
+- altar-scheduler Functions: [functions/src/firestorePaths.ts](../../functions/src/firestorePaths.ts) (`APP_ROOT`, `paths`)
+- Ordo/Verbum: `src/lib/constants/collections.ts` (`COLLECTIONS`, `PATHS`)
+
+---
+
 - 🎯Firestore Collections Overview
 
 ```lua
@@ -96,9 +113,10 @@ server_groups/{server_group_id} // auto-generated 아님.rule based
   created_at: timestamp
   updated_at: timestamp
 ```
+
 - server_group_id 채번 규칙
   - 'SG' + 5자리 number seq number : ex: SG00001
-  - seq number : counters컬렉션의 server_groups 카운터로 생성됨
+  - seq number : `/settings/counters` 문서의 `seq_server_groups` 필드 (Ordo 글로벌 카운터)
 
 ### 2.1 Members
 
@@ -181,14 +199,19 @@ server_groups/{sg}/month_status/{yyyymm}
 
 ```lua
 server_groups/{sg}/mass_events/{event_id}
-  event_date: timestamp          // "YYYYMMDD" (KST 기준)  
+  event_date: timestamp          // "YYYYMMDD" (KST 기준)
   title: string                 // 예: "주일 10시 미사"
   required_servers: number      // 필요 복사 인원수
   member_ids: string[]          // 배정된 복사 ID 목록
   main_member_id: string        // 주복사 ID (member_ids 중 한 명)
   not_available_members: string[] // 설문에 따른 참석 불가능한 복사들 ID목록
+  add_type: string              // 생성 방식: 'preset' (Preset초기화) | 'manual' (Drawer 직접 추가)
   created_at: timestamp
   updated_at: timestamp
+
+- event_id 채번 규칙: Firestore auto-ID (addDoc / doc(collection(...)) 사용)
+  - ~~ME000001 형태 시퀀스 채번 폐지~~
+  - ~~counters/mass_events 문서 폐지~~
 ```
   
 ### 2.5 Availability Surveys (가용성 설문 & 응답)
@@ -230,7 +253,29 @@ server_groups/{sg}/notifications/{notif_id}
   created_at: timestamp
 ```
 
-## 3. 사용자 계정 프로필 (권한 SSOT 아님)
+## 3. 생태계 통합 RBAC (`user_app_roles`)
+
+> 상세 설계: [PRD-3.4.5-UserAppRoles-RBAC.md](PRD-3.4.5-UserAppRoles-RBAC.md)
+
+```lua
+user_app_roles/{uid}                  // docId = Firebase Auth uid
+  global_role?: 'superadmin'          // 생태계 전역 슈퍼어드민 여부 (없으면 일반 사용자)
+  apps: {
+    [appId: string]: {
+      installed_at: Timestamp         // 앱 설치(등록) 일시
+      last_accessed?: Timestamp       // 마지막 접근 일시 (선택)
+    }
+  }
+  updated_at: Timestamp
+```
+
+- **appId 예시**: `ordo-altar`, `ordo-verbum`, `ordo-admin`
+- `global_role` 필드는 Cloud Function(Admin SDK)으로만 쓰기 가능. 클라이언트 직접 쓰기 rules 차단.
+- 기존 `users/{uid}/installed_apps/` 서브컬렉션을 대체 (마이그레이션 후 제거 예정)
+
+---
+
+## 3.1 사용자 계정 프로필 (권한 SSOT 아님)
 
 ```lua
 users/{uid}
@@ -249,6 +294,7 @@ users/{uid}
 ## 6. System Logs (Root Level)
 
 ### 6.1 SMS Logs
+
 ```lua
 system_sms_logs/{logId}
   receiver: string       // 수신번호
@@ -258,6 +304,7 @@ system_sms_logs/{logId}
 ```
 
 ### 6.2 System Notification Logs (App Push)
+
 ```lua
 system_notification_logs/{logId}
   title: string

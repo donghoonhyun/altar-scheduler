@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { DialogDescription } from '@/components/ui/dialog-description';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Calendar, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
+import DrawerHeader from '@/components/common/DrawerHeader';
 import type { MassStatus } from '@/types/firestore';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
@@ -94,9 +94,7 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
         },
         { merge: true }
       );
-      toast.success(`✅ ${monthLabel} 상태가 "${STATUS_LABELS[selectedStatus]}"로 변경되었습니다.`, {
-        description: '대상자에게 알림이 곧 보내집니다.',
-      });
+      toast.success(`✅ ${monthLabel} 상태가 "${STATUS_LABELS[selectedStatus]}"로 변경되었습니다.`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -108,16 +106,14 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md p-6">
-        <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-4">
-          <Calendar size={20} className="text-blue-600" />월 상태 변경
-          <span className="text-gray-500 text-base ml-1">({monthLabel})</span>
-        </DialogTitle>
+      <DialogContent className="max-w-md p-0 flex flex-col overflow-hidden" hideClose>
+        <DrawerHeader
+          title="월 상태 변경"
+          subtitle={monthLabel}
+          onClose={onClose}
+        />
 
-        <DialogDescription className="text-sm text-gray-600 mb-4 dark:text-gray-400">
-          현재 월의 미사 일정 상태를 변경하고, 필요 시 비고 또는 편집 잠금을 설정합니다.
-        </DialogDescription>
-
+        <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
           <div className="text-center text-gray-500 py-4">로딩 중...</div>
         ) : (
@@ -195,6 +191,7 @@ const MonthStatusDrawer: React.FC<MonthStatusDrawerProps> = ({
           <Button variant="primary" onClick={handleSave} disabled={saving || loading}>
             {saving ? '저장 중...' : '저장'}
           </Button>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

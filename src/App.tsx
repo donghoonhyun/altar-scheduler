@@ -21,24 +21,7 @@ function App() {
 
     const params = new URLSearchParams(window.location.search);
 
-    // 1. Theme Sync (PRD 3.3)
-    const themeParam = params.get('theme');
-    if (themeParam === 'dark' || themeParam === 'light') {
-      const root = window.document.documentElement;
-      root.classList.remove('light', 'dark');
-      root.classList.add(themeParam);
-      localStorage.setItem('theme', themeParam);
-    } else {
-      // Fallback: Check storage or system preference
-      const storedTheme = localStorage.getItem('theme');
-      if (storedTheme) {
-        window.document.documentElement.classList.add(storedTheme);
-      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        window.document.documentElement.classList.add('dark');
-      }
-    }
-
-    // 2. SSO Token Check
+    // SSO Token Check
     const token = params.get('authtoken');
 
     // Prevent double-processing in Strict Mode

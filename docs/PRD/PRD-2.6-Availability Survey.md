@@ -313,6 +313,9 @@ for each event_id in mass_events:
 3.  **Deleted Members Handling**:
     *   멤버 문서가 물리적으로 삭제되어 참조할 수 없는 경우, 이름을 "정보없음(삭제됨?)"으로 표시하고 하단 분리 목록에 포함시킨다.
 
+4.  **확인 필요 뱃지 (Warning Badge)**:
+    *   플래너가 설문 대상자를 조회하는 화면(예: SendSurveyDrawer)에서 멤버의 `active` 상태가 `false`이거나 `parent_uid` (부모 연동 정보)가 없는 경우, 이름 옆에 붉은색 경고 표시(ex. "[확인필요]")를 노출하여 시각적으로 식별할 수 있게 한다.
+
 ### 12.2 세례명 표시 (Baptismal Name Display)
 동명이인 구분 및 신자 친화적인 UI를 위해 이름 표시 시 세례명을 병기한다.
 

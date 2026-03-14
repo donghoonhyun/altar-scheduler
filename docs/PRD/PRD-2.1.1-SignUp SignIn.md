@@ -54,11 +54,16 @@
 
 #### 2.3.1 email password 방식
 
-#### 2.3.1 OAuth (Google) 방식
+#### 2.3.2 OAuth (Google) 방식
 
-- **Firebase Auth `signInWithPopup` 직접 사용** (SDK Pure Call).
-- 복잡한 리다이렉트 재시도 로직을 제거하여 안정성과 속도 확보.
-- 인앱 브라우저 등 팝업 제한 환경 대비: (필요 시 추후 리다이렉트 방식 검토, 현재는 팝업 우선)
+- **브라우저 감지 기반 로그인 방식 분기**:
+  - **Chrome 등 일반 브라우저**: `signInWithPopup` 사용 (속도 우선).
+  - **Safari**: `signInWithRedirect` 자동 전환.
+    - Safari는 팝업 차단 정책이 엄격하여 `signInWithPopup` 실패 가능.
+    - 리다이렉트 후 `getRedirectResult`로 결과 처리 (`useEffect` 진입 시 실행).
+    - 팝업 차단 오류(`auth/popup-blocked`, `auth/popup-closed-by-user`) 발생 시 redirect로 자동 재시도.
+  - **Safari 경고 배너**: 로그인/회원가입 화면에 Safari 감지 시 오렌지색 경고 배너 표시.
+    > "Safari는 Google 로그인을 지원하지 않습니다. Chrome 브라우저를 사용해 주세요."
 
 ---
 
@@ -282,5 +287,58 @@ server_groups/{sg}/members/{memberId}     # 복사 정보
   복사추가 클릭시 추가 페이지(/add-member)로 이동해서 등록신청 후 server-main으로 돌아옴
 - 복사 active:true 이후 기능 사용 가능
 - 달력은 multi-member view + 필터링
+
+---
+
+## 12. 플래너 권한 신청 (RequestPlannerRole) UX 개선 (2026-02)
+
+### 12.1 세션 기반 초기값 자동 세팅
+
+플래너 권한 신청 페이지 진입 시, 세션 정보를 활용해 폼을 자동으로 초기화한다.
+
+| 우선순위 | 조건 | 자동 세팅 항목 |
+|---|---|---|
+| 1순위 | `session.currentServerGroupId` 존재 | 성당 + 복사단 |
+| 2순위 | `session.serverGroups`의 첫 번째 그룹 | 성당 + 복사단 |
+| 3순위 | `session.userInfo.parishId` 존재 | 성당만 |
+| 자동 반응 | 성당 세팅 후 parishes 데이터 로드 완료 시 | 교구 자동 매칭 |
+
+### 12.2 신청자 정보 자동 채움
+
+- **이름**: `session.userInfo.userName` → Firestore `user_name` / `display_name` 순으로 폴백.
+- **세례명**: `session.userInfo.baptismalName` → Firestore `baptismal_name` / `catholic_info.baptismal_name` 순으로 폴백.
+- **연락처**: Firestore `phone` → `phone_number` 순으로 폴백.
+  - Ordo 온보딩에서 `phone_number` 필드로 저장하므로 두 필드 모두 확인.
+  - 연락처가 이미 프로필에 있으면 편집 불가(읽기 전용), 없으면 입력 필드 활성화.
+- **초기 렌더링 UX**: 세션 데이터를 우선 표시하여 Firestore 조회 완료를 기다리지 않아도 이름/세례명이 즉시 보임.
+
+### 12.3 Firestore 보안 규칙 수정사항
+
+**`role_requests` collectionGroup 규칙 변경**:
+
+```
+// 기존 (문제): requestId 비교는 collectionGroup 전체 조회 시 작동 안 함
+allow read: if isSignedIn() && (requestId == request.auth.uid || isSuperAdmin());
+
+// 변경 후: 로그인 사용자면 읽기 허용, 실제 필터링은 쿼리의 where('uid', '==', user.uid)로 보장
+allow read: if isSignedIn();
+allow write: if isSignedIn();
+```
+
+> `collectionGroup(db, 'role_requests')` 쿼리에서 `where('uid', '==', user.uid)` 조건으로 본인 데이터만 조회하므로 보안상 동등.
+
+**`installed_apps` 쓰기 규칙 단순화** (Ordo `firestore.rules`):
+
+```
+// 기존: exists() → get(구경로) 체이닝 → Safari에서 없는 문서 get() 시 에러 후 조용히 실패
+(!exists(newPath) && get(oldPath).data.category != 'admin')
+
+// 변경 후: 앱이 master_datas에 없으면 허용, 있으면 admin 카테고리만 차단
+!exists(masterPath) ||
+get(masterPath).data.category != 'admin' ||
+isSuperAdmin()
+```
+
+> Safari에서 이메일/비밀번호 회원가입 후 온보딩 시 기본 앱이 추가되지 않던 문제 해결.
 
 ---

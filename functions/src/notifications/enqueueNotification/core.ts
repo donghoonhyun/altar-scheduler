@@ -5,7 +5,7 @@ import { COL_FCM_LOGS, COL_MEMBERSHIPS, COL_NOTIFICATIONS } from '../../firestor
 
 export const db = admin.firestore();
 const MAX_FCM_TOKENS_PER_USER = 20;
-const DEFAULT_APP_ID = 'ordo-altar';
+export const DEFAULT_APP_ID = 'ordo-altar';
 const REMOVABLE_ERROR_CODES = new Set([
   'messaging/invalid-registration-token',
   'messaging/registration-token-not-registered',

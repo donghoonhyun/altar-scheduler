@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Bell } from 'lucide-react';
+import { Loader2, Bell } from 'lucide-react';
+import DrawerHeader from '@/components/common/DrawerHeader';
 import { toast } from 'sonner';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import dayjs, { Dayjs } from 'dayjs';
@@ -292,24 +293,12 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl p-0 flex flex-col h-[85vh] bg-white dark:bg-slate-900 dark:border-slate-700">
-        <div className="p-6 pb-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-start shrink-0">
-            <div>
-                <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">
-                    <CheckCircle2 size={22} className="text-red-600 dark:text-red-500" />
-                    최종 확정 <span className="text-base font-normal text-gray-500 dark:text-gray-400">({currentMonth.format('M월')})</span>
-                </DialogTitle>
-                <DialogDescription className="text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
-                    <span className="block">아래 배정 현황을 마지막으로 확인하고 최종확정 바랍니다.</span>
-                    <span className="block text-red-600 dark:text-red-400 font-medium">
-                        ⚠️ 확정 후에는 단원들에게 알림(Push)되며 배정을 다시 할 수 없습니다.
-                    </span>
-                    <span className="block text-red-500 font-normal">
-                         * 주의: 붉은색 날짜는 설문 불가 날짜와 겹치는 배정입니다.
-                    </span>
-                </DialogDescription>
-            </div>
-        </div>
+      <DialogContent className="max-w-2xl p-0 flex flex-col h-[85vh] bg-white dark:bg-slate-900 dark:border-slate-700" hideClose>
+        <DrawerHeader
+          title="최종 확정"
+          subtitle={`${currentMonth.format('YYYY년 M월')} · 아래 배정 현황을 확인하고 최종확정 하세요`}
+          onClose={onClose}
+        />
 
         {/* List Body */}
         <div className="flex-1 overflow-y-auto p-0 bg-gray-50/50 dark:bg-slate-950/50">

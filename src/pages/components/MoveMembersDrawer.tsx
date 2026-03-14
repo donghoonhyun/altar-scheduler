@@ -160,8 +160,11 @@ export default function MoveMembersDrawer({
             const selectedMembersList = members.filter(m => selectedIds.has(m.id));
 
             for (const member of selectedMembersList) {
-                const uid = member.id; // Assuming member.id is uid (which is true for active members)
-                
+                const uid = member.id; // Firestore doc ID (auto-generated for child members)
+                // 부모가 자녀를 등록한 경우 membership uid는 parent_uid 사용
+                // 본인이 직접 등록한 경우는 member.uid 또는 doc ID 사용
+                const membershipUid = member.parent_uid || member.uid || member.id;
+
                 // 1. Create new member doc in target SG
                 const targetMemberRef = doc(db, COLLECTIONS.SERVER_GROUPS, targetSgId, 'members', uid);
                 
@@ -203,7 +206,7 @@ export default function MoveMembersDrawer({
                     });
 
                     // Remove old membership
-                    const oldMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${currentServerGroupId}`);
+                    const oldMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${membershipUid}_${currentServerGroupId}`);
                     batch.delete(oldMembershipRef);
                 } else if (actionType === 'copy') {
                     // Update old member to record copy history
@@ -219,11 +222,11 @@ export default function MoveMembersDrawer({
                 // If copy, do nothing to old member/membership.
 
                 // 3. Create New Membership
-                // Membership ID is `{uid}_{sgId}`
-                const newMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${uid}_${targetSgId}`);
-                
+                // Membership ID는 실제 로그인 uid 기준으로 생성해야 session.ts에서 탐색 가능
+                const newMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${membershipUid}_${targetSgId}`);
+
                 batch.set(newMembershipRef, {
-                    uid: uid,
+                    uid: membershipUid,
                     server_group_id: targetSgId,
                     role: ['server'], // Reset to basic server role
                     active: member.active, // Maintain active status

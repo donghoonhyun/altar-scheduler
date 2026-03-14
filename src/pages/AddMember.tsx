@@ -31,17 +31,10 @@ import { useParishes } from '@/hooks/useParishes';
 import { useDioceses, Diocese } from '@/hooks/useDioceses';
 import { COLLECTIONS } from '@/lib/collections';
 import { 
-  UserPlus, 
-  GraduationCap, 
-  Calendar, 
   ChevronLeft, 
   ChevronRight, 
-  ArrowRight, 
   User, 
   Church, 
-  MapPin,
-  Settings,
-  Baby
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,20 +78,19 @@ export default function AddMember() {
   // 중복 확인 관련 상태
   const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
   const [duplicateMembers, setDuplicateMembers] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ [추가] 세션 정보(Ordo 온보딩 등)에서 이름/세례명/성당 초기값 가져오기
+  // 세션 정보(Ordo 온보딩 등)에서 성당 초기값 가져오기
   useEffect(() => {
     if (session.userInfo) {
-        if (!nameKor && session.userInfo.userName) setNameKor(session.userInfo.userName);
-        if (!baptismalName && session.userInfo.baptismalName) setBaptismalName(session.userInfo.baptismalName);
         if (!selectedParish && session.userInfo.parishId) setSelectedParish(session.userInfo.parishId);
     }
-  }, [session.userInfo, nameKor, baptismalName, selectedParish]);
+  }, [session.userInfo, selectedParish]);
 
   // SSO/온보딩 직후 세션 정보가 비어 있는 케이스를 대비해 users/{uid}에서 직접 보완한다.
   useEffect(() => {
     if (!user) return;
-    if (nameKor && baptismalName && selectedParish) return;
+    if (selectedParish) return;
 
     const fillFromUserDoc = async () => {
       try {
@@ -106,14 +98,6 @@ export default function AddMember() {
         if (!userSnap.exists()) return;
         const ud = userSnap.data() as any;
 
-        if (!nameKor) {
-          const nextName = ud.user_name || ud.display_name || ud.displayName || '';
-          if (nextName) setNameKor(nextName);
-        }
-        if (!baptismalName) {
-          const nextBaptismal = ud.baptismal_name || ud.catholic_info?.baptismal_name || '';
-          if (nextBaptismal) setBaptismalName(nextBaptismal);
-        }
         if (!selectedParish) {
           const nextParish = ud.catholic_info?.parish_id || ud.parish_id || '';
           if (nextParish) setSelectedParish(nextParish);
@@ -124,7 +108,7 @@ export default function AddMember() {
     };
 
     void fillFromUserDoc();
-  }, [user, nameKor, baptismalName, selectedParish]);
+  }, [user, selectedParish]);
 
   // ✅ URL 파라미터(sg) 또는 현재 세션 그룹(session.currentServerGroupId)로 초기값 세팅
   useEffect(() => {
@@ -192,13 +176,13 @@ export default function AddMember() {
 
   const handleSubmit = async (e?: React.MouseEvent | React.FormEvent, force: boolean = false) => {
     if (e) e.preventDefault();
+    if (isSubmitting) return;
     if (!user) { toast.error('로그인이 필요합니다.'); return; }
     if (!selectedParish || !selectedGroup) { toast.error('성당과 복사단을 모두 선택해주세요.'); return; }
     if (!nameKor || !baptismalName || !grade || !startYear) { toast.error('이름, 세례명, 학년, 시작년도를 모두 입력해주세요.'); return; }
 
     if (!force) {
         try {
-            // 인덱스 의존을 피하기 위해 전체 members를 읽고 클라이언트에서 필터링
             const snap = await getDocs(
               collection(db, `${COLLECTIONS.SERVER_GROUPS}/${selectedGroup}/members`)
             );
@@ -221,6 +205,7 @@ export default function AddMember() {
     }
 
     try {
+      setIsSubmitting(true);
       await addDoc(collection(db, `${COLLECTIONS.SERVER_GROUPS}/${selectedGroup}/members`), {
         parent_uid: user.uid,
         name_kor: nameKor,
@@ -233,14 +218,17 @@ export default function AddMember() {
         updated_at: serverTimestamp(),
       });
       const membershipId = `${user.uid}_${selectedGroup}`;
-      await setDoc(doc(db, COLLECTIONS.MEMBERSHIPS, membershipId), {
-        uid: user.uid,
-        server_group_id: selectedGroup,
-        role: ['server'],
-        active: false,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
+      const existingMembership = await getDoc(doc(db, COLLECTIONS.MEMBERSHIPS, membershipId));
+      if (!existingMembership.exists()) {
+        await setDoc(doc(db, COLLECTIONS.MEMBERSHIPS, membershipId), {
+          uid: user.uid,
+          server_group_id: selectedGroup,
+          role: ['server'],
+          active: false,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        });
+      }
       try {
         await callNotificationApi(functions, {
           action: 'enqueue_member_requested',
@@ -257,6 +245,7 @@ export default function AddMember() {
     } catch (err) {
       console.error(err);
       toast.error('오류가 발생했습니다.');
+      setIsSubmitting(false);
     }
   };
 
@@ -345,7 +334,14 @@ export default function AddMember() {
         </div>
       </Card>
 
-      <Button type="button" className="w-full font-bold h-12 text-base shadow-sm" onClick={(e) => handleSubmit(e, false)}>복사 등록 신청하기</Button>
+      <Button
+        type="button"
+        className="w-full font-bold h-12 text-base shadow-sm"
+        onClick={(e) => handleSubmit(e, false)}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? '신청 처리 중...' : '복사 등록 신청하기'}
+      </Button>
       <div className="text-center py-8">
         <p className="text-xs text-slate-400 mb-3">플래너(관리자)로 활동하실 예정인가요?</p>
         <button onClick={() => navigate('/request-planner-role')} className="text-xs text-blue-500 font-bold underline underline-offset-4">플래너 권한 신청 페이지로 이동</button>
@@ -371,8 +367,10 @@ export default function AddMember() {
                     ))}
                 </div>
                 <div className="flex gap-3 mt-8">
-                    <Button variant="ghost" className="flex-1" onClick={() => setDuplicateConfirmOpen(false)}>취소</Button>
-                    <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold" onClick={(e) => handleSubmit(e, true)}>그래도 신청하기</Button>
+                    <Button variant="ghost" className="flex-1" onClick={() => setDuplicateConfirmOpen(false)} disabled={isSubmitting}>취소</Button>
+                    <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold" onClick={(e) => handleSubmit(e, true)} disabled={isSubmitting}>
+                      {isSubmitting ? '신청 처리 중...' : '그래도 신청하기'}
+                    </Button>
                 </div>
             </div>
         </DialogContent>

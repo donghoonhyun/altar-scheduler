@@ -113,12 +113,13 @@ Preset을 기반으로 선택된 월의 1일부터 말일까지 **요일 반복 
 ### 새로 생성되는 mass_events 필드 예시
 
 ```json
-{  
-  "event_date": "20251103",  
+{
+  "event_date": "20251103",
   "title": "평일 월 미사",
   "required_servers": 2,
   "member_ids": [],
-  "not_available_members": [],   // 가용성 설문결과에 따른 불가능한 복사들 ids
+  "not_available_members": [],
+  "add_type": "preset",
   "created_at": "serverTimestamp()",
   "updated_at": "serverTimestamp()"
 }

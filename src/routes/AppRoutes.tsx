@@ -29,7 +29,6 @@ import PlannerRoleApproval from '../pages/PlannerRoleApproval';
 import SuperAdminMain from '@/pages/superadmin/SuperAdminMain';
 import UserManagement from '@/pages/superadmin/UserManagement';
 import SmsManagement from '@/pages/superadmin/SmsManagement';
-import NotificationManagement from '@/pages/superadmin/NotificationManagement';
 import ServerGroupManagement from '@/pages/superadmin/ServerGroupManagement';
 import SurveyManagement from '../pages/SurveyManagement';
 import SurveyCalendar from '@/pages/SurveyCalendar';
@@ -186,7 +185,6 @@ export default function AppRoutes() {
         <Route path="/superadmin" element={<SuperAdminMain />} />
         <Route path="/superadmin/users" element={<UserManagement />} />
         <Route path="/superadmin/sms" element={<SmsManagement />} />
-        <Route path="/superadmin/notifications" element={<NotificationManagement />} />
         <Route path="/superadmin/server-groups" element={<ServerGroupManagement />} />
 
 

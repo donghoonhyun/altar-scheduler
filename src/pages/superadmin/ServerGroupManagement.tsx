@@ -110,16 +110,15 @@ export default function ServerGroupManagement() {
     try {
       setIsCreating(true);
       
-      // Use the raw path for the counter document rather than combining two full paths
-      const counterRef = doc(db, 'app_altar/v1/counters/server_groups');
-      
+      const counterRef = doc(db, 'settings', 'counters');
+
       const newSgId = await runTransaction(db, async (transaction) => {
         const counterDoc = await transaction.get(counterRef);
         let nextSeq = 1;
         if (counterDoc.exists()) {
-          nextSeq = (Number(counterDoc.data()?.last_seq) || 0) + 1;
+          nextSeq = (Number(counterDoc.data()?.seq_server_groups) || 0) + 1;
         }
-        transaction.set(counterRef, { last_seq: nextSeq }, { merge: true });
+        transaction.set(counterRef, { seq_server_groups: nextSeq }, { merge: true });
 
         const sgId = `SG${nextSeq.toString().padStart(5, '0')}`;
         const sgRef = doc(db, COLLECTIONS.SERVER_GROUPS, sgId);

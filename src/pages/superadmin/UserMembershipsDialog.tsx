@@ -1,28 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  deleteDoc, 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
   setDoc,
-  addDoc, 
-  serverTimestamp, 
-  limit, 
-  orderBy 
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Loader2, Shield, Edit2, Trash2, Plus, Search, AlertCircle, X, ChevronRight, ArrowLeft, Building2 } from 'lucide-react';
+import { Loader2, Shield, Edit2, Trash2, Plus, AlertCircle, X, ArrowLeft, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { COLLECTIONS } from '@/lib/collections';
-import { Parish, getDioceseName } from '@/types/parish';
+import { Parish } from '@/types/parish';
 import { useParishes } from '@/hooks/useParishes';
 import { useDioceses, Diocese } from '@/hooks/useDioceses';
 import { MapPin } from 'lucide-react';
@@ -71,10 +67,7 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
   const { data: allParishesData } = useParishes();
   const { data: diocesesData } = useDioceses();
   const [selectedDiocese, setSelectedDiocese] = useState<string>('');
-  const [parishSearchTerm, setParishSearchTerm] = useState('');
-  const [foundParishes, setFoundParishes] = useState<Parish[]>([]);
   const [selectedParish, setSelectedParish] = useState<Parish | null>(null);
-  const [isSearchingParish, setIsSearchingParish] = useState(false);
 
   // Step 2: Group
   const [foundGroups, setFoundGroups] = useState<ServerGroup[]>([]);
@@ -223,47 +216,14 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
   const cancelAdd = () => {
     setIsAdding(false);
     setAddStep('parish');
-    
-    setParishSearchTerm('');
-    setFoundParishes([]);
+
+    setSelectedDiocese('');
     setSelectedParish(null);
 
     setFoundGroups([]);
     setSelectedGroup(null);
-    
-    setNewRoles([]);
-  };
 
-  const searchParishes = async () => {
-    if (!parishSearchTerm.trim()) return;
-    setIsSearchingParish(true);
-    try {
-        let q;
-        if (selectedDiocese) {
-            q = query(
-                collection(db, COLLECTIONS.PARISHES),
-                where('diocese', '==', selectedDiocese),
-                where('name_kor', '>=', parishSearchTerm),
-                where('name_kor', '<=', parishSearchTerm + '\uf8ff'),
-                limit(10)
-            );
-        } else {
-            q = query(
-                collection(db, COLLECTIONS.PARISHES),
-                where('name_kor', '>=', parishSearchTerm),
-                where('name_kor', '<=', parishSearchTerm + '\uf8ff'),
-                limit(10)
-            );
-        }
-        const snap = await getDocs(q);
-        const list = snap.docs.map(d => ({ code: d.id, ...d.data() } as Parish));
-        setFoundParishes(list);
-    } catch (e) {
-        console.error(e);
-        toast.error('성당 검색 실패');
-    } finally {
-        setIsSearchingParish(false);
-    }
+    setNewRoles([]);
   };
 
   const confirmParish = async (parish: Parish) => {
@@ -395,12 +355,9 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                                     <MapPin size={12} />
                                     교구 필터
                                 </Label>
-                                <Select 
-                                    value={selectedDiocese} 
-                                    onValueChange={val => {
-                                        setSelectedDiocese(val === '_all' ? '' : val);
-                                        setFoundParishes([]);
-                                    }}
+                                <Select
+                                    value={selectedDiocese}
+                                    onValueChange={val => setSelectedDiocese(val === '_all' ? '' : val)}
                                 >
                                     <SelectTrigger className="h-9 text-xs bg-white dark:bg-slate-800">
                                         <SelectValue placeholder="모든 교구" />
@@ -414,38 +371,36 @@ export default function UserMembershipsDialog({ open, onOpenChange, uid, userNam
                                 </Select>
                             </div>
 
-                            <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                                <Input 
-                                    placeholder="성당 이름 검색..." 
-                                    value={parishSearchTerm}
-                                    onChange={e => setParishSearchTerm(e.target.value)}
-                                    className="h-9 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                    onKeyDown={e => e.key === 'Enter' && searchParishes()}
-                                />
-                                <Button size="sm" onClick={searchParishes} disabled={isSearchingParish || !parishSearchTerm.trim()} className="h-9">
-                                    {isSearchingParish ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                                </Button>
-                            </div>
-                            
-                            {foundParishes.length > 0 && (
-                                <div className="max-h-[120px] overflow-y-auto border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800">
-                                    {foundParishes.map(p => (
-                                        <div 
-                                            key={p.code} 
-                                            className="p-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer border-b border-gray-100 dark:border-slate-800 last:border-0 dark:text-gray-200 flex justify-between items-center group"
-                                            onClick={() => confirmParish(p)}
-                                        >
-                                            <div>
-                                                <div className="font-medium">{p.name_kor}</div>
-                                                <div className="text-xs text-gray-400">{getDioceseName(p.diocese)} | {p.code}</div>
-                                            </div>
-                                            <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500" />
-                                        </div>
-                                    ))}
+                            {selectedDiocese && (
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                        <Building2 size={12} />
+                                        성당 선택
+                                    </Label>
+                                    <Select
+                                        onValueChange={(parishCode) => {
+                                            const parish = (allParishesData || []).find(p => p.code === parishCode);
+                                            if (parish) confirmParish(parish);
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-9 text-xs bg-white dark:bg-slate-800" disabled={isLoadingGroups}>
+                                            <SelectValue placeholder={isLoadingGroups ? '로딩 중...' : '성당을 선택하세요'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(allParishesData || [])
+                                                .filter(p => p.diocese === selectedDiocese)
+                                                .sort((a, b) => a.name_kor.localeCompare(b.name_kor, 'ko'))
+                                                .map(p => (
+                                                    <SelectItem key={p.code} value={p.code}>{p.name_kor}</SelectItem>
+                                                ))
+                                            }
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             )}
-                            {foundParishes.length === 0 && parishSearchTerm && !isSearchingParish && (
-                                <div className="text-xs text-gray-400 text-center py-4">검색 결과가 없습니다</div>
+
+                            {!selectedDiocese && (
+                                <p className="text-xs text-gray-400 text-center py-4">교구를 먼저 선택하세요</p>
                             )}
                         </div>
                     )}

@@ -107,6 +107,23 @@ ServerMain 페이지는 다음 UI 구조를 **항상 동일하게 유지**한다
 
 - 해당 날짜의 모든 mass_events 리스트
 - 이벤트별 배정 현황
+- 헤더: `DrawerHeader` 표준 컴포넌트 적용 (슬레이트 그라데이션, h-20, font-gamja, X 버튼)
+  - 서브타이틀: `YYYY년 M월`
+  - 타이틀: `D일 (요일)` — 요일은 한글 한 글자 (일/월/화/수/목/금/토)
+
+#### 내 미사 강조 표시 (FINAL-CONFIRMED 시)
+
+`checkedMemberIds[0]` (현재 선택된 복사의 Firestore member 문서 ID) 기준으로 판별한다.
+
+| 요소 | 조건 | 스타일 |
+|------|------|--------|
+| 이벤트 카드 배경 | `ev.member_ids`에 내 memberId 포함 | `bg-red-50 border-red-400` (다크: `bg-red-950/40 border-red-700`) |
+| 복사명 칩 테두리 | 칩의 id가 내 memberId와 일치 | `border-2 border-red-600` (다크: `border-red-500`) — 배경/폰트는 기존 색상 유지 |
+| 복사명 칩 — 주복사 | isMain=true | 파란색 배경 유지, 내 칩이면 빨간 두꺼운 테두리 추가 |
+| 복사명 칩 — 일반 | isMain=false | 회색 배경 유지, 내 칩이면 빨간 두꺼운 테두리 추가 |
+
+> 카드 배경 강조는 `monthStatus`와 무관하게 `ev.member_ids` 기준으로 항상 적용됨.
+> 복사명 칩 표시는 FINAL-CONFIRMED 상태에서만 공개됨.
 
 #### 배정 이름 표시 정책
 

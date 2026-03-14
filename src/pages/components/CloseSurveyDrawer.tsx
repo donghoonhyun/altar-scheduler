@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, StopCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
+import DrawerHeader from '@/components/common/DrawerHeader';
 
 interface CloseSurveyDrawerProps {
   open: boolean;
@@ -16,8 +17,7 @@ interface CloseSurveyDrawerProps {
 /**
  * CloseSurveyDrawer
  * - 설문 종료 다이얼로그
- * - PRD-2.13.9 Dialog Header/Divider 규칙 적용
- * - Header / Description / Divider / Body / Footer 구조
+ * - DrawerHeader 표준 헤더 적용
  */
 const CloseSurveyDrawer: React.FC<CloseSurveyDrawerProps> = ({
   open,
@@ -43,33 +43,25 @@ const CloseSurveyDrawer: React.FC<CloseSurveyDrawerProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md p-6">
-        {/* Header */}
-        <DialogTitle className="flex items-center gap-2 text-lg font-semibold mb-2">
-          <StopCircle size={20} className="text-amber-600" />
-          설문 종료
-          <span className="text-gray-500 text-base ml-1">
-            ({currentMonth.format('YYYY년 M월')})
-          </span>
-        </DialogTitle>
+      <DialogContent className="max-w-md p-0 flex flex-col overflow-hidden" hideClose>
+        <DrawerHeader
+          title="설문 종료"
+          subtitle={currentMonth.format('YYYY년 M월')}
+          onClose={onClose}
+        />
 
-        <DialogDescription className="text-sm text-gray-600 mb-3">
-          설문 응답 기간을 마감하고, 이후 응답 제출을 차단합니다.
-          <br />
-          설문 결과는 자동으로 저장되며, 확정 단계로 이동할 수 있습니다.
-        </DialogDescription>
-
-        {/* ✅ Header Divider */}
-        <div className="border-b border-gray-200 dark:border-gray-700 my-3" />
-
-        {/* Body */}
-        <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+        <div className="p-6 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+          <p className="text-gray-600 dark:text-gray-400">
+            설문 응답 기간을 마감하고, 이후 응답 제출을 차단합니다.
+            <br />
+            설문 결과는 자동으로 저장되며, 확정 단계로 이동할 수 있습니다.
+          </p>
+          <div className="border-b border-gray-200 dark:border-gray-700 my-3" />
           <p>⚠️ 설문 종료 후에는 새로운 응답을 제출할 수 없습니다.</p>
-          <p>종료된 설문은 “자동 배정(최종 확정)” 단계로 이동하게 됩니다.</p>
+          <p>종료된 설문은 &quot;자동 배정(최종 확정)&quot; 단계로 이동하게 됩니다.</p>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 px-6 pb-6">
           <Button variant="outline" onClick={onClose} disabled={loading}>
             취소
           </Button>

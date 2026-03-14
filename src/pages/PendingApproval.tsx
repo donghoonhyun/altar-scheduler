@@ -52,9 +52,9 @@ export default function PendingApproval() {
       
       if (!snapMember.empty) {
         const path = snapMember.docs[0].ref.path;
-        // Path: app_altar/v1/server_groups/{sgId}/members/{id}
+        // Path: app_datas/ordo-altar/server_groups/{sgId}/members/{id}
         const parts = path.split('/');
-        const sgId = parts[3]; 
+        const sgId = parts[3];
         setServerGroupId(sgId);
         setIsMemberType('member');
       } else {

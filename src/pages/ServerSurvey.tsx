@@ -30,7 +30,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-import { ChevronLeft, ChevronRight, Home, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import PremiumHeader from '@/components/common/PremiumHeader';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS } from '@/lib/collections';
 
@@ -369,39 +370,25 @@ export default function ServerSurvey() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20 transition-colors duration-300">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-slate-900/50 sticky top-0 z-10 border-b border-transparent dark:border-slate-800">
-          <div className="max-w-md md:max-w-4xl mx-auto px-4 py-2 flex items-center justify-between min-h-[3.5rem]">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                    // 팝업/새탭으로 열렸으면 창 닫기, 아니면 뒤로가기
-                    if (window.opener && window.opener !== window) {
-                        window.close();
-                    } else {
-                        navigate(-1);
-                    }
-                }} 
-                className="p-0 w-8 h-8 dark:text-gray-200 dark:hover:bg-slate-800"
-              >
-                  {/* 아이콘: 팝업이면 X, 아니면 뒤로가기 화살표 */}
-                  {(window.opener && window.opener !== window) ? <span className="text-xl">×</span> : <ArrowLeft size={20} />}
-              </Button> 
-              <div className="flex flex-col items-center">
-                <h1 className="font-bold text-lg leading-tight dark:text-white">
-                    {dayjs(yyyymm).format('YYYY년 M월')} 설문 {targetMemberName && `(${targetMemberName}${baptismalName ? ' ' + baptismalName : ''})`}
-                </h1>
-                {surveyPeriod && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        설문 기간: {surveyPeriod}
-                    </span>
-                )}
-              </div>
-              <div className="w-8"></div>{/* Spacer */}
-          </div>
-      </div>
+      <PremiumHeader
+        subtitle={targetMemberName ? `${targetMemberName}${baptismalName ? ' ' + baptismalName : ''}` : dayjs(yyyymm).format('YYYY년 M월')}
+        title={targetMemberName ? `${dayjs(yyyymm).format('YYYY년 M월')} 설문` : '미사 배정 설문'}
+        onBack={() => {
+          if (window.opener && window.opener !== window) {
+            window.close();
+          } else {
+            navigate(-1);
+          }
+        }}
+        className="sticky top-0 z-10"
+      />
 
       <div className="max-w-md md:max-w-4xl mx-auto p-4">
+        {surveyPeriod && (
+          <div className="mb-3 text-xs text-gray-500 dark:text-gray-400 text-center">
+            설문 기간: {surveyPeriod}
+          </div>
+        )}
         {surveyClosed && !accessDenied && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-sm rounded border border-red-200 dark:border-red-900">
                 🚫 설문이 종료되었습니다.

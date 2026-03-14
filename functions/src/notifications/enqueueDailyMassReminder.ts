@@ -63,7 +63,7 @@ async function enqueueDailyMassReminderCore(): Promise<{ groups: number; events:
       await db.collection(COL_NOTIFICATIONS).add({
         title,
         body,
-        click_action: `/server-groups/${sgId}/mass-events`,
+        click_action: `https://ordo-altar.web.app/server-groups/${sgId}/mass-events`,
         target_uids: Array.from(parentUids),
         app_id: 'ordo-altar',
         feature: 'MASS_REMINDER',

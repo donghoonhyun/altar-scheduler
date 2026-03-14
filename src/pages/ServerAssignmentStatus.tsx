@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Download, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Download, CalendarDays } from 'lucide-react';
 import dayjs from 'dayjs';
-import { utils, writeFile } from 'xlsx';
+import { utils, write } from 'xlsx';
 import {
   getFirestore,
   collection,
@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import PremiumHeader from '@/components/common/PremiumHeader';
 import { cn } from '@/lib/utils'; // optimized class names
 import { useSession } from '@/state/session';
 import { COLLECTIONS } from '@/lib/collections';
@@ -306,6 +307,21 @@ export default function ServerAssignmentStatus() {
       return null;
   };
 
+  const handlePrintOpen = async () => {
+    const printUrl = `/server-groups/${serverGroupId}/print-schedule/${yyyymm}`;
+    try {
+      // iframe 컨텍스트에서는 Auth 세션이 새탭과 공유되지 않으므로
+      // custom token을 발급받아 URL에 붙여서 SSO 처리
+      const generateToken = httpsCallable(functions, 'admin_generateCrossAppAuthToken');
+      const result = await generateToken({});
+      const token = (result.data as { token: string }).token;
+      window.open(`${printUrl}?authtoken=${encodeURIComponent(token)}`, '_blank');
+    } catch {
+      // 토큰 발급 실패 시 fallback: 그냥 열기 (로컬 개발환경 등)
+      window.open(printUrl, '_blank');
+    }
+  };
+
   const handleDownloadExcel = () => {
     const filename = `복사배정현황_${currentMonth.format('YYYYMM')}_${viewMode === 'by-member' ? '복사별' : '날짜별'}.xlsx`;
     const wb = utils.book_new();
@@ -374,44 +390,86 @@ export default function ServerAssignmentStatus() {
        utils.book_append_sheet(wb, ws, '날짜별 현황');
     }
 
-    writeFile(wb, filename);
+    // iframe(Ordo) 환경:
+    //   - blob URL은 생성한 iframe context에 종속되어 새탭에서 접근 불가 → 빈 탭
+    //   - a[download]는 sandbox allow-downloads 없으면 차단
+    //   → 새탭을 열고 base64 데이터를 직접 주입, 새탭(top-level, 비sandbox)에서 download 실행
+    let inIframe = false;
+    try { inIframe = window.self !== window.top; } catch { inIframe = true; }
+
+    if (inIframe) {
+      const b64 = write(wb, { bookType: 'xlsx', type: 'base64' });
+      const safeFilename = filename.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const newWin = window.open('', '_blank');
+      if (newWin) {
+        newWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>다운로드 중...</title></head><body>
+<p style="font-family:sans-serif;color:#888;padding:20px">엑셀 파일을 다운로드합니다...</p>
+<script>
+(function(){
+  var b64="${b64}";
+  var bin=atob(b64);
+  var buf=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+  var blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url; a.download="${safeFilename}";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);window.close();},2000);
+})();
+</scr`+'ipt></body></html>');
+        newWin.document.close();
+      }
+    } else {
+      // 일반 환경: 표준 a[download] 방식
+      const wbout = write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-transparent overflow-hidden">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 px-6 py-4 flex flex-col gap-1 shadow-sm shrink-0">
-         {/* Row 1: Title & Status */}
-         <div className="flex justify-between items-center">
-             <div className="flex items-center gap-1">
-                 <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 mr-2 dark:text-gray-200">
-                    <ArrowLeft size={24} />
-                 </Button>
-                 
+      {/* PremiumHeader */}
+      <PremiumHeader
+        subtitle="월별 미사 배정 현황을 조회하고 번표를 출력할 수 있습니다."
+        title={<>배정 현황 <span className="text-lg font-medium opacity-80">({currentMonth.format('YYYY년 M월')})</span></>}
+        icon={<LayoutGrid size={22} />}
+        onBack={() => navigate(-1)}
+      />
+
+      {/* Sub-header: month nav + controls */}
+      <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 px-4 py-1 flex flex-col shadow-sm shrink-0">
+         {/* Row 1: Month Nav + Status */}
+         <div className="grid grid-cols-3 items-center pt-2 pb-0">
+             <div />
+             <div className="flex items-center justify-center gap-1">
                  <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full">
                     <ChevronLeft size={20} />
                  </Button>
-
-                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 min-w-[110px] text-center">
+                 <span className="text-base font-semibold text-gray-800 dark:text-gray-200 min-w-[110px] text-center">
                     {currentMonth.format('YYYY년 M월')}
-                 </h1>
-
+                 </span>
                  <Button variant="ghost" size="sm" onClick={handleNextMonth} className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full">
                     <ChevronRight size={20} />
                  </Button>
-
-                 <span className="text-xl font-bold text-gray-900 dark:text-gray-100 ml-2">
-                    배정 현황
-                 </span>
              </div>
-             <StatusBadge status={monthlyStatus} />
+             <div className="flex justify-end">
+                 <StatusBadge status={monthlyStatus} />
+             </div>
          </div>
 
-          <div className="pl-11 pr-4">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                 월별 미사 배정 현황을 조회하고 번표를 출력할 수 있습니다.
-              </p>
-
+          <div className="pr-1">
               {/* AI Insight Section */}
               {useAi && (
               <div className="bg-white dark:bg-slate-800 border border-purple-100 dark:border-purple-900/30 rounded-lg overflow-hidden shadow-sm transition-all pb-0 relative">
@@ -616,7 +674,7 @@ export default function ServerAssignmentStatus() {
                  <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.open(`/server-groups/${serverGroupId}/print-schedule/${yyyymm}`, '_blank')} 
+                    onClick={handlePrintOpen}
                     className="gap-2 dark:bg-slate-800 dark:text-gray-200 dark:border-slate-700"
                 >
                     <Printer size={14} />

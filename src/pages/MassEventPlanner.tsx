@@ -3,10 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
-import { Home, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { CalendarDays } from 'lucide-react';
 import {
-  getFirestore,
   collection,
   getDocs,
   writeBatch,
@@ -15,7 +13,8 @@ import {
   setDoc,
   onSnapshot,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from '@/lib/firebase';
 import { toast } from 'sonner';
 
 import MassCalendar from './components/MassCalendar';
@@ -36,6 +35,7 @@ import { MassEventToolbar } from '@/components/MassEventToolbar';
 import { useSession } from '@/state/session';
 import timezone from 'dayjs/plugin/timezone';
 import { COLLECTIONS } from '@/lib/collections';
+import PremiumHeader from '@/components/common/PremiumHeader';
 
 dayjs.extend(weekOfYear);
 dayjs.extend(timezone);
@@ -43,7 +43,6 @@ dayjs.extend(timezone);
 const MassEventPlanner: React.FC = () => {
   const navigate = useNavigate();
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
-  const db = getFirestore();
   const session = useSession();
 
   // ✅ Initialize from global session or default to current month
@@ -147,15 +146,7 @@ const MassEventPlanner: React.FC = () => {
 
     toast.success('📊 설문이 종료되었습니다.');
   };
-
   const handleAutoAssign = async () => {
-    const functions = getFunctions(undefined, 'asia-northeast3');
-    
-    // Connect to emulator in dev
-    if (import.meta.env.DEV) {
-      connectFunctionsEmulator(functions, '127.0.0.1', 5001);
-    }
-
     const autoAssignFn = httpsCallable(functions, 'altar_autoAssignMassEvents');
     
     try {
@@ -186,49 +177,48 @@ const MassEventPlanner: React.FC = () => {
   if (statusLoading) return <LoadingSpinner label="월 상태 로딩 중..." />;
 
   return (
-    <div className="p-4 bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-0 w-8 h-8 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800">
-          <ArrowLeft size={24} />
-        </Button>
-        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
-          📅 미사 일정 관리
-          <span className="ml-2 text-lg font-normal text-gray-500 dark:text-gray-400">
-            {currentMonth.format('YYYY년 M월')}
-          </span>
-        </h2>
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300">
+      <div className="mb-4">
+        <PremiumHeader
+          title="미사 일정 관리"
+          subtitle={`${currentMonth.format('YYYY년 M월')} 기준 일정/배정 관리`}
+          icon={<CalendarDays size={18} />}
+          onBack={() => navigate(-1)}
+        />
       </div>
 
-      {/* ✅ Toolbar */}
-      <MassEventToolbar
-        monthStatus={monthStatus}
-        isLocked={isLocked}
-        isCopyEnabled={isCopyEnabled}
-        isSurveyOpen={isSurveyOpen}
-        onApplyPreset={() => setApplyPresetDrawerOpen(true)}
-        onConfirmMass={() => setConfirmDrawerOpen(true)}
-        onOpenSurvey={() => setSurveyDrawerOpen(true)}
-        onCloseSurvey={() => setCloseSurveyDrawerOpen(true)}
+      <div className="px-4 pb-4">
+        {/* ✅ Toolbar */}
+        <MassEventToolbar
+          monthStatus={monthStatus}
+          isLocked={isLocked}
+          isCopyEnabled={isCopyEnabled}
+          isSurveyOpen={isSurveyOpen}
+          onApplyPreset={() => setApplyPresetDrawerOpen(true)}
+          onConfirmMass={() => setConfirmDrawerOpen(true)}
+          onOpenSurvey={() => setSurveyDrawerOpen(true)}
+          onCloseSurvey={() => setCloseSurveyDrawerOpen(true)}
 
-        onAutoAssign={() => setAutoAssignDrawerOpen(true)}
-        onFinalConfirm={() => setFinalConfirmDrawerOpen(true)}
-        onOpenMonthStatus={() => setMonthStatusDrawerOpen(true)}
-        onOpenBackup={() => setBackupDrawerOpen(true)}
-      />
+          onAutoAssign={() => setAutoAssignDrawerOpen(true)}
+          onFinalConfirm={() => setFinalConfirmDrawerOpen(true)}
+          onOpenMonthStatus={() => setMonthStatusDrawerOpen(true)}
+          onOpenBackup={() => setBackupDrawerOpen(true)}
+        />
 
-      {loading && <LoadingSpinner label="전월 데이터 복사 중..." />}
+        {loading && <LoadingSpinner label="전월 데이터 복사 중..." />}
 
-      {/* ✅ Calendar */}
-      <MassCalendar
-        events={events}
-        timezone="Asia/Seoul"
-        viewDate={currentMonth} // ✅ 달력 뷰 동기화
-        onDayClick={handleDayClick}
-        onMonthChange={handleMonthChange}
-        monthStatus={monthStatus}
-        onOpenMonthStatusDrawer={() => setMonthStatusDrawerOpen(true)}
-        selectedEventId={selectedEventId}
-      />
+        {/* ✅ Calendar */}
+        <MassCalendar
+          events={events}
+          timezone="Asia/Seoul"
+          viewDate={currentMonth} // ✅ 달력 뷰 동기화
+          onDayClick={handleDayClick}
+          onMonthChange={handleMonthChange}
+          monthStatus={monthStatus}
+          onOpenMonthStatusDrawer={() => setMonthStatusDrawerOpen(true)}
+          selectedEventId={selectedEventId}
+        />
+      </div>
 
 
       {/* ✅ Drawer 연결 */}

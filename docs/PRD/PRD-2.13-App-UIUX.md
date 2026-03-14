@@ -14,7 +14,7 @@
 ## 📌2. Design Philosophy
 
 | 키워드 | 설명 |
-|--------|------|
+| --------- | ------|
 | 🎨 **Simplicity** | 해야할 것만 보여주는 간결한 인터페이스 |
 | 🌈 **Soft Tone** | 파스텔 통 중심의 따뜻한 색 구성 |
 | 🤎 **Consistency** | 모든 화면에서 동일한 시각 요소 및 간격 시스템 유지 |
@@ -25,7 +25,7 @@
 ## 📌3. 기술 스택
 
 | 분류 | 기술 |
-|------|------|
+| ------|------|
 | UI Framework | Tailwind CSS |
 | UI Components | shadcn/ui, radix-ui |
 | Icon Library | lucide-react |
@@ -117,18 +117,26 @@ src/
 
 Top menu Drawer는 **계정 단위 공통 메뉴**를 제공한다.
 
-- **표시 정보**
+- **트리거 아이콘**
 
-Drawer 상단에는 현재 로그인 사용자의 **역할(role)** 을 명시적으로 표시한다.
-예: `* 역할: 플래너` , `* 역할: 복사`
-> 역할 표시는 읽기 전용이며, UI 상에서 변경할 수 없다.
+  기존 세 줄 햄버거 아이콘 대신 **원형 프로필 아이콘**을 사용한다.
+  - `photo_url`이 있으면 프로필 이미지를 원형으로 표시.
+  - 없으면 세례명 또는 이름의 첫 글자를 보라색 원형 배경에 표시.
+
+- **Drawer 헤더**
+
+  `DrawerHeader` 표준 컴포넌트를 사용하며, `children`으로 다음을 렌더링한다.
+  - 좌측: 이름(한국이름 + 세례명), 이메일
+  - 우측: 다크/라이트 토글 스위치 (Ordo와 동일한 스타일)
 
 - **메뉴 항목**
 
 ```ts
   | 항목 | 설명 |
   |---|---|
+  | 신규 복사 신청 | 복사단 가입 요청 화면으로 이동 |
   | 내정보 수정 | 사용자 프로필 수정 화면으로 이동 |
+  | 앱 설정 | 앱 설정 화면으로 이동 |
   | 로그아웃 | Firebase Auth 로그아웃 수행 |
 ```
 
@@ -151,7 +159,6 @@ Drawer 상단에는 현재 로그인 사용자의 **역할(role)** 을 명시적
 3. 계정 관련 기능은 Top menu Drawer로만 제공한다.
 4. 페이지별 기능 버튼은 Body 영역에만 배치한다.
 5. 공통 Layout 구조 변경은 PRD 개정 없이는 허용되지 않는다.
-
 
 ### 🧩5.3 역할별 책임 분리
 
@@ -183,13 +190,13 @@ Drawer 상단에는 현재 로그인 사용자의 **역할(role)** 을 명시적
 | Background | `--color-bg-base` | `#F8FAFC` | 레이아웃 공통 배경 (blue-50) |
 
 ### 🧩6.2 역할별 테마 및 배경 그라데이션
+
 각 주체별 페이지는 고유한 컬러 테마를 가지며, 상단 레이아웃과 자연스럽게 이어지는 수직 그라데이션을 적용한다.
 
 1. **공통 레이아웃**: `bg-blue-50` 배경을 기본으로 함.
 2. **슈퍼어드민 (Super Admin)**: 보라색 계열 (`from-purple-200 to-purple-50`)
 3. **플래너 대시보드 (Planner)**: 파란색 계열 (`from-blue-50 to-blue-200`) - 상단바 경계선 제거를 위해 `blue-50`에서 시작.
 4. **복사 메인 (Server)**: 에메랄드 계열 (`from-blue-50 to-emerald-200`) - 상단바 경계선 제거를 위해 `blue-50`에서 시작.
-
 
 ### 🧩6.2 폰트 시스템
 
@@ -309,19 +316,19 @@ export const Button: React.FC<ButtonProps> = ({
 
 ### 🧩8.2 Card & Form 구조 시스템 (Ordo Standard)
 
-모든 데이터 입력 폼 및 정보 표시 카드는 "Ordo Profile"의 시각적 기준을 완벽히 따른다. 
+모든 데이터 입력 폼 및 정보 표시 카드는 "Ordo Profile"의 시각적 기준을 완벽히 따른다.
 핵심은 **1픽셀 오차 없는 간격/선 배치** 와 **통일된 서체(Pretendard)** 이다.
 
-- **Card Container** : 
+- **Card Container** :
   - 기본 제공되는 패딩을 무효화하기 위해 필히 `p-0` 를 부여한다.
   - `<Card className="... p-0">`
 
-- **Card Header (Title & Divider)** : 
+- **Card Header (Title & Divider)** :
   - 카드 타이틀은 `text-base font-bold font-sans` 로 사용한다.
   - 헤더 영역 하단 가로줄이 카드 테두리(좌/우)에 100% 밀착되도록 헤더 컨테이너에 패딩과 경계선을 설정한다.
   - `<div className="p-6 pb-3 border-b border-slate-100 dark:border-slate-700 mb-4 flex items-center gap-2">`
 
-- **Card Body** : 
+- **Card Body** :
   - 본문 컨테이너에 `p-6 pt-0 space-y-4` 를 주어 위쪽 타이틀과 적당한 간격을 두고 배치한다.
   - Label: `text-sm font-medium text-slate-600 dark:text-slate-400 font-sans`
   - Input/Select: `h-10 rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white transition-all font-sans`
@@ -366,7 +373,9 @@ export const Container: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 ```
 
 ### 🧩8.3.1 표준 등록 버튼 (Submit Action)
+
 Form 하단의 단일 등록/저장 버튼은 컴포넌트 커스텀을 남발하지 않고, Shadcn(or Ordo) 기본형으로 구성한다.
+
 - `<Button className="w-full font-bold h-12 text-base shadow-sm">등록하기</Button>`
 
 ### 🧩8.4 Heading
@@ -510,70 +519,155 @@ FINAL-CONFIRMED Planner/Server 모두 읽기 전용 (확정완료)
 - 내부적으로 상태 색상, 아이콘, tooltip, 텍스트 일괄 매핑
 - MassCalendar, MassEventDrawer, ServerStats 등 모든 화면에서 공통 사용
 
-#### 8.5.7 toolbar Button Color Guide
+#### 8.5.7 툴바버튼 (toolbar Button) 표준화
 
-- MassEventPlanner / MonthStatusDrawer / MassEventDrawer 내 상단 Toolbar 등에 배치시 가이드
-- 버튼 스타일 원칙 (활성/비활성 두가지로만 구분)
-  . 모든 Toolbar 버튼은 `variant="outline"`, `size="sm"`, `h-7 text-[12px] px-2 py-1` 규격을 사용한다.
-  
-  ```ts
-  | 단계 | 버튼명 | 색상 그룹 | 테두리색 | 텍스트색 | Hover 시 | 설명 |
-  |------|----------|-------------|------------|------------|-----------|----------|
-  | ① 확정 준비 단계 | 미사일정 Preset / 미사일정 확정 | 🔵 Blue | `border-blue-400` | `text-blue-700` | `hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800` | 미사 일정 생성 및 확정 준비 |
-  | ② 설문 단계 | 설문 링크 보내기 / 설문 종료 | 🟠 Amber | `border-amber-500` | `text-amber-700` | `hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800` | 설문 진행 및 마감 단계 |
-  | ③ 최종 확정 단계 | 자동 배정 (최종 확정) | 🔴 Red | `border-red-500` | `text-red-700` | `hover:bg-red-50 hover:border-red-600 hover:text-red-800` | 자동배정 및 확정 완료 |
-  | ⚙️ 관리 기능 | 월 상태변경 | ⚪ Gray | `border-gray-400` | `text-gray-700` | `hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800` | 설정 / 상태 관리 기능 |
-  ```
-  
-- 시각 정책
+> ⚠️ **[2026-02-22 업데이트]** 기존 `variant="outline" + size="sm" + 개별 className`으로 툴바 크기를 명시하던 방식을 **`variant="toolbar"` 단일 표준**으로 교체하였다.
 
-  . **활성 버튼:** 파란색 테두리 및 텍스트, hover 시 옅은 파란 배경 강조  
-  . **비활성 버튼:** 연회색 배경 및 흐린 텍스트, hover 효과 없음  
-  . **목적:** 기능별 색상 대신, “현재 조작 가능 여부”만으로 상태를 명확히 구분  
+##### 개요
 
-- 예시 코드 (React / Tailwind)
+- **명칭**: **툴바버튼** (`toolbar` variant)
+- **적용 위치**: MassEventPlanner / MonthStatusDrawer / MassEventDrawer 내 상단 툴바 등 밀집된 버튼 영역
+- **파일 위치**: `src/components/ui/button.tsx` — `variants.toolbar` 항목
 
-  ```tsx
-  <Button
-    variant="outline"
-    size="sm"
-    className={cn(
-      'h-7 text-[12px] px-2 py-1',
-      'border border-blue-400 text-blue-700',
-      'hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800',
-      'disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed'
-    )}
-    disabled={isDisabled}
-  >
-    <Copy className="w-3.5 h-3.5 mr-1" /> 전월 미사일정 복사
-  </Button>
-  ```
+##### 툴바버튼 기본 규격
 
-#### 8.5.8 Drawer & Dialog UI 표준 구조
+`variant="toolbar"` 만 지정하면 아래 스타일이 자동 적용된다.  
+`size` prop은 toolbar variant에서 **무시**된다 (variant 내부에 크기가 내장되어 있으므로).
 
-- 개요:
-  모든 **Dialog / Drawer 컴포넌트의 상단 헤더 영역**은 일관된 여백 구조와 구분선을 사용한다.  
-  사용자는 다이얼로그가 열렸을 때, 제목–설명–본문의 시각적 구분을 명확히 인식할 수 있어야 한다.
+| 속성 | 값 | 비고 |
+|------|----|------|
+| 높이 | `h-7` (28px) | size prop과 무관하게 고정 |
+| 가로 패딩 | `px-2` | |
+| 세로 패딩 | `py-1` | |
+| 폰트 크기 | `text-[12px]` | |
+| 폰트 굵기 | `font-semibold` | |
+| 모서리 | `rounded-xl` | 일반 버튼과 동일한 표준 곡률 |
+| 기본 배경 | `bg-transparent` | 테두리형 |
+| 그림자 | `shadow-none` | |
 
-- 구성요소
+##### 색상 그룹 가이드
 
-  ```ts
-  | 구역 | 구성 | 설명 |
-  |------|------|------|
-  | Header | `DialogTitle`, `DialogDescription` | 타이틀 + 간단한 안내문 |
-  | Body | 자유 구성 (Form, Text, Status 등) | 핵심 인터랙션 또는 설명 |
-  | Footer | 버튼 영역 | 항상 우측 정렬 `[취소] [확인]` |
-  ```
+각 버튼의 **기능 단계별 색상**은 `className`으로 추가 지정한다.
 
-  ```ts
-  | 구분 | 규칙 | Tailwind Class | 비고 |
-  |------|------|----------------|------|
-  | Title 하단 여백 | 제목 아래 최소 0.5rem 간격 | `mb-2` | Title과 Description 간 간격 확보 |
-  | Description 하단 여백 | 설명문 아래 구분선 전 최소 0.75rem 간격 | `mb-3` | 시각적 그룹 완성 |
-  | Header와 Body 구분선 | 밝은 회색 라인으로 시각 분리 | `<div class="border-b border-gray-200 dark:border-gray-700 my-3" />` | 모든 Drawer/Dialog 공통 적용 |
-  | Body 시작 여백 | Title 구분선 이후 `mt-3` 적용 | `mt-3` | 콘텐츠와 헤더의 공간 확보 |
-  | 색상 규칙 | 밝은 테마 → `border-gray-200`, 다크 테마 → `border-gray-700` |  | UI 통일성 유지 |
-  ```
+```ts
+| 단계 | 버튼명 | 색상 그룹 | 테두리색 | 텍스트색 | Hover 시 |
+|------|----------|-------------|------------|------------|-----------|
+| ① 확정 준비 단계 | Preset초기화 / 미사일정확정 | 🔵 Blue | `border-blue-400` | `text-blue-700` | `hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800` |
+| ② 설문 단계 | 설문발송(보기) / 설문종료 | 🟠 Amber | `border-amber-500` | `text-amber-700` | `hover:bg-amber-50 hover:border-amber-600 hover:text-amber-800` |
+| ③ 최종 확정 단계 | 자동배정 / 최종확정 | 🔴 Red | `border-red-500` | `text-red-700` | `hover:bg-red-50 hover:border-red-600 hover:text-red-800` |
+| ⚙️ 관리 기능 | 월상태변경 / 미사백업 | ⚪ Gray | `border-gray-400` | `text-gray-700` | `hover:bg-gray-50 hover:border-gray-500 hover:text-gray-800` |
+```
+
+##### 사용 방법 (표준)
+
+```tsx
+// ✅ 표준: variant="toolbar" 만 지정, size prop 불필요
+<Button
+  variant="toolbar"
+  className={cn(
+    'border-blue-400 text-blue-700',
+    'hover:bg-blue-50 hover:border-blue-500 hover:text-blue-800',
+    'dark:text-blue-300 dark:border-blue-500 dark:hover:bg-blue-900/30'
+  )}
+  disabled={isDisabled}
+  onClick={handleClick}
+>
+  <Copy className="w-3.5 h-3.5 mr-1" /> Preset초기화
+</Button>
+
+// ❌ 구버전 (사용 금지): outline + size + 개별 className으로 크기 명시
+<Button
+  variant="outline"
+  size="sm"
+  className="h-7 text-[12px] px-2 py-1 border-blue-400 ..."
+>
+  ...
+</Button>
+```
+
+##### 시각 정책
+
+- **활성 버튼**: 단계별 색상 테두리 및 텍스트, hover 시 옅은 배경 강조
+- **비활성 버튼**: `disabled` prop으로 자동 처리됨 (`opacity-50`, `pointer-events-none`)
+- **목적**: "현재 조작 가능 여부"를 `disabled` 하나로 단순하게 표현
+
+#### 8.5.8 단위기능버튼 (unit Button) 표준화
+
+> ⚠️ **[2026-02-22 업데이트]** 드로어 내부 등에서 사용되는 소형 기능 버튼들을 **`variant="unit"`**으로 표준화하였다.
+
+##### 개요
+
+- **명칭**: **단위기능버튼** (`unit` variant)
+- **적용 위치**: 드로어 전용 헤더 옆, 리스트 상단 기능 버튼, 알림 발송 등 특정 동작 실행 영역
+- **파일 위치**: `src/components/ui/button.tsx` — `variants.unit` 항목
+
+##### 단위기능버튼 규격
+
+- `toolbar`와 마찬가지로 **내장 크기**를 가진다.
+- **스타일**: `border` 기반의 흰색 배경 (hover 시 옅은 회색).
+- **크기**: `h-7 px-2.5 text-[11px]` — 일반 `size="sm"` 보다 작아 공간 효율이 높음.
+- **모서리**: `rounded-xl` — 일관된 "Premium" 디자인 룩앤필 제공.
+
+##### 사용 방법
+
+```tsx
+// ✅ 표준: variant="unit" 지정
+<Button 
+    variant="unit" 
+    onClick={handleAction}
+>
+    대상자 수정
+</Button>
+
+// ✅ 로딩 상태 포함 예시
+<Button variant="unit" disabled={isLoading} onClick={sendNoti}>
+    {isLoading ? '발송 중...' : '📣 알림 발송'}
+</Button>
+```
+
+#### 8.5.9 프리미엄 헤더 및 드로어 표준 (DrawerHeader & Container)
+
+> ⚠️ **[2026-02-22 업데이트]** 서비스 전반의 프리미엄 룩앤필을 위해 페이지 헤더(`PremiumHeader`), 드로어 헤더(`DrawerHeader`), 그리고 드로어 컨테이너의 외형을 표준화하였다.
+
+##### 1. 헤더 표준 규격 (Page & Drawer)
+
+모든 페이지 상단과 드로어 상단에는 일관된 볼륨감과 타이포그래피를 적용한다.
+
+| 구분 | 표준 컴포넌트 | 높이 | 타이틀 폰트 | 비고 |
+|------|------------|------|------------|------|
+| **페이지 헤더** | `PremiumHeader` | `h-20` (80px) | `font-gamja` (2xl) | 서브타이틀 포함 가능 |
+| **드로어 헤더** | `DrawerHeader` | `h-20` (80px) | `font-gamja` (xl) | 다크 그라데이션 및 닫기 버튼 내장 |
+
+- **폰트 정책**: 감성적이고 부드러운 인상을 위해 타이틀 및 서브타이틀에는 `font-gamja`를 사용한다.
+- **공간 정책**: 헤더 높이를 `h-20`으로 통일하여 시각적 안정감을 확보한다.
+
+##### 2. 드로어 컨테이너 표준
+
+드로어가 우측에서 나타날 때, 본체와의 시각적 구분을 위해 강력한 곡률과 그림자를 적용한다.
+
+- **모서리 곡률**: 드로어 왼쪽 상단/하단 모서리에 **`rounded-l-[2rem]` (32px)**을 적용한다. (Premium UI 상징)
+- **닫기 버튼 중복 방지**: `DrawerHeader`를 사용하는 경우, `DialogContent`에 **`hideClose`** prop을 전달하여 라이브러리 기본 X 버튼을 숨긴다.
+
+##### 3. 표준 코드 예시
+
+```tsx
+// ✅ 드로어 표준 구현
+<Dialog open={open} onOpenChange={onClose}>
+  <DialogContent hideClose className="max-w-md w-full h-full p-0 flex flex-col rounded-l-[2rem]">
+    {/* 표준 헤더 */}
+    <DrawerHeader 
+      title="📩 설문 관리" 
+      subtitle="설문 현황 및 알림 발송을 관리합니다." 
+      onClose={onClose} 
+    />
+    
+    {/* 본문 (Scrollable Body) */}
+    <div className="flex-1 overflow-y-auto p-6">
+       ...
+    </div>
+  </DialogContent>
+</Dialog>
+```
 
 - 스타일 가이드
 
@@ -804,10 +898,31 @@ export default Forbidden;
 
 ---
 
+## 📌13. 다크모드 테마 동기화 (Ordo 생태계 표준)
+
+### 🧩13.1 테마 상속 원칙
+
+- Altar Scheduler는 **Ordo의 다크/라이트 테마를 URL 파라미터로 승계**받습니다.
+- Ordo AppViewer에서 자식 앱을 열 때 `?theme=dark|light|system`을 URL에 포함하여 전달합니다.
+- 자식 앱은 `main.tsx` 최상단(ThemeProvider 마운트 이전)에서 이 파라미터를 읽어 `altar-ui-theme` localStorage 키에 선제 저장합니다.
+
+### 🧩13.2 iframe 모드에서의 화면 설정 비활성화
+
+- Ordo 내부(iframe)에서 실행 중일 때는 `window.self !== window.top` 조건으로 감지합니다.
+- `AppSettingsDrawer`의 "화면 설정" 섹션에서 테마 변경 버튼을 숨기고, "Ordo 앱 설정에서 테마를 변경할 수 있습니다" 안내문을 표시합니다.
+- 단독(standalone) 실행 시에는 라이트/다크/시스템 버튼이 정상적으로 표시됩니다.
+
+| 실행 환경 | 화면 설정 UI |
+|---------|------------|
+| Ordo AppViewer (iframe) | 안내문만 표시 (테마 버튼 숨김) |
+| 단독 실행 (ordo-altar.web.app 직접 접근) | 라이트 / 다크 / 시스템 버튼 표시 |
+
+---
+
 ## 📌확장 계획 (v2 Preview)
 
-- `Input`, `Modal`, `Dropdown`, `Tooltip`, `Alert` 등 추가 예정  
-- `ThemeToggle` (라이트/다크 전환) 도입 (완료 - 시스템 설정 연동 또는 수동 토글 지원)
+- `Input`, `Modal`, `Dropdown`, `Tooltip`, `Alert` 등 추가 예정
+- `ThemeToggle` (라이트/다크 전환) 도입 (완료 - Ordo 생태계 테마 승계 방식으로 구현)
 - 경북산 성당 로고 기반 Color Accent 그룹 지원
 
 ---

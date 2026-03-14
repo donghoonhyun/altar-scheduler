@@ -1,0 +1,36 @@
+[2026-02-22T04:28:52.833Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"emulatorHub"}
+(node:36728) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[2026-02-22T04:28:52.846Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2026-02-22T04:28:52.847Z] > authorizing via signed-in user (pongso.hyun@gmail.com)
+[2026-02-22T04:28:52.847Z] [iam] checking project ordo-eb11a for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[2026-02-22T04:28:52.863Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:28:52.864Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:28:52.866Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions [none]
+[2026-02-22T04:28:52.866Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions  x-goog-user-project=ordo-eb11a
+[2026-02-22T04:28:52.867Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[2026-02-22T04:28:53.272Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions 200
+[2026-02-22T04:28:53.272Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[2026-02-22T04:28:53.273Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:28:53.273Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:28:53.273Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions [none]
+[2026-02-22T04:28:53.273Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[2026-02-22T04:28:54.326Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions 200
+[2026-02-22T04:28:54.327Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/ordo-eb11a/serviceAccounts/ordo-eb11a@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+
+=== Deploying to 'ordo-eb11a'...
+
+i  deploying functions 
+Running command: npm --prefix "$RESOURCE_DIR" run build
+
+> build
+> tsc -p tsconfig.json
+
++  functions: Finished running predeploy script. 
+[2026-02-22T04:29:05.998Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:29:05.998Z] Checked if tokens are valid: true, expires at: 1771737293349
+[2026-02-22T04:29:05.999Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a [none]
+[2026-02-22T04:29:06.283Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a 200
+[2026-02-22T04:29:06.283Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/ordo-eb11a {"projectNumber":"469915698574","projectId":"ordo-eb11a","lifecycleState":"ACTIVE","name":"Ordo","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-01-31T10:26:40.022174Z"}
+
+Error: No function matches given --only filters. Aborting deployment.

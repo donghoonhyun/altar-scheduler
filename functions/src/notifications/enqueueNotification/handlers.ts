@@ -161,7 +161,7 @@ async function handleEnqueueTest({ data, context }: ActionContext) {
   const notifRef = await createQueuedNotification({
     title: '🔔[Altar Scheduler] 알림 테스트',
     body: '테스트 메시지(FCM)를 정상적으로 수신하였습니다.',
-    clickAction: '/',
+    clickAction: 'https://ordo-altar.web.app',
     targetUids: [data.targetUid],
     feature: 'TEST_SEND',
     context,
@@ -202,22 +202,24 @@ async function handleEnqueueSurvey({ data, context }: ActionContext) {
   let feature = '';
   let triggerStatus = '';
 
+  const APP_BASE_URL = 'https://ordo-altar.web.app';
+
   if (type === 'SURVEY_OPENED') {
     title = customTitle || '📋 미사 배정 설문 시작';
     body = customBody || `${monthStr}월 미사 배정 설문이 시작되었습니다. 앱에서 참여해주세요!`;
-    clickAction = `/survey/${serverGroupId}/${month}`;
+    clickAction = `${APP_BASE_URL}/survey/${serverGroupId}/${month}`;
     feature = 'SURVEY_OPENED';
     triggerStatus = 'OPEN';
   } else if (type === 'SURVEY_CLOSED') {
     title = customTitle || '🔒 미사 배정 설문 마감';
     body = customBody || `${monthStr}월 미사 배정 설문이 종료되었습니다.`;
-    clickAction = `/server-groups/${serverGroupId}`;
+    clickAction = `${APP_BASE_URL}/server-groups/${serverGroupId}`;
     feature = 'SURVEY_CLOSED';
     triggerStatus = 'CLOSED';
   } else if (type === 'FINAL_CONFIRMED') {
     title = customTitle || '✅ 미사 배정 확정';
     body = customBody || `${monthStr}월 복사 배정표가 확정되었습니다. 확인해주세요!`;
-    clickAction = `/server-groups/${serverGroupId}`;
+    clickAction = `${APP_BASE_URL}/server-groups/${serverGroupId}`;
     feature = 'FINAL_CONFIRMED';
     triggerStatus = 'FINAL_CONFIRMED';
   } else {
@@ -259,7 +261,7 @@ async function handleEnqueueMemberApproved({ data, context }: ActionContext) {
   const notifRef = await createQueuedNotification({
     title: '✅ 복사단 가입 승인',
     body: `${data.memberName} 복사님의 가입이 승인되었습니다.`,
-    clickAction: `/server-groups/${data.serverGroupId}`,
+    clickAction: `https://ordo-altar.web.app/server-groups/${data.serverGroupId}`,
     targetUids: [data.targetUid],
     feature: 'MEMBER_APPLICATION',
     serverGroupId: data.serverGroupId,
@@ -280,7 +282,7 @@ async function handleEnqueueMemberRequested({ data, context }: ActionContext) {
   const notifRef = await createQueuedNotification({
     title: '📝 복사 가입 신청',
     body: `${data.memberName} 복사의 가입 요청이 접수되었습니다. 승인 대기 중입니다.`,
-    clickAction: `/server-groups/${data.serverGroupId}/servers`,
+    clickAction: `https://ordo-altar.web.app/server-groups/${data.serverGroupId}/servers`,
     targetUids,
     feature: 'MEMBER_REQUEST',
     serverGroupId: data.serverGroupId,

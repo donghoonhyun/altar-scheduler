@@ -162,11 +162,12 @@ export default function ServerMain() {
   }, [serverGroupId, currentMonth.format('YYYYMM')]); // Stable Dependency
 
   // 3.5) 설문 진행 중인 달 조회 (Survey Status='OPEN') - Realtime
-  const [surveyInfo, setSurveyInfo] = useState<{ 
-      month: string; 
-      targetMemberIds: string[]; 
-      startDate: any; 
-      endDate: any; 
+  const [surveyInfo, setSurveyInfo] = useState<{
+      month: string;
+      targetMemberIds: string[];
+      startDate: any;
+      endDate: any;
+      responses: Record<string, any>;
   } | null>(null);
   
   useEffect(() => {
@@ -186,6 +187,7 @@ export default function ServerMain() {
             targetMemberIds: snap.data().member_ids || [],
             startDate: snap.data().start_date,
             endDate: snap.data().end_date,
+            responses: snap.data().responses || {},
         });
       } else {
         setSurveyInfo(null);
@@ -292,7 +294,7 @@ export default function ServerMain() {
       <div className="max-w-lg md:max-w-6xl mx-auto px-4">
         {/* 👋 상단 인사말 */}
         <div className="mb-4 mt-1 px-1">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 font-gamja">
             <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
@@ -319,32 +321,39 @@ export default function ServerMain() {
         )}
 
         {/* 2.5) 설문 알림 (Callout) - 기간 체크 추가 */}
-        {surveyInfo && 
-         checkedMemberIds.length === 1 && 
-         surveyInfo.targetMemberIds.includes(checkedMemberIds[0]) && 
-         serverGroupId && 
+        {surveyInfo &&
+         checkedMemberIds.length === 1 &&
+         surveyInfo.targetMemberIds.includes(checkedMemberIds[0]) &&
+         serverGroupId &&
          // Check if today is within survey period (inclusive)
-         !dayjs().isBefore(dayjs(surveyInfo.startDate?.toDate()), 'day') && 
-         !dayjs().isAfter(dayjs(surveyInfo.endDate?.toDate()), 'day') && (
-          <div 
-            onClick={() => {
-                const targetId = checkedMemberIds[0];
-                navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}`);
-            }}
-            className="mt-4 mb-2 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/20 transition shadow-sm fade-in"
-          >
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-full text-yellow-600 dark:text-yellow-500">
-               <ClipboardCheck size={24} />
+         !dayjs().isBefore(dayjs(surveyInfo.startDate?.toDate()), 'day') &&
+         !dayjs().isAfter(dayjs(surveyInfo.endDate?.toDate()), 'day') && (() => {
+          const alreadyResponded = !!surveyInfo.responses[checkedMemberIds[0]];
+          return (
+            <div
+              onClick={() => {
+                  const targetId = checkedMemberIds[0];
+                  navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}`);
+              }}
+              className="mt-4 mb-2 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/20 transition shadow-sm fade-in"
+            >
+              <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-full text-yellow-600 dark:text-yellow-500">
+                 <ClipboardCheck size={24} />
+              </div>
+              <div className="flex-1">
+                 <h3 className="text-sm font-bold text-yellow-900 dark:text-yellow-200">
+                   {alreadyResponded ? '미사일정 설문에 참여하셨습니다' : '미사일정 설문이 시작되었습니다'}
+                 </h3>
+                 <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                   {alreadyResponded
+                     ? '계속 수정가능합니다'
+                     : `${dayjs(surveyInfo.month, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.`}
+                 </p>
+              </div>
+              <ChevronRight className="text-yellow-400 dark:text-yellow-600" size={20} />
             </div>
-            <div className="flex-1">
-               <h3 className="text-sm font-bold text-yellow-900 dark:text-yellow-200">미사일정 설문이 시작되었습니다</h3>
-               <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                 {dayjs(surveyInfo.month, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.
-               </p>
-            </div>
-            <ChevronRight className="text-yellow-400 dark:text-yellow-600" size={20} />
-          </div>
-        )}
+          );
+        })()}
 
         {/* 🔥 3) 복사 0명일 때 안내 카드 */}
         {members.length === 0 && (
@@ -518,6 +527,7 @@ export default function ServerMain() {
             date={drawerDate}
             serverGroupId={serverGroupId}
             monthStatus={monthStatus}
+            currentUserId={checkedMemberIds[0]}
           />
         </>
       )}

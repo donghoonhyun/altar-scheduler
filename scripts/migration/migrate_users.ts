@@ -1,96 +1,146 @@
-import { sourceAuth, targetAuth, sourceDB, targetDB } from './init_migration';
-import { UserRecord } from 'firebase-admin/auth';
-import * as admin from 'firebase-admin';
+/**
+ * migrate_users.ts
+ * Firestore /users 컬렉션 이관
+ *
+ * 전략:
+ * - Source(altar-scheduler-dev) /users/{uid} → Target(ordo-eb11a) /users/{mappedUid}
+ * - Ordo users 스키마에 정의된 필드만 복사 (무관 필드 제외)
+ * - Target에 이미 users/{mappedUid} 문서가 존재하면 건너뜀 (Ordo 데이터 보호)
+ * - 신규 사용자만 생성
+ *
+ * Ordo users 스키마 허용 필드:
+ *   uid, email, user_name, baptismal_name, user_category, phone,
+ *   created_at, updated_at, fcm_tokens (마이그 시 제외), managerParishes (마이그 시 제외)
+ */
+import { sourceDB, targetDB } from './init_migration';
+import { loadUidMap, uidMap } from './migrate_auth';
+import { Timestamp } from 'firebase-admin/firestore';
 
-// -------------------------------------------------------------
-// 1. 사용자 마이그레이션 (Auth)
-// -------------------------------------------------------------
+// Ordo users 스키마에서 허용하는 필드 목록
+// fcm_tokens, managerParishes는 이관하지 않음 (운영 중 자동 관리 필드)
+const ALLOWED_USER_FIELDS = new Set([
+  'uid',
+  'email',
+  'user_name',
+  'baptismal_name',
+  'user_category', // source에 없으면 그냥 없는 채로 생성
+  'phone',
+  'created_at',
+  'updated_at',
+]);
 
-async function migrateUsers() {
-  console.log('🚀 Starting User Migration...');
+type UserCategory = 'Father' | 'Sister' | 'Layman';
+const VALID_USER_CATEGORIES: UserCategory[] = ['Father', 'Sister', 'Layman'];
 
-  let pageToken: string | undefined;
+function transformUserDoc(
+  srcData: FirebaseFirestore.DocumentData,
+  srcUid: string,
+  targetUid: string
+): FirebaseFirestore.DocumentData | null {
+  const result: FirebaseFirestore.DocumentData = {};
 
-  do {
-    // 1-1. Source(Altar) 사용자 목록 가져오기 (1000명씩)
-    const listUsersResult = await sourceAuth.listUsers(1000, pageToken);
-    const sourceUsers = listUsersResult.users;
-
-    for (const sourceUser of sourceUsers) {
-      const uid = sourceUser.uid;
-      const email = sourceUser.email;
-
-      if (!email) {
-        console.warn(`⚠️ Skipping user ${uid} (No Email)`);
-        continue;
-      }
-
-      try {
-        // 1-2. Target(Ordo)에 동일한 이메일의 유저가 있는지 확인
-        let existingUser: UserRecord | null = null;
-        try {
-          existingUser = await targetAuth.getUserByEmail(email);
-        } catch (error: any) {
-          if (error.code !== 'auth/user-not-found') throw error;
-        }
-
-        if (existingUser) {
-          console.log(`✅ User exists in Ordo: ${email} (UID: ${existingUser.uid})`);
-          // TODO: UID 매핑 정보 저장 (필요 시)
-          // Altar UID -> Ordo UID 매핑 테이블이 필요할 수 있음.
-          // 하지만 여기선 일단 "기존 Altar UID를 그대로 사용"하는 것을 최우선으로 시도.
-          // 만약 Ordo에 이미 존재하는 유저라면, Altar 데이터의 UID 참조를 Ordo UID로 바꿔야 함.
-          await mapUserUid(uid, existingUser.uid);
-        } else {
-          // 1-3. Ordo에 유저 없음 -> 신규 생성 (Altar UID 그대로 사용 시도)
-          try {
-            await targetAuth.createUser({
-              uid: uid, // Altar UID 유지
-              email: email,
-              emailVerified: sourceUser.emailVerified,
-              displayName: sourceUser.displayName,
-              photoURL: sourceUser.photoURL,
-              phoneNumber: sourceUser.phoneNumber,
-              disabled: sourceUser.disabled,
-              // Password Hash는 별도 처리가 필요하거나, 유저에게 재설정 요청.
-              // 여기서는 프로필 정보만 마이그레이션.
-              // 비밀번호까지 옮기려면 export/import 명령어를 써야 함 (스크립트로는 불가).
-            });
-            console.log(`✨ Imported user to Ordo: ${email} (UID: ${uid})`);
-            await mapUserUid(uid, uid); // Same UID
-          } catch (createError: any) {
-            if (createError.code === 'auth/uid-already-exists') {
-              // UID 충돌 -> Ordo UID 생성 후 매핑 필요
-              // (매우 드문 케이스, 이메일은 없는데 UID만 같은 경우)
-              const newUser = await targetAuth.createUser({
-                email: email,
-                emailVerified: sourceUser.emailVerified,
-                displayName: sourceUser.displayName,
-              });
-              console.warn(`⚠️ UID Collision! User created with NEW UID: ${newUser.uid}`);
-              await mapUserUid(uid, newUser.uid);
-            } else {
-              throw createError;
-            }
-          }
-        }
-      } catch (err) {
-        console.error(`❌ Error migrating user ${email}:`, err);
-      }
+  // 허용 필드만 복사
+  for (const field of ALLOWED_USER_FIELDS) {
+    if (srcData[field] !== undefined) {
+      result[field] = srcData[field];
     }
-    pageToken = listUsersResult.pageToken;
-  } while (pageToken);
+  }
 
-  console.log('✅ User Migration Completed.');
+  // uid는 반드시 target uid로 덮어씀
+  result['uid'] = targetUid;
+
+  // user_category 유효성 검증 (없거나 잘못된 값이면 제외)
+  if (result['user_category'] && !VALID_USER_CATEGORIES.includes(result['user_category'])) {
+    console.warn(`    ⚠️  user_category 값 무효: "${result['user_category']}" → 제외`);
+    delete result['user_category'];
+  }
+
+  // email 없으면 이관 불가
+  if (!result['email']) {
+    console.warn(`    ⚠️  [SKIP] uid=${srcUid}: email 없음`);
+    return null;
+  }
+
+  // updated_at이 없으면 현재 시각으로
+  if (!result['updated_at']) {
+    result['updated_at'] = Timestamp.now();
+  }
+
+  return result;
 }
 
-// -------------------------------------------------------------
-// 2. UID 매핑 저장용 (메모리 or 파일)
-// -------------------------------------------------------------
-const uidMap: Record<string, string> = {}; // { AltarUID: OrdoUID }
+export async function migrateUsers(dryRun = true) {
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`👤 [/users 이관] DryRun=${dryRun}`);
+  console.log(`${'='.repeat(60)}`);
 
-async function mapUserUid(altarUid: string, ordoUid: string) {
-  uidMap[altarUid] = ordoUid;
+  // UID 매핑 로드 (auth 이관 이후에 실행되므로 이미 로드됐을 수 있음)
+  loadUidMap();
+
+  const snapshot = await sourceDB.collection('users').get();
+  if (snapshot.empty) {
+    console.log('  (source /users 컬렉션 비어 있음)');
+    return;
+  }
+
+  console.log(`  source /users 문서 수: ${snapshot.size}`);
+
+  const stats = { total: 0, created: 0, skipped_exists: 0, skipped_no_email: 0, errors: 0 };
+  const BATCH_SIZE = 400;
+  let batch = targetDB.batch();
+  let batchCount = 0;
+
+  for (const doc of snapshot.docs) {
+    stats.total++;
+    const srcUid = doc.id;
+    const srcData = doc.data();
+
+    // UID 매핑 적용
+    const targetUid = uidMap[srcUid] ?? srcUid;
+
+    // Target에 이미 존재하는지 확인
+    const targetRef = targetDB.collection('users').doc(targetUid);
+    const existing = await targetRef.get();
+
+    if (existing.exists) {
+      stats.skipped_exists++;
+      console.log(`  ⏭️  [SKIP-EXISTS] users/${targetUid} (${srcData['email'] ?? srcUid})`);
+      continue;
+    }
+
+    // 데이터 변환
+    const transformed = transformUserDoc(srcData, srcUid, targetUid);
+    if (!transformed) {
+      stats.skipped_no_email++;
+      continue;
+    }
+
+    if (!dryRun) {
+      batch.set(targetRef, transformed);
+      batchCount++;
+
+      if (batchCount >= BATCH_SIZE) {
+        await batch.commit();
+        batch = targetDB.batch();
+        batchCount = 0;
+        console.log(`    ... ${stats.created + batchCount}개 처리 중`);
+      }
+    } else {
+      console.log(`  📋 [DRYRUN] 생성 예정: users/${targetUid} (${transformed['email']})`);
+    }
+
+    stats.created++;
+  }
+
+  // 남은 배치 커밋
+  if (!dryRun && batchCount > 0) {
+    await batch.commit();
+  }
+
+  console.log('\n📊 [/users 이관 결과]');
+  console.log(`  전체:               ${stats.total}`);
+  console.log(`  신규 생성:           ${stats.created}`);
+  console.log(`  이미 존재(건너뜀):    ${stats.skipped_exists}`);
+  console.log(`  이메일 없어 건너뜀:   ${stats.skipped_no_email}`);
+  console.log(`  오류:               ${stats.errors}`);
 }
-
-export { migrateUsers, uidMap };

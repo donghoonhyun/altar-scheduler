@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs:*)",
+      "Bash(npm run build:*)",
+      "Bash(firebase deploy:*)",
+      "Read(//d/works_ordo/**)",
+      "Bash(find:*)"
+    ]
+  }
+}

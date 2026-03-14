@@ -19,7 +19,9 @@
     "import:cloud": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 tsx scripts/importToEmulator.ts",
     "sync:cloud": "npx tsx scripts/fetchCloudData.ts && npm run import:cloud",
     "rules:merge": "node scripts/merge-firestore-rules.js",
-    "rules:deploy": "echo ⚠️  Rules는 Ordo 메인 앱에서만 배포하세요! && echo 1. npm run rules:merge로 Rules 병합 && echo 2. Ordo 프로젝트로 이동 && echo 3. firebase deploy --only firestore:rules 실행 && exit 1"
+    "rules:deploy": "echo ⚠️  Rules는 Ordo 메인 앱에서만 배포하세요! && echo 1. npm run rules:merge로 Rules 병합 && echo 2. Ordo 프로젝트로 이동 && echo 3. firebase deploy --only firestore:rules 실행 && exit 1",
+    "migrate": "npx tsx scripts/migration/run_migration.ts",
+    "migrate:run": "cross-env DRY_RUN=false npx tsx scripts/migration/run_migration.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
