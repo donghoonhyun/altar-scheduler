@@ -5,7 +5,8 @@ import { Container } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MassStatus } from '@/types/firestore';
 import dayjs from 'dayjs';
@@ -55,6 +56,65 @@ export default function SurveyByServer() {
   const [weeks, setWeeks] = useState<{ start: string; end: string; label: string }[]>([]);
   const [showDeleted, setShowDeleted] = useState(false);
   const [monthlyStatus, setMonthlyStatus] = useState<MassStatus>('MASS-NOTCONFIRMED');
+
+  const handleDownloadExcel = () => {
+    if (!survey || memberList.length === 0) return;
+
+    const mergedEventMap = { ...eventMap, ...(showDeleted ? deletedEventMap : {}) };
+
+    const data = memberList.map(member => {
+      const response = survey.responses?.[member.id];
+      const unavailableEventIds = response?.unavailable || [];
+
+      const unavailableDates = unavailableEventIds
+        .map(eid => mergedEventMap[eid] || null)
+        .filter(Boolean)
+        .map(ev => ({ ...ev!, dayjsDate: dayjs(ev!.event_date) }));
+
+      unavailableDates.sort((a, b) => a.event_date.localeCompare(b.event_date));
+
+      const row: Record<string, string> = {
+        '이름': member.name,
+        '세례명': member.baptismal_name || '',
+        '학년': member.grade || '',
+      };
+
+      weeks.forEach(week => {
+        const weekStart = dayjs(week.start);
+        const weekEnd = dayjs(week.end);
+        const eventsInWeek = unavailableDates.filter(ev =>
+          ev.dayjsDate.isAfter(weekStart.subtract(1, 'day')) &&
+          ev.dayjsDate.isBefore(weekEnd.add(1, 'day'))
+        );
+
+        if (!response) {
+          row[week.label] = '미제출';
+        } else if (eventsInWeek.length === 0) {
+          row[week.label] = '';
+        } else {
+          row[week.label] = eventsInWeek
+            .map(ev => `${ev.dayjsDate.format('D일(dd)')} ${ev.title}${ev.isDeleted ? '[삭제]' : ''}`)
+            .join(', ');
+        }
+      });
+
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '복사별현황');
+
+    const colWidths = [
+      { wch: 12 }, // 이름
+      { wch: 12 }, // 세례명
+      { wch: 10 }, // 학년
+      ...weeks.map(() => ({ wch: 30 })),
+    ];
+    ws['!cols'] = colWidths;
+
+    XLSX.writeFile(wb, `복사별현황_${surveyId}.xlsx`);
+  };
 
   const fetchSurveyAndData = useCallback(async () => {
     if (!serverGroupId || !surveyId) return;
@@ -253,7 +313,16 @@ export default function SurveyByServer() {
                         {`${parseInt(surveyId!.slice(4))}월 복사별 불참 현황`}
                     </h1>
                 </div>
-                <StatusBadge status={monthlyStatus} />
+                <div className="flex items-center gap-2">
+                    <StatusBadge status={monthlyStatus} />
+                    <Button variant="outline" size="sm" onClick={handleDownloadExcel} className="hidden sm:flex dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200" title="엑셀로 저장">
+                        <Download size={16} className="mr-2" />
+                        엑셀
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={handleDownloadExcel} className="sm:hidden dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200" title="엑셀로 저장">
+                        <Download size={16} />
+                    </Button>
+                </div>
             </div>
 
             {/* Row 2: Description */}
