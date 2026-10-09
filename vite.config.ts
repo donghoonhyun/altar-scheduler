@@ -74,7 +74,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: '127.0.0.1', // ✅ 명시적 바인딩
-      port: 5173,
+      port: 5177, // 앱별 dev 포트 고정 (Service Worker 캐시 충돌 방지)
+      strictPort: true,
     },
   };
 });

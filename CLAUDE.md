@@ -63,7 +63,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Frontend (Vite)
 
 ```bash
-npm run dev              # Start dev server at localhost:5173
+npm run dev              # Start dev server at localhost:5177
 npm run build            # TypeScript compile + Vite bundle to dist/
 npm run lint             # ESLint
 npm run preview          # Preview production build
