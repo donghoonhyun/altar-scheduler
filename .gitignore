@@ -27,6 +27,7 @@ backup/
 # Firebase config
 
 firebase-debug.log
+.firebase/
 
 # Editor directories and files
 .vscode/*
