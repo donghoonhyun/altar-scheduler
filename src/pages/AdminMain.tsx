@@ -3,42 +3,16 @@ import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 import { useNavigate, useParams } from 'react-router-dom';
-import { Container, Card, Heading, UserRoleIcon } from '@/components/ui';
 import { useSession } from '@/state/session';
-import { Users, Settings, UserPlus, LayoutDashboard, Info } from 'lucide-react';
+import { ChevronRight, Church, LayoutDashboard, Settings, UserPlus, Users } from 'lucide-react';
 import { COLLECTIONS } from '@/lib/collections';
+import ServerHero from './components/ServerHero';
+import { cn } from '@/lib/utils';
 
 const AdminMain: React.FC = () => {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const navigate = useNavigate();
   const session = useSession();
-
-  const adminActions = [
-    {
-      title: '플래너 대시보드',
-      description: '플래너 대시보드(스케줄, 복사단원 관리)로 이동합니다.',
-      icon: LayoutDashboard,
-      color: 'text-orange-600 dark:text-orange-400',
-      bg: 'bg-orange-100 dark:bg-orange-900/30',
-      path: `/server-groups/${serverGroupId}/dashboard`,
-    },
-    {
-      title: '플래너 권한 승인',
-      description: '새로운 플래너 권한 요청을 확인하고 승인합니다.',
-      icon: UserPlus,
-      color: 'text-green-600 dark:text-green-400',
-      bg: 'bg-green-100 dark:bg-green-900/30',
-      path: `/server-groups/${serverGroupId}/admin/role-approval`,
-    },
-    {
-      title: '멤버십 역할 관리',
-      description: '멤버별 역할(권한)을 관리합니다.',
-      icon: Users,
-      color: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-100 dark:bg-blue-900/30',
-      path: `/server-groups/${serverGroupId}/admin/members`,
-    },
-  ];
 
   const sgInfo = serverGroupId ? session.serverGroups[serverGroupId] : null;
 
@@ -61,96 +35,140 @@ const AdminMain: React.FC = () => {
     return () => unsubscribe();
   }, [serverGroupId]);
 
+  const base = `/server-groups/${serverGroupId}`;
+  const roles = (serverGroupId && session.groupRoles[serverGroupId]) || [];
+  const roleLabel = roles.includes('admin') ? '어드민' : roles.includes('planner') ? '플래너' : session.isSuperAdmin ? '슈퍼어드민' : '복사';
+
+  const adminActions = [
+    {
+      title: '플래너 대시보드',
+      description: '미사 일정과 복사단원을 관리해요',
+      icon: LayoutDashboard,
+      tone: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300',
+      path: `${base}/dashboard`,
+      badge: 0,
+    },
+    {
+      title: '플래너 권한 승인',
+      description: '새 플래너 신청을 확인하고 승인해요',
+      icon: UserPlus,
+      tone: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300',
+      path: `${base}/admin/role-approval`,
+      badge: pendingCount,
+    },
+    {
+      title: '멤버십 역할 관리',
+      description: '멤버별 역할(권한)을 바꿔요',
+      icon: Users,
+      tone: 'bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300',
+      path: `${base}/admin/members`,
+      badge: 0,
+    },
+    {
+      title: '복사단 설정',
+      description: '복사단 이름과 운영 설정을 고쳐요',
+      icon: Settings,
+      tone: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300',
+      path: `${base}/admin/settings`,
+      badge: 0,
+    },
+  ];
+
+  const groupInfo = [
+    { label: '성당', value: sgInfo?.parishName },
+    { label: '복사단', value: sgInfo?.groupName },
+    { label: '복사단 ID', value: serverGroupId },
+    { label: '성당 코드', value: sgInfo?.parishCode },
+    { label: '표시 기준', value: 'Asia/Seoul (KST)' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-200 to-purple-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
-      <Container className="py-6">
-        <div className="mb-6 mt-1 flex flex-col items-center">
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 text-center relative inline-block">
-            복사단 Admin Panel
-            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-purple-500/30 dark:bg-purple-400/30 rounded-full"></span>
-          </Heading>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-violet-100 via-violet-50 to-sky-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
+      <div className="max-w-3xl mx-auto px-4 pt-3 space-y-3 ui-stagger">
+        {/* 1) 인사말 + 지금 챙길 일 */}
+        <ServerHero
+          userName={session.userInfo?.userName}
+          baptismalName={session.userInfo?.baptismalName}
+          roleLabel={roleLabel}
+          state={
+            pendingCount > 0
+              ? {
+                  kind: 'info',
+                  seed: serverGroupId || 'admin',
+                  pose: 'bell',
+                  tone: 'amber',
+                  title: `플래너 신청이 ${pendingCount}건 있어요`,
+                  description: '새 플래너의 신청을 확인하고 승인해 주세요.',
+                  action: { label: '승인하러 가기', onClick: () => navigate(`${base}/admin/role-approval`) },
+                }
+              : {
+                  kind: 'info',
+                  seed: serverGroupId || 'admin',
+                  pose: 'wave',
+                  title: `${sgInfo?.groupName || '복사단'} 관리`,
+                  description: '기다리는 신청이 없어요. 필요한 메뉴를 골라 주세요.',
+                }
+          }
+        />
 
-        <div className="mb-6 text-center">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-            <span className="text-purple-600 dark:text-purple-400 font-extrabold inline-flex items-center justify-center gap-1">
-              <UserRoleIcon category={session.userInfo?.userCategory} size={18} />
-              {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
-            </span>
-            {serverGroupId && (() => {
-              const roles = session.groupRoles[serverGroupId] || [];
-              if (roles.includes('admin')) return '어드민';
-              if (roles.includes('planner')) return '플래너';
-              if (roles.includes('server')) return '복사';
-              return '역할없음';
-            })()}님 반갑습니다.
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-8 ui-stagger">
-          {adminActions.map((action, index) => (
-            <Card
-              key={index}
-              className="hover:shadow-md transition-all duration-200 cursor-pointer group border-none shadow-sm dark:bg-gray-800"
-              onClick={() => action.path !== '#' && navigate(action.path)}
+        {/* 2) 관리 메뉴 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {adminActions.map((action) => (
+            <button
+              key={action.path}
+              type="button"
+              onClick={() => navigate(action.path)}
+              className={cn(
+                'group flex items-center gap-3 rounded-3xl border bg-white/90 p-4 text-left shadow-sm backdrop-blur transition hover:shadow-md active:scale-[0.98] dark:bg-slate-900/90',
+                action.badge > 0 ? 'border-amber-300 dark:border-amber-700' : 'border-white/70 dark:border-slate-800'
+              )}
             >
-              <div className="p-1 sm:p-1.5">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className={`${action.bg} ${action.color} w-9 h-9 rounded flex items-center justify-center group-hover:scale-110 transition-transform duration-200 flex-shrink-0`}>
-                    <action.icon size={18} />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 break-keep">{action.title}</h3>
-                  {action.title === '플래너 권한 승인' && pendingCount > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center px-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold shadow-sm">
-                      {pendingCount}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight break-keep">{action.description}</p>
-              </div>
-            </Card>
+              <span className={cn('relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-transform group-hover:scale-105', action.tone)}>
+                <action.icon size={22} />
+                {action.badge > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white shadow ring-2 ring-white dark:ring-slate-900">
+                    {action.badge}
+                  </span>
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-lg leading-tight text-gray-900 dark:text-gray-50">{action.title}</span>
+                <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400 break-keep">{action.description}</span>
+              </span>
+              <ChevronRight size={18} className="shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-400 dark:text-slate-600" />
+            </button>
           ))}
         </div>
 
-        <div className="space-y-4">
-          <Heading size="md" className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-            <Info size={20} className="text-gray-400" />
-            복사단 정보 상세
-          </Heading>
-          <Card className="border-none shadow-sm overflow-hidden relative dark:bg-gray-800">
+        {/* 3) 복사단 정보 */}
+        <section className="rounded-3xl border border-white/70 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 font-display text-lg text-gray-800 dark:text-gray-100">
+              <Church size={18} className="text-violet-500" />
+              복사단 정보
+            </h3>
             <button
-              onClick={() => navigate(`/server-groups/${serverGroupId}/admin/settings`)}
-              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm z-10"
+              onClick={() => navigate(`${base}/admin/settings`)}
+              className="flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 active:scale-95 dark:bg-violet-900/30 dark:text-violet-300"
             >
               <Settings size={12} />
               수정
             </button>
-            <div className="divide-y divide-gray-50 dark:divide-gray-700">
-              {[
-                { label: '복사단 ID', value: serverGroupId },
-                { label: '복사단 명칭', value: sgInfo?.groupName },
-                { label: '성당 코드', value: sgInfo?.parishCode },
-                { label: '성당 명칭', value: sgInfo?.parishName },
-                { label: '표시 기준', value: 'Asia/Seoul (KST)' },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`flex items-center justify-between p-2 px-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 ${idx === 0 ? 'pr-20' : ''}`}
-                >
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{item.label}</span>
-                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">{item.value || '-'}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+          </div>
+          <dl className="divide-y divide-gray-100 dark:divide-slate-800">
+            {groupInfo.map((item) => (
+              <div key={item.label} className="flex items-center justify-between gap-4 py-2.5">
+                <dt className="shrink-0 text-sm text-gray-500 dark:text-gray-400">{item.label}</dt>
+                <dd className="truncate text-sm font-semibold text-gray-800 dark:text-gray-200">{item.value || '-'}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
 
-        <div className="mt-12 text-center text-gray-400 text-[10px]">
-          이 페이지는 해당 복사단 멤버십에서 어드민(Admin) 역할이 있는 분들께만 보입니다.
-        </div>
-
-
-      </Container>
+        <p className="pt-2 text-center text-[11px] text-gray-400">
+          이 페이지는 어드민 역할이 있는 분께만 보여요.
+        </p>
+      </div>
     </div>
   );
 
