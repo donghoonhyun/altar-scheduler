@@ -7,6 +7,7 @@ import { getDoc, doc } from 'firebase/firestore';
 import type { MassEventDoc } from '@/types/firestore';
 import { COLLECTIONS } from '@/lib/collections';
 import DrawerHeader from '@/components/common/DrawerHeader';
+import { useBackButtonClose } from '@/hooks/useBackButtonClose';
 
 interface MassEventMiniDrawerProps {
   isOpen: boolean;
@@ -72,6 +73,9 @@ export default function MassEventMiniDrawer({
 
     fetchNames();
   }, [isOpen, events, serverGroupId]);
+
+  // 휴대폰 뒤로 가기가 페이지를 떠나지 않고 Drawer 만 닫도록 연결
+  useBackButtonClose(isOpen && !!date, onClose);
 
   if (!date) return null;
 

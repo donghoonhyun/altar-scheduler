@@ -6,6 +6,7 @@ import { Container, Card, Heading, Button, Input, Label, InfoBox } from '@/compo
 import { ArrowLeft, Save, Info, Plus, X, MessageSquare, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/state/session';
+import { useBackButtonClose } from '@/hooks/useBackButtonClose';
 import { COLLECTIONS } from '@/lib/collections';
 
 const ServerGroupSettings: React.FC = () => {
@@ -37,6 +38,7 @@ const ServerGroupSettings: React.FC = () => {
 
   // 복사단 생성 관련 상태
   const [isModalOpen, setIsModalOpen] = useState(false);
+  useBackButtonClose(isModalOpen, () => setIsModalOpen(false));
   const [newGroupName, setNewGroupName] = useState('');
   const [creating, setCreating] = useState(false);
 

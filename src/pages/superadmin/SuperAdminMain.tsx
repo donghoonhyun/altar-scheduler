@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/state/session';
+import { useBackButtonClose } from '@/hooks/useBackButtonClose';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp, getDoc, collection, query, getDocs, limit, orderBy } from 'firebase/firestore';
 
@@ -18,6 +19,7 @@ export default function SuperAdminMain() {
 
   // AI Settings State
   const [showAiSettings, setShowAiSettings] = useState(false);
+  useBackButtonClose(showAiSettings, () => setShowAiSettings(false));
   const [promptTemplate, setPromptTemplate] = useState('');
   const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
 

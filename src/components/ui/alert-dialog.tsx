@@ -1,8 +1,12 @@
 import * as React from 'react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import { cn } from '@/lib/utils';
+import { useBackDismissibleOpenState } from '@/hooks/useBackButtonClose';
 
-export const AlertDialog = AlertDialogPrimitive.Root;
+// 휴대폰 뒤로 가기가 페이지를 떠나지 않고 AlertDialog 만 닫도록 연결 (취소와 동일)
+export function AlertDialog(props: AlertDialogPrimitive.AlertDialogProps) {
+  return <AlertDialogPrimitive.Root {...props} {...useBackDismissibleOpenState(props)} />;
+}
 export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 export const AlertDialogPortal = AlertDialogPrimitive.Portal;
 

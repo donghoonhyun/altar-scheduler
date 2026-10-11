@@ -4,8 +4,12 @@ import * as React from 'react';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBackDismissibleOpenState } from '@/hooks/useBackButtonClose';
 
-const Sheet = SheetPrimitive.Root;
+// 휴대폰 뒤로 가기가 페이지를 떠나지 않고 Sheet 만 닫도록 연결
+function Sheet(props: SheetPrimitive.DialogProps) {
+  return <SheetPrimitive.Root {...props} {...useBackDismissibleOpenState(props)} />;
+}
 const SheetTrigger = SheetPrimitive.Trigger;
 const SheetClose = SheetPrimitive.Close;
 const SheetPortal = SheetPrimitive.Portal;

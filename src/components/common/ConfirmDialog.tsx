@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { createRoot } from 'react-dom/client';
+import { useBackButtonClose } from '@/hooks/useBackButtonClose';
 
 export interface ConfirmDialogProps {
   title?: string;
@@ -31,7 +32,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     setTimeout(() => onClose?.(v), 300);
   };
 
-
+  // 휴대폰 뒤로 가기는 취소로 처리
+  useBackButtonClose(visible, () => handleClose(false));
 
   return createPortal(
     <AnimatePresence>

@@ -2,8 +2,12 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBackDismissibleOpenState } from '@/hooks/useBackButtonClose';
 
-const Dialog = DialogPrimitive.Root;
+// 휴대폰 뒤로 가기가 페이지를 떠나지 않고 Dialog 만 닫도록 연결
+function Dialog(props: DialogPrimitive.DialogProps) {
+  return <DialogPrimitive.Root {...props} {...useBackDismissibleOpenState(props)} />;
+}
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;

@@ -4,14 +4,18 @@ import * as React from 'react';
 import * as DrawerPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { useBackDismissibleOpenState } from '@/hooks/useBackButtonClose';
 
 /**
  * 💡 Custom Drawer (shadcn 기반)
  * - Radix Dialog를 이용한 하단 Drawer 구성
  * - MassEventPlanner 및 기타 Drawer 공통 사용
+ * - 휴대폰 뒤로 가기가 페이지를 떠나지 않고 Drawer 만 닫도록 연결
  */
 
-const Drawer = DrawerPrimitive.Root;
+function Drawer(props: DrawerPrimitive.DialogProps) {
+  return <DrawerPrimitive.Root {...props} {...useBackDismissibleOpenState(props)} />;
+}
 const DrawerTrigger = DrawerPrimitive.Trigger;
 
 const DrawerPortal = DrawerPrimitive.Portal;

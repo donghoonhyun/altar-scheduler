@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, Sparkles, ShieldCheck } from 'lucide-react';
+import { useBackButtonClose } from '@/hooks/useBackButtonClose';
 
 interface UpdateUserProfileDialogProps {
   uid: string;
@@ -24,6 +25,7 @@ export default function UpdateUserProfileDialog({
   const [name, setName] = useState(currentName || '');
   const [baptismalName, setBaptismalName] = useState(currentBaptismalName || '');
   const [loading, setLoading] = useState(false);
+  useBackButtonClose(true, onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
