@@ -1,5 +1,5 @@
 // src/pages/AddMember.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   collection,
@@ -80,57 +80,53 @@ export default function AddMember() {
   const [duplicateMembers, setDuplicateMembers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 세션 정보(Ordo 온보딩 등)에서 성당 초기값 가져오기
+  // ✅ 성당 초기값은 한 번만 정한다.
+  // 우선순위: ① 지금 보고 있는 복사단(URL의 sg → 세션의 현재 복사단) ② 내 프로필의 소속 본당
+  // 이후 사용자가 교구·성당을 직접 바꾸면 다시 덮어쓰지 않는다.
+  const initialSgId = searchParams.get('sg') || session.currentServerGroupId || '';
+  const parishInitialized = useRef(false);
+
   useEffect(() => {
-    if (session.userInfo) {
-        if (!selectedParish && session.userInfo.parishId) setSelectedParish(session.userInfo.parishId);
-    }
-  }, [session.userInfo, selectedParish]);
+    if (parishInitialized.current) return;
+    // 세션이 준비된 뒤에 판단해야 프로필의 본당이 복사단보다 먼저 들어가지 않는다
+    if (!user || !session.groupRolesLoaded) return;
+    parishInitialized.current = true;
 
-  // SSO/온보딩 직후 세션 정보가 비어 있는 케이스를 대비해 users/{uid}에서 직접 보완한다.
-  useEffect(() => {
-    if (!user) return;
-    if (selectedParish) return;
+    const init = async () => {
+      let parish = '';
 
-    const fillFromUserDoc = async () => {
-      try {
-        const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
-        if (!userSnap.exists()) return;
-        const ud = userSnap.data() as any;
-
-        if (!selectedParish) {
-          const nextParish = ud.catholic_info?.parish_id || ud.parish_id || '';
-          if (nextParish) setSelectedParish(nextParish);
+      if (initialSgId) {
+        parish = session.serverGroups[initialSgId]?.parishCode || '';
+        if (!parish) {
+          try {
+            const snap = await getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, initialSgId));
+            if (snap.exists()) parish = snap.data().parish_code || '';
+          } catch (err) {
+            console.error('Failed to load server group for prefill:', err);
+          }
         }
-      } catch (err) {
-        console.error('Failed to prefill from user profile:', err);
       }
+
+      // 복사단을 알 수 없을 때만 프로필(Ordo 온보딩 등)의 소속 본당을 쓴다
+      if (!parish) parish = session.userInfo?.parishId || '';
+      if (!parish) {
+        // SSO/온보딩 직후 세션 정보가 비어 있는 케이스를 대비해 users/{uid}에서 직접 보완한다.
+        try {
+          const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
+          if (userSnap.exists()) {
+            const ud = userSnap.data() as any;
+            parish = ud.catholic_info?.parish_id || ud.parish_id || '';
+          }
+        } catch (err) {
+          console.error('Failed to prefill from user profile:', err);
+        }
+      }
+
+      if (parish) setSelectedParish(parish);
     };
 
-    void fillFromUserDoc();
-  }, [user, selectedParish]);
-
-  // ✅ URL 파라미터(sg) 또는 현재 세션 그룹(session.currentServerGroupId)로 초기값 세팅
-  useEffect(() => {
-    let targetSgId = searchParams.get('sg');
-    if (!targetSgId && session.currentServerGroupId) {
-        targetSgId = session.currentServerGroupId;
-    }
-
-    if (targetSgId && !selectedParish) {
-        if (session.serverGroups[targetSgId]) {
-             const sgInfo = session.serverGroups[targetSgId];
-             setSelectedParish(sgInfo.parishCode);
-        } else {
-             getDoc(doc(db, COLLECTIONS.SERVER_GROUPS, targetSgId)).then((snap) => {
-                 if (snap.exists()) {
-                     const data = snap.data();
-                     setSelectedParish(data.parish_code);
-                 }
-             }).catch(console.error);
-        }
-    }
-  }, [searchParams, session.serverGroups, session.currentServerGroupId, selectedParish]);
+    void init();
+  }, [user, session.groupRolesLoaded, session.serverGroups, session.userInfo, initialSgId]);
 
   // 성당 선택 시 교구 자동 매칭
   useEffect(() => {
@@ -164,15 +160,14 @@ export default function AddMember() {
     load();
   }, [selectedParish]);
 
-  // URL sg 파라미터가 있을 때 그룹 자동 선택
+  // 지금 보고 있는 복사단이 목록에 있으면 자동 선택
   useEffect(() => {
-      let targetSgId = searchParams.get('sg');
-      if (targetSgId && serverGroups.length > 0 && !selectedGroup) {
-          if (serverGroups.find(g => g.id === targetSgId)) {
-              setSelectedGroup(targetSgId);
+      if (initialSgId && serverGroups.length > 0 && !selectedGroup) {
+          if (serverGroups.find(g => g.id === initialSgId)) {
+              setSelectedGroup(initialSgId);
           }
       }
-  }, [serverGroups, searchParams, selectedGroup]);
+  }, [serverGroups, initialSgId, selectedGroup]);
 
   const handleSubmit = async (e?: React.MouseEvent | React.FormEvent, force: boolean = false) => {
     if (e) e.preventDefault();

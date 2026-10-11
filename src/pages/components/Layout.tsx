@@ -194,7 +194,8 @@ export default function Layout() {
                     variant="ghost"
                     className="justify-start gap-3 h-9 text-sm font-medium rounded-xl"
                     onClick={() => {
-                        navigate('/add-member');
+                        // 지금 보고 있는 복사단이 기본으로 선택되도록 함께 넘긴다
+                        navigate(serverGroupId ? `/add-member?sg=${serverGroupId}` : '/add-member');
                         setIsMenuOpen(false);
                     }}
                   >

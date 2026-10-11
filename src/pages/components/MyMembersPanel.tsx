@@ -63,7 +63,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
             )}
           </div>
           <button
-            onClick={() => navigate('/add-member')}
+            onClick={() => navigate(`/add-member?sg=${serverGroupId}`)}
             className="flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 active:scale-95 dark:bg-violet-900/30 dark:text-violet-300"
             title="복사 추가"
           >
