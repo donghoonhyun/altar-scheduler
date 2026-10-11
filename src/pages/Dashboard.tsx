@@ -1,17 +1,15 @@
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../state/session';
-import { Container, Card, Heading, UserRoleIcon } from '@/components/ui';
 import ServerStats from './components/ServerStats';
-import NextMonthPlan from './components/NextMonthPlan';
+import PlannerHero from './components/PlannerHero';
+import PlannerQuickActions from './components/PlannerQuickActions';
 import MassCalendar from './components/MassCalendar';
-import RoleBadge from './components/RoleBadge';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { useMassEvents } from '@/hooks/useMassEvents';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { useState, useEffect } from 'react';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -21,6 +19,7 @@ import MassEventDrawer from './components/MassEventDrawer'; // ✅ Import Drawer
 const Dashboard: React.FC = () => {
   const { serverGroupId } = useParams<{ serverGroupId: string }>();
   const session = useSession();
+  const navigate = useNavigate();
 
   // ✅ 현재 월 상태 관리 (전역 세션 연동)
   const initialMonth = session.currentViewDate || dayjs().tz('Asia/Seoul').startOf('month');
@@ -52,11 +51,11 @@ const Dashboard: React.FC = () => {
   const handleDayClick = (date: Date, eventId?: string) => {
     setSelectedDate(date);
     setSelectedEventId(eventId);
-    setIsReadOnly(true); 
+    setIsReadOnly(true);
     setDrawerOpen(true);
-    
+
     // 클릭한 날짜로 뷰 날짜 업데이트 (선택사항, 사용자 경험상 좋을 수 있음)
-    // session.setCurrentViewDate?.(dayjs(date)); 
+    // session.setCurrentViewDate?.(dayjs(date));
   };
 
   const handleCloseDrawer = () => {
@@ -69,77 +68,65 @@ const Dashboard: React.FC = () => {
     return <div className="p-4">잘못된 경로입니다.</div>;
   }
 
-  const userName = session.user?.displayName || session.user?.email;
-
   if (loading) return <PageSkeleton />;
   if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
 
+  const roles = session.groupRoles[serverGroupId] || [];
+  const roleLabel = roles.includes('admin') ? '어드민' : roles.includes('planner') ? '플래너' : '복사';
+  const monthLabel = currentMonth.format('M월');
+  // 배정 인원이 필요 인원보다 모자란 미사 수
+  const shortageCount = events.filter((ev) => (ev.servers?.length || 0) < (ev.required_servers || 0)).length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-200 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
-      <Container className="py-6 transition-all duration-300">
-        {/* 👋 상단 인사말 */}
-        <div className="mb-6 mt-1 flex flex-col items-center">
-          <Heading size="lg" className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 text-center relative inline-block">
-            플래너 Dashboard
-            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-blue-500/30 dark:bg-blue-400/30 rounded-full"></span>
-          </Heading>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-violet-50 via-sky-50 to-blue-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
+      <div className="max-w-5xl mx-auto px-4 pt-3 space-y-3 ui-stagger">
+        {/* 1) 인사말 + 이번 달 진행 단계와 다음에 할 일 */}
+        <PlannerHero
+          userName={session.userInfo?.userName}
+          baptismalName={session.userInfo?.baptismalName}
+          roleLabel={roleLabel}
+          monthLabel={monthLabel}
+          status={monthStatus}
+          seed={serverGroupId}
+          onPrimary={() => navigate(`/server-groups/${serverGroupId}/mass-events`)}
+        />
 
-        <div className="mb-6 text-center">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-            <span className="text-blue-600 dark:text-blue-400 font-extrabold inline-flex items-center justify-center gap-1">
-              <UserRoleIcon category={session.userInfo?.userCategory} size={18} />
-              {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
-            </span>
-            {serverGroupId && (() => {
-              const roles = session.groupRoles[serverGroupId] || [];
-              if (roles.includes('admin')) return '어드민';
-              if (roles.includes('planner')) return '플래너';
-              return '복사';
-            })()}님 반갑습니다.
-          </h2>
-        </div>
+        {/* 2) 복사단 현황 */}
+        <ServerStats
+          serverGroupId={serverGroupId}
+          monthKey={currentMonth.format('YYYYMM')}
+          monthLabel={monthLabel}
+          shortageCount={shortageCount}
+        />
 
-        {/* ✅ 주요 카드 */}
-        <div className="grid gap-6 md:grid-cols-2 mb-6 ui-stagger">
-          <Card className="fade-in">
-            <NextMonthPlan serverGroupId={serverGroupId} />
-          </Card>
-          <Card className="fade-in">
-            <ServerStats 
-              parishCode={session.serverGroups[serverGroupId]?.parishCode || ''} 
-              serverGroupId={serverGroupId} 
-            />
-          </Card>
-        </div>
+        {/* 3) 바로가기 */}
+        <PlannerQuickActions serverGroupId={serverGroupId} />
 
-        {/* ✅ 미사 일정 달력 */}
-        <Card className="md:col-span-2 fade-in">
-          <MassCalendar
-            events={events}
-            timezone="Asia/Seoul"
-            highlightServerName={session?.user?.displayName || ''}
-            viewDate={currentMonth} // ✅ 달력 뷰 동기화
-            onMonthChange={handleMonthChange} // 🔁 달 이동 시 자동 재로딩 및 세션 업데이트
-            onDayClick={handleDayClick}
-            selectedEventId={selectedEventId}
-            monthStatus={monthStatus}
-          />
-        </Card>
+        {/* 4) 미사 일정 달력 */}
+        <MassCalendar
+          events={events}
+          timezone="Asia/Seoul"
+          highlightServerName={session?.user?.displayName || ''}
+          viewDate={currentMonth} // ✅ 달력 뷰 동기화
+          onMonthChange={handleMonthChange} // 🔁 달 이동 시 자동 재로딩 및 세션 업데이트
+          onDayClick={handleDayClick}
+          selectedEventId={selectedEventId}
+          monthStatus={monthStatus}
+        />
+      </div>
 
-        {/* ✅ 미사 상세 Drawer */}
-        {drawerOpen && (
-          <MassEventDrawer
-            serverGroupId={serverGroupId}
-            eventId={selectedEventId}
-            date={selectedDate}
-            onClose={handleCloseDrawer}
-            monthStatus={monthStatus}
-            events={events}
-            readOnly={isReadOnly}
-          />
-        )}
-      </Container>
+      {/* ✅ 미사 상세 Drawer */}
+      {drawerOpen && (
+        <MassEventDrawer
+          serverGroupId={serverGroupId}
+          eventId={selectedEventId}
+          date={selectedDate}
+          onClose={handleCloseDrawer}
+          monthStatus={monthStatus}
+          events={events}
+          readOnly={isReadOnly}
+        />
+      )}
     </div>
   );
 };

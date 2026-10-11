@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import { ChevronLeft, ChevronRight, CalendarDays, Lock } from 'lucide-react';
-import { Button, Card, Container, Heading } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { MassEventCalendar } from '@/types/massEvent';
@@ -98,13 +97,13 @@ export default function MassCalendar({
         key={dateStr}
         onClick={() => onDayClick?.(date.toDate())}
         className={cn(
-          'border rounded-xl p-1 md:p-2 min-h-[70px] md:min-h-[120px] flex flex-col justify-start transition-all duration-200 cursor-pointer hover:shadow-md',
+          'border border-gray-100 dark:border-slate-800 rounded-2xl p-1 md:p-2 min-h-[70px] md:min-h-[120px] flex flex-col justify-start transition-all duration-200 cursor-pointer hover:shadow-md active:scale-[0.97]',
           isSunday
-            ? 'bg-pink-50 dark:bg-pink-900/20'
+            ? 'bg-rose-50/70 dark:bg-pink-900/20'
             : isSaturday
-            ? 'bg-sky-50 dark:bg-sky-900/20'
+            ? 'bg-sky-50/70 dark:bg-sky-900/20'
             : 'bg-white dark:bg-gray-800',
-          isToday && '!border-blue-400 ring-2 ring-blue-300 shadow-sm'
+          isToday && '!border-violet-400 ring-2 ring-violet-300 shadow-sm'
         )}
       >
         {/* ... content ... */}
@@ -245,42 +244,42 @@ export default function MassCalendar({
   }
 
   return (
-    <Container>
-      <Card className="fade-in">
+      <section className="rounded-3xl border border-white/70 bg-white/90 p-3 md:p-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
         {/* ✅ 상단 헤더 : 년월 + '오늘' 버튼 + 상태배지 + 범례 */}
         <div className="flex justify-between items-center mb-3 gap-2">
           {/* 왼쪽: 년월 + 오늘 버튼 */}
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={handlePrevMonth}
+              className="rounded-full p-1.5 text-gray-700 transition hover:bg-violet-100 active:scale-90 dark:text-gray-300 dark:hover:bg-slate-800"
+              title="이전 달"
             >
-              <ChevronLeft size={16} />
-            </Button>
+              <ChevronLeft size={20} />
+            </button>
 
-            <Heading size="sm" className="text-gray-800 dark:text-gray-100 whitespace-nowrap">
+            <span
+              key={currentMonth.format('YYYYMM')}
+              className="ui-pop-once inline-block text-center font-display text-2xl text-gray-800 dark:text-gray-100 whitespace-nowrap"
+            >
               <span className="md:hidden">{currentMonth.format('M월')}</span>
               <span className="hidden md:inline">{currentMonth.format('YYYY년 M월')}</span>
-            </Heading>
+            </span>
 
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={handleNextMonth}
+              className="rounded-full p-1.5 text-gray-700 transition hover:bg-violet-100 active:scale-90 dark:text-gray-300 dark:hover:bg-slate-800"
+              title="다음 달"
             >
-              <ChevronRight size={16} />
-            </Button>
+              <ChevronRight size={20} />
+            </button>
 
-            {/* ▶ 오늘 버튼 (작게 조정) */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-1 whitespace-nowrap h-7 px-2 text-[11px]"
+            {/* ▶ 오늘 버튼 */}
+            <button
               onClick={handleToday}
+              className="ml-1 inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 shadow-sm transition hover:bg-violet-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700 whitespace-nowrap"
             >
               <CalendarDays size={12} className="mr-1 hidden md:block" /> 오늘
-            </Button>
+            </button>
           </div>
 
             {/* 오른쪽: 상태배지 + 범례 */}
@@ -324,8 +323,8 @@ export default function MassCalendar({
           ))}
         </div>
 
-        {/* 날짜 셀 */}
-        <div className="grid grid-cols-7 gap-2 mt-2">{cells}</div>
+        {/* 날짜 셀 — 달이 바뀌면 다시 떠오르며 나타난다 */}
+        <div key={currentMonth.format('YYYYMM')} className="ui-rise grid grid-cols-7 gap-1.5 md:gap-2 mt-2">{cells}</div>
 
         {/* 🎨 범례 (Legend) */}
         <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-600 dark:text-gray-400">
@@ -359,7 +358,6 @@ export default function MassCalendar({
                 <span>고정 (자동 배정 제외)</span>
             </div>
         </div>
-      </Card>
-    </Container>
+      </section>
   );
 }
