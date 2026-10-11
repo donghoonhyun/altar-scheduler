@@ -16,7 +16,23 @@ dist-ssr
 
 emulator-data/
 firebase-export-*
+
+# 백업·임시·스크린샷·로그 (저장소에 올리지 않는다)
 backup/
+*.backup
+*.bak
+*.tmp
+*.tmp.json
+*_log.txt
+/log.txt
+/functions_list*.txt
+
+# 빌드 산출물
+*.tsbuildinfo
+dev-dist/
+
+# 개인별 도구 설정
+.claude/settings.local.json
 
 # critical files
 .env
