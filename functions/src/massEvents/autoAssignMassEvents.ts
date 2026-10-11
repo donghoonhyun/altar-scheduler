@@ -6,6 +6,7 @@ import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import { REGION_V1 } from '../config';
 import { paths } from '../firestorePaths';
+import { assertCanManageServerGroup } from '../utils/authz';
 
 // --------------------------------------------------------------------------
 // [CRITICAL] Version Note
@@ -68,6 +69,8 @@ export const autoAssignMassEvents = functions.region(REGION_V1)
     if (!serverGroupId || !year || !month) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing parameters.');
     }
+
+    await assertCanManageServerGroup(auth.uid, serverGroupId);
 
     try {
       console.log(`🤖 AutoAssign (v3-Smart) started for Group: ${serverGroupId}, ${year}-${month}`);

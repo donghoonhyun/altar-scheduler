@@ -25,6 +25,7 @@ backup/
 .env.production
 
 # Firebase config
+functions/.runtimeconfig.json
 
 firebase-debug.log
 .firebase/

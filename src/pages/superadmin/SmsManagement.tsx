@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, RefreshCw, Smartphone, Search, MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Smartphone, MoreHorizontal } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { httpsCallable } from 'firebase/functions';
-import { functions, db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { COLLECTIONS } from '@/lib/collections';
 
 interface SmsLog {
@@ -29,11 +27,6 @@ interface SmsLog {
 
 export default function SmsManagement() {
   const navigate = useNavigate();
-  
-  // Test Send State
-  const [smsReceiver, setSmsReceiver] = useState('01020879969');
-  const [smsMessage, setSmsMessage] = useState('[알림] 미사일정 알림 테스트입니다.');
-  const [isSendingSms, setIsSendingSms] = useState(false);
 
   // History Log State
   const [logs, setLogs] = useState<SmsLog[]>([]);
@@ -94,40 +87,6 @@ export default function SmsManagement() {
     fetchLogs();
   }, []);
 
-  const handleSendTestSms = async () => {
-    if (!smsReceiver || !smsMessage) {
-      toast.error('수신번호와 내용을 입력해주세요.');
-      return;
-    }
-
-    try {
-      setIsSendingSms(true);
-      const sendSms = httpsCallable(functions, 'altar_sendSms');
-      
-      const cleanReceiver = smsReceiver.replace(/-/g, '');
-      
-      const result = await sendSms({
-        receiver: cleanReceiver,
-        msg: smsMessage,
-      });
-
-      const data = result.data as any;
-      if (data.success) {
-        const groupId = data.data?.groupInfo?._id || 'Unknown';
-        toast.success(`발송 성공 (Group ID: ${groupId})`);
-        // Refresh logs after short delay
-        setTimeout(fetchLogs, 2000);
-      } else {
-        toast.error('발송 실패: 서버 응답 확인 필요');
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error(`발송 에러: ${e.message}`);
-    } finally {
-      setIsSendingSms(false);
-    }
-  };
-
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '-';
     // Handle Firestore Timestamp or standard Date
@@ -185,63 +144,7 @@ export default function SmsManagement() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         
-        {/* 1. 테스트 발송 카드 */}
-        <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-              테스트 발송
-            </h2>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-               <div>
-                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                   수신 번호
-                 </label>
-                 <input 
-                   type="text" 
-                   value={smsReceiver}
-                   onChange={(e) => setSmsReceiver(e.target.value)}
-                   placeholder="01012345678"
-                   className="w-full border border-slate-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
-                 />
-               </div>
-               
-               <div>
-                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                   메세지 내용
-                 </label>
-                 <textarea 
-                   rows={5}
-                   value={smsMessage}
-                   onChange={(e) => setSmsMessage(e.target.value)}
-                   className="w-full border border-slate-300 dark:border-slate-700 rounded-md p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                 />
-                 <div className="flex justify-between items-center mt-1">
-                    <p className="text-xs text-slate-500">{smsMessage.length} / 2000 bytes</p>
-                    <span className="text-xs text-slate-400">90바이트 초과 시 LMS 자동 전환</span>
-                 </div>
-               </div>
-
-               <Button 
-                onClick={handleSendTestSms}
-                disabled={isSendingSms}
-                variant="primary"
-                className="w-full"
-               >
-                 {isSendingSms ? '발송 중...' : '테스트 문자 발송'}
-               </Button>
-            </div>
-
-            <div className="bg-slate-100 dark:bg-slate-800/50 rounded-lg p-6 flex flex-col justify-center items-center text-center text-slate-500 dark:text-slate-400 text-sm">
-                <Smartphone className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" />
-                <p>문자 발송 전 발신번호 설정을 확인하세요.</p>
-                <p className="mt-1">현재 설정된 서비스: Solapi</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 2. 알림 스케쥴링 테스트 (Deprecated) */}
+        {/* 1. 알림 스케쥴링 테스트 (Deprecated) */}
         <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-indigo-50/50 dark:bg-indigo-900/10">
                 <h2 className="text-lg font-bold text-indigo-800 dark:text-indigo-400 flex items-center gap-2">

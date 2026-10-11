@@ -29,6 +29,3 @@ export { analyzeMonthlyAssignments as altar_analyzeMonthlyAssignments } from './
 
 // 📌 Notifications (Core migrated to OrdoAdmin)
 export { enqueueDailyMassReminder as altar_enqueueDailyMassReminder } from './notifications/enqueueDailyMassReminder';
-
-// 📌 SMS
-export { sendSms as altar_sendSms } from './sms/sendSms';

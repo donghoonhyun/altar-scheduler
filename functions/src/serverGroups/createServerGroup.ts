@@ -1,7 +1,8 @@
-import { onCall, CallableRequest } from 'firebase-functions/v2/https';
+import { onCall, CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { COMMON_OPTIONS_V2 } from '../config';
 import { COL_SERVER_GROUPS } from '../firestorePaths';
+import { assertSuperAdmin } from '../utils/authz';
 
 interface CreateServerGroupRequest {
   parishCode: string;
@@ -19,6 +20,11 @@ export const createServerGroup = onCall(
   async (
     request: CallableRequest<CreateServerGroupRequest>
   ): Promise<CreateServerGroupResponse> => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+    }
+    await assertSuperAdmin(request.auth.uid);
+
     const { parishCode, name, active } = request.data;
 
     const db = admin.firestore();

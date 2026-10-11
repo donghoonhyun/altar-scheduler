@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import dayjs from 'dayjs';
 import { REGION_V1 } from '../config';
 import { paths } from '../firestorePaths';
+import { assertCanManageServerGroup } from '../utils/authz';
 
 const db = admin.firestore();
 
@@ -20,6 +21,8 @@ export const analyzeMonthlyAssignments = functions.region(REGION_V1).runWith({ s
   if (!serverGroupId || !yyyymm) {
     throw new functions.https.HttpsError('invalid-argument', '필수 인자가 누락되었습니다.');
   }
+
+  await assertCanManageServerGroup(context.auth.uid, serverGroupId);
 
   // Check for API Key
   const apiKey = process.env.GOOGLE_AI_API_KEY;
