@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import { COLLECTIONS } from '@/lib/collections';
+import { ServerAvatar } from '@/components/characters/AltarServer';
 
 interface Props {
   members: (MemberDoc & { memberId: string })[];
@@ -51,17 +52,23 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
   );
 
   return (
-    <div className="p-3 border rounded-xl mb-4 bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 shadow-sm">
+    <div className="px-4 py-3 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-white/70 dark:border-slate-800 shadow-sm backdrop-blur">
       {/* 1) 승인된 복사 (Toggle Buttons) */}
-      <div className="mb-3">
+      <div>
         <div className="flex items-center justify-between mb-2">
-          <div className="font-semibold text-gray-800 dark:text-gray-200 text-sm">나의 복사 (선택하여 일정 보기)</div>
+          <div className="font-display text-lg text-gray-800 dark:text-gray-100">
+            우리 복사
+            {approved.length > 1 && (
+              <span className="ml-2 font-sans text-xs font-medium text-gray-400">눌러서 일정 보기</span>
+            )}
+          </div>
           <button
             onClick={() => navigate('/add-member')}
-            className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 active:scale-95 dark:bg-violet-900/30 dark:text-violet-300"
             title="복사 추가"
           >
-            <Plus size={18} />
+            <Plus size={14} />
+            추가
           </button>
         </div>
         {approved.length === 0 && pending.length === 0 && inactive.length === 0 ? (
@@ -76,14 +83,18 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
                   key={m.memberId}
                   onClick={() => onToggle(m.memberId)}
                   className={cn(
-                    'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border active:scale-95',
+                    'flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full text-sm font-medium transition-all duration-200 border active:scale-95',
                     checked
-                      ? 'bg-blue-50 border-blue-500 border-[1.5px] font-bold text-blue-800 shadow-md dark:bg-blue-900/40 dark:border-blue-500 dark:text-blue-300'
-                      : 'bg-green-50 border-green-200 text-gray-700 hover:bg-green-100 dark:bg-emerald-900/20 dark:border-emerald-900/40 dark:text-gray-300 dark:hover:bg-emerald-900/30'
+                      ? 'bg-violet-600 border-violet-600 font-bold text-white shadow-md shadow-violet-500/30'
+                      : 'bg-white border-gray-200 text-gray-700 hover:bg-violet-50 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700'
                   )}
                 >
+                  <span className="rounded-full bg-white p-0.5">
+                    <ServerAvatar seed={m.memberId} size={26} />
+                  </span>
+                  {m.name_kor}
+                  <span className={cn('text-xs', checked ? 'text-white/80' : 'text-gray-400')}>{m.baptismal_name}</span>
                   {checked && <Check size={14} strokeWidth={3} />}
-                  {m.name_kor} ({m.baptismal_name})
                 </button>
               );
             })}
@@ -93,10 +104,14 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
               <button
                 key={m.memberId}
                 onClick={() => setSelectedPendingMember(m)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer"
+                className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full text-sm transition-all duration-200 border bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 active:scale-95 cursor-pointer"
                 title="클릭하여 신청 정보 확인/취소"
               >
-                ⏳ {m.name_kor} (승인대기)
+                <span className="rounded-full bg-white p-0.5">
+                  <ServerAvatar seed={m.memberId} size={26} mood="idle" />
+                </span>
+                {m.name_kor}
+                <span className="text-xs font-semibold">⏳ 승인 대기</span>
               </button>
             ))}
 
@@ -104,10 +119,14 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
             {inactive.map((m) => (
               <div
                 key={m.memberId}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-500 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-500 cursor-not-allowed"
+                className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full text-sm transition-all duration-200 border bg-gray-100 border-gray-200 text-gray-500 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-500 cursor-not-allowed"
                 title="비활성 상태"
               >
-                🚫 {m.name_kor} (비활성)
+                <span className="rounded-full bg-white p-0.5 opacity-60 grayscale">
+                  <ServerAvatar seed={m.memberId} size={26} mood="closed" />
+                </span>
+                {m.name_kor}
+                <span className="text-xs">쉬는 중</span>
               </div>
             ))}
           </div>

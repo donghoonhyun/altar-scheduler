@@ -22,12 +22,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import MyMembersPanel from './components/MyMembersPanel';
 
+import ServerHero, { type ServerHeroState } from './components/ServerHero';
+import ServerMonthCalendar from './components/ServerMonthCalendar';
+
 import MassEventMiniDrawer from '@/components/MassEventMiniDrawer';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 
 import type { MassEventDoc, MassStatus, MemberDoc } from '@/types/firestore';
-import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronRight, ClipboardCheck } from 'lucide-react';
 
 type MemberItem = MemberDoc & { memberId: string; active?: boolean };
 
@@ -277,40 +278,136 @@ export default function ServerMain() {
     setDrawerOpen(true);
   };
 
-  // 달력 계산
-  const daysInMonth = currentMonth.daysInMonth();
-  const startDay = currentMonth.startOf('month').day();
-  const daysArray: (number | null)[] = Array.from({ length: startDay + daysInMonth }, (_, i) =>
-    i < startDay ? null : i - startDay + 1
-  );
-
   const isMyEvent = (ev: MassEventDoc) =>
     ev.member_ids?.some((mid: string) => checkedMemberIds.includes(mid));
 
+  // ── 상단 카드에서 캐릭터가 알려 줄 내용 ─────────────────────────────────────
+  const roleLabel = (() => {
+    const roles = (serverGroupId && session.groupRoles[serverGroupId]) || [];
+    if (roles.includes('admin')) return '어드민';
+    if (roles.includes('planner')) return '플래너';
+    return '복사';
+  })();
 
+  const heroState: ServerHeroState = (() => {
+    const monthLabel = currentMonth.format('M월');
+    const activeMembers = members.filter((m) => m.active);
+    const pendingMembers = members.filter((m) => m.active === false && m.request_confirmed === false);
+    const selected = members.find((m) => m.memberId === checkedMemberIds[0]);
+    const seed = selected?.memberId || members[0]?.memberId || session.user?.uid || 'altar';
+
+    if (members.length === 0) {
+      return {
+        kind: 'info',
+        seed,
+        pose: 'wave',
+        title: '복사를 등록해 주세요',
+        description: '자녀나 본인을 복사로 등록하면 미사 일정을 볼 수 있어요.',
+        action: { label: '+ 복사 추가하기', onClick: () => navigate(`/add-member?sg=${serverGroupId}`) },
+      };
+    }
+    if (activeMembers.length === 0 && pendingMembers.length > 0) {
+      return {
+        kind: 'info',
+        seed: pendingMembers[0].memberId,
+        pose: 'wait',
+        tone: 'amber',
+        title: '승인을 기다리고 있어요',
+        description: `${pendingMembers[0].name_kor} 복사의 신청을 플래너가 확인하고 있어요. 승인되면 알려드릴게요.`,
+      };
+    }
+    if (activeMembers.length === 0 || !selected) {
+      return {
+        kind: 'info',
+        seed,
+        pose: 'rest',
+        tone: 'slate',
+        title: '지금은 쉬고 있어요',
+        description: '활동을 다시 시작하려면 플래너에게 알려 주세요.',
+      };
+    }
+
+    if (monthStatus === 'FINAL-CONFIRMED') {
+      const today = dayjs().startOf('day');
+      const myEvents = events
+        .filter(isMyEvent)
+        .sort((a, b) => a.event_date.localeCompare(b.event_date) || a.title.localeCompare(b.title, 'ko'));
+      const next = myEvents.find((ev) => !dayjs(ev.event_date, 'YYYYMMDD').isBefore(today, 'day'));
+
+      if (next) {
+        const date = dayjs(next.event_date, 'YYYYMMDD');
+        const diff = date.startOf('day').diff(today, 'day');
+        return {
+          kind: 'next',
+          seed,
+          memberName: selected.name_kor,
+          dday: diff === 0 ? '오늘이에요!' : diff === 1 ? '내일이에요' : `D-${diff}`,
+          dateLabel: `${date.format('M월 D일')} (${'일월화수목금토'[date.day()]})`,
+          title: next.title,
+          isMain: next.main_member_id === selected.memberId,
+          monthCount: myEvents.length,
+          monthLabel,
+          onOpen: () => handleDayClick(date.date()),
+        };
+      }
+      if (myEvents.length > 0) {
+        return {
+          kind: 'info',
+          seed,
+          pose: 'cheer',
+          title: `${monthLabel} 복사를 모두 마쳤어요`,
+          description: `${selected.name_kor} 복사가 ${myEvents.length}번 봉사했어요. 수고했어요!`,
+        };
+      }
+      return {
+        kind: 'info',
+        seed,
+        pose: 'pray',
+        title: `${monthLabel}에는 배정이 없어요`,
+        description: '다음 달 일정을 기다려 주세요.',
+      };
+    }
+
+    if (monthStatus === 'SURVEY-CONFIRMED') {
+      return {
+        kind: 'info',
+        seed,
+        pose: 'pray',
+        title: `${monthLabel} 배정을 정리하고 있어요`,
+        description: '배정이 확정되면 여기에서 알려드릴게요.',
+      };
+    }
+    if (monthStatus === 'MASS-CONFIRMED') {
+      return {
+        kind: 'info',
+        seed,
+        pose: 'bell',
+        title: `${monthLabel} 미사 일정이 정해졌어요`,
+        description: '설문이 열리면 못 오는 날을 알려 주세요.',
+      };
+    }
+    return {
+      kind: 'info',
+      seed,
+      pose: 'candle',
+      title: `${monthLabel} 일정을 준비하고 있어요`,
+      description: '일정이 정해지면 달력에 나타나요.',
+    };
+  })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-emerald-200 dark:from-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
-      <div className="max-w-lg md:max-w-6xl mx-auto px-4 ui-stagger">
-        {/* 👋 상단 인사말 */}
-        <div className="mb-4 mt-1 px-1">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 font-display">
-            <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-              {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
-            </span>
-            {serverGroupId && (
-              (() => {
-                const roles = session.groupRoles[serverGroupId] || [];
-                if (roles.includes('admin')) return '어드민';
-                if (roles.includes('planner')) return '플래너';
-                return '복사';
-              })()
-            )}님 반갑습니다.
-          </h2>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-violet-50 via-sky-50 to-emerald-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
+      <div className="max-w-lg md:max-w-6xl mx-auto px-4 pt-3 space-y-3 ui-stagger">
+        {/* 1) 인사말 + 캐릭터가 알려 주는 다음 배정/현재 상황 */}
+        <ServerHero
+          userName={session.userInfo?.userName}
+          baptismalName={session.userInfo?.baptismalName}
+          roleLabel={roleLabel}
+          state={heroState}
+        />
 
         {/* 2) 내 복사 목록 */}
-        {serverGroupId && session.user && (
+        {serverGroupId && session.user && members.length > 0 && (
           <MyMembersPanel
             members={members}
             userUid={session.user.uid}
@@ -320,7 +417,7 @@ export default function ServerMain() {
           />
         )}
 
-        {/* 2.5) 설문 알림 (Callout) - 기간 체크 추가 */}
+        {/* 2.5) 설문 알림 - 기간 체크 포함 */}
         {surveyInfo &&
          checkedMemberIds.length === 1 &&
          surveyInfo.targetMemberIds.includes(checkedMemberIds[0]) &&
@@ -335,210 +432,54 @@ export default function ServerMain() {
                   const targetId = checkedMemberIds[0];
                   navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}`);
               }}
-              className="mt-4 mb-2 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/20 active:scale-[0.98] transition shadow-sm"
+              className="flex items-center gap-3 rounded-3xl bg-gradient-to-r from-sky-500 to-violet-500 p-4 text-white shadow-md cursor-pointer transition active:scale-[0.98]"
             >
-              <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-full text-yellow-600 dark:text-yellow-500">
-                 <ClipboardCheck size={24} />
-              </div>
-              <div className="flex-1">
-                 <h3 className="text-sm font-bold text-yellow-900 dark:text-yellow-200">
-                   {alreadyResponded ? '미사일정 설문에 참여하셨습니다' : '미사일정 설문이 시작되었습니다'}
-                 </h3>
-                 <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+              <ClipboardCheck size={30} className="shrink-0" />
+              <div className="flex-1 min-w-0">
+                 <h3 className="font-display text-lg leading-snug">
                    {alreadyResponded
-                     ? '계속 수정가능합니다'
-                     : `${dayjs(surveyInfo.month, 'YYYYMM').format('YYYY년 M월')} 미사 배정 설문에 참여해주세요.`}
+                     ? '설문에 참여했어요'
+                     : `${dayjs(surveyInfo.month, 'YYYYMM').format('M월')} 설문에 참여해 주세요`}
+                 </h3>
+                 <p className="text-sm text-white/85">
+                   {alreadyResponded ? '마감 전까지 고칠 수 있어요' : '못 오는 날만 알려 주면 돼요'}
                  </p>
               </div>
-              <ChevronRight className="text-yellow-400 dark:text-yellow-600" size={20} />
+              <ChevronRight className="shrink-0" size={20} />
             </div>
           );
         })()}
 
-        {/* 🔥 3) 복사 0명일 때 안내 카드 */}
-        {members.length === 0 && (
-          <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl shadow text-center dark:border dark:border-slate-800">
-            <p className="text-gray-700 dark:text-gray-300 mb-3">
-              복사 정보가 없습니다.
-              <br />
-              복사 정보를 등록해주세요.
-            </p>
-
-            <button
-              onClick={() => navigate(`/add-member?sg=${serverGroupId}`)}
-              className="px-4 py-2 bg-emerald-600 dark:bg-emerald-700 text-white rounded-xl shadow hover:bg-emerald-700 dark:hover:bg-emerald-600"
-            >
-              + 복사 추가하기
-            </button>
-          </div>
-        )}
-
-        {/* 🔥 4) 복사 없으면 달력 렌더링 중지 */}
-        {members.length === 0 && null}
-
-        {/* 🔥 members.length ≥ 1 일 때만 달력 렌더링 */}
+        {/* 3) 달력 — 등록된 복사가 있을 때만 */}
         {serverGroupId && members.length > 0 && (
-          <>
-            {/* 달력 상단 */}
-            <div className="flex justify-between items-center mb-3">
-              <div className="flex gap-2 items-center">
-                {/* ✅ [수정] 세션 상태 업데이트 함수 사용 */}
-                <button 
-                  onClick={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
-                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition active:scale-90 text-gray-800 dark:text-gray-300"
-                  title="이전 달"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-
-                <span
-                  key={currentMonth.format('YYYYMM')}
-                  className="font-display text-xl text-gray-800 dark:text-gray-100 ui-pop-once inline-block min-w-[2.5rem] text-center"
-                >
-                  {currentMonth.format('M월')}
-                </span>
-
-                <button 
-                  onClick={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
-                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition active:scale-90 text-gray-800 dark:text-gray-300"
-                  title="다음 달"
-                >
-                  <ChevronRight size={20} />
-                </button>
-
-                <button
-                  onClick={() => session.setCurrentViewDate?.(dayjs())}
-                  className="ml-1 text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-emerald-50 text-gray-600 rounded-lg shadow-sm transition-colors font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700"
-                >
-                  오늘
-                </button>
-
-                <div className="ml-2 flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 dark:bg-rose-400"></span>
-                   나의 배정
-                </div>
-              </div>
-
-              <StatusBadge status={monthStatus} />
-            </div>
-
-            {/* 달력 — 달이 바뀌면 다시 떠오르며 나타난다 */}
-            <div
-              key={currentMonth.format('YYYYMM')}
-              className="grid grid-cols-7 gap-1 text-sm mb-4"
-              style={{ animationDelay: '0ms' }}
-            >
-              {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
-                <div key={d} className="text-center font-semibold text-gray-600 dark:text-gray-300 py-1">
-                  {d}
-                </div>
-              ))}
-
-              {daysArray.map((day, idx) => {
-                if (!day) return <div key={idx} className="h-14" />;
-
-                const dateObj = currentMonth.date(day);
-                const evts = events.filter((ev) =>
-                  dayjs(ev.event_date, 'YYYYMMDD').isSame(dateObj, 'day')
-                );
-
-                const mine = evts.some(isMyEvent);
-                const any = evts.length > 0;
-
-                const isToday = dayjs().isSame(dateObj, 'day');
-                // MASS-NOTCONFIRMED가 아니면 점으로 표시
-                const showDots = monthStatus !== 'MASS-NOTCONFIRMED';
-                const isSelected = drawerOpen && drawerDate?.isSame(dateObj, 'day');
-
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => handleDayClick(day)}
-                    className={cn(
-                      "h-14 md:h-36 flex flex-col items-center md:items-stretch justify-start pt-1 md:p-2 rounded transition border relative",
-                      // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
-                      !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/30 active:scale-95",
-                      isToday ? "border-emerald-500 ring-1 ring-emerald-500 z-10 dark:border-emerald-500" : "border-transparent",
-                      !showDots && mine && "bg-rose-600 text-white font-bold hover:bg-rose-700 dark:bg-rose-700",
-                      !showDots && !mine && any && "bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600",
-                      !showDots && !any && "text-gray-300 dark:text-slate-700",
-                      
-                      // Confirmed: Assigned (mine)
-                      showDots && !isSelected && mine && "bg-rose-100 border-rose-300 dark:bg-rose-900/20 dark:text-rose-200 dark:border-rose-900/50",
-                      // Confirmed: Not Assigned
-                      showDots && !isSelected && !mine && "bg-white dark:bg-slate-900 dark:border-slate-800 border-gray-100 border text-gray-700 dark:text-gray-300",
-
-                      // Selected (Override)
-                      // If mine is true, keep rose bg but add yellow ring
-                      isSelected && mine && "bg-rose-100 border-yellow-400 ring-2 ring-yellow-400 z-20 dark:bg-rose-900/30 dark:border-yellow-500 dark:ring-yellow-500",
-                      isSelected && !mine && "bg-white border-yellow-400 ring-1 ring-yellow-400 z-20 dark:bg-slate-800 dark:border-yellow-500 dark:ring-yellow-500"
-                    )}
-                  >
-                    <span className={cn(
-                      "text-sm mb-1", 
-                      isToday && "font-bold text-emerald-600 dark:text-emerald-400",
-                      !showDots && mine && "text-white"
-                    )}>{day}</span>
-                  
-                  {showDots && (
-                    <>
-                      {/* Mobile: Dots */}
-                      <div className="flex gap-0.5 flex-wrap justify-center px-1 mt-1 md:hidden">
-                        {evts.map((ev) => (
-                          <div
-                            key={ev.id}
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              isMyEvent(ev) 
-                                ? "bg-rose-500" // Assigned -> Red
-                                : "bg-gray-300"
-                            )}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Desktop: Event Names */}
-                      <div className="hidden md:flex flex-col gap-1 w-full mt-1 overflow-y-auto custom-scrollbar">
-                        {[...evts].sort((a, b) => a.title.localeCompare(b.title, 'ko')).map((ev) => {
-                           const myEvent = isMyEvent(ev);
-                           return (
-                             <div 
-                                key={ev.id} 
-                                className={cn(
-                                  "text-[10px] px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-1",
-                                  myEvent 
-                                    ? "bg-rose-500/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200 border border-rose-200 dark:border-rose-900/50" 
-                                    : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400 border border-transparent"
-                                )}
-                             >
-                               <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", myEvent ? "bg-rose-500" : "bg-gray-300")}></span>
-                               {ev.title}
-                             </div>
-                           );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-
-
-          {/* Drawer */}
-          <MassEventMiniDrawer
-            isOpen={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            events={drawerEvents}
-            date={drawerDate}
-            serverGroupId={serverGroupId}
+          <ServerMonthCalendar
+            currentMonth={currentMonth}
+            events={events}
             monthStatus={monthStatus}
-            currentUserId={checkedMemberIds[0]}
+            isMyEvent={isMyEvent}
+            avatarSeed={checkedMemberIds[0]}
+            selectedDate={drawerOpen ? drawerDate : null}
+            onDayClick={handleDayClick}
+            // ✅ 세션 상태 업데이트 함수 사용
+            onPrevMonth={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
+            onNextMonth={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
+            onToday={() => session.setCurrentViewDate?.(dayjs())}
           />
-        </>
-      )}
+        )}
       </div>
+
+      {/* Drawer */}
+      {serverGroupId && members.length > 0 && (
+        <MassEventMiniDrawer
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          events={drawerEvents}
+          date={drawerDate}
+          serverGroupId={serverGroupId}
+          monthStatus={monthStatus}
+          currentUserId={checkedMemberIds[0]}
+        />
+      )}
     </div>
   );
 }
