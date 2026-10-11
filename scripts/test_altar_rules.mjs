@@ -161,13 +161,139 @@ if (flag === '--probe') {
   add('S3 비로그인 settings 읽기(기존과 동일)', 'ALLOW', { uid: null, method: 'get', docPath: 'settings/counters',
     existing: { seq_server_groups: 6 } });
 
-  // ── 이번에 바꾸지 않은 경로(회귀 확인) ──────────────────────────────────────
-  add('X1 로그인 사용자의 단원 문서 읽기(변경 없음)', 'ALLOW', { uid: 'p1', method: 'get',
-    docPath: 'app_datas/ordo-altar/server_groups/SG00001/members/m1', existing: { parent_uid: 'p1', active: true } });
-  add('X2 비로그인 단원 문서 읽기', 'DENY', { uid: null, method: 'get',
-    docPath: 'app_datas/ordo-altar/server_groups/SG00001/members/m1', existing: { parent_uid: 'p1', active: true } });
-  add('X3 로그인 사용자의 미사 일정 쓰기(변경 없음)', 'ALLOW', { uid: 'pl1', method: 'update',
-    docPath: 'app_datas/ordo-altar/server_groups/SG00001/mass_events/e1', existing: { title: 'a' }, data: { title: 'b' } });
+  // ══ 나단계: 복사단 하위 문서 쓰기 제한 ═══════════════════════════════════════
+  // 등장인물: pl1=SG00001 플래너, ad1=SG00001 어드민, p1=SG00001 활동 보호자(복사 역할),
+  //          pp=SG00001 승인 대기 보호자, spl=SG00002 플래너, x1=관계없는 로그인 사용자, su1=superadmin
+  const g1 = (sub) => `app_datas/ordo-altar/server_groups/SG00001/${sub}`;
+  const planner = [...notSuper('pl1'), ...membership('pl1', 'SG00001', ['planner'])];
+  const admin = [...notSuper('ad1'), ...membership('ad1', 'SG00001', ['admin'])];
+  const parent = [...notSuper('p1'), ...membership('p1', 'SG00001', ['server'])];
+  const pendingParent = [...notSuper('pp'), ...membership('pp', 'SG00001', ['server'], false)];
+  const outsider = [...notSuper('x1'), ...noMembership('x1', 'SG00001')];
+  const sourcePlanner = [...notSuper('spl'), ...noMembership('spl', 'SG00001'), ...membership('spl', 'SG00002', ['planner'])];
+  const child = (parentUid, active, confirmed, extra = {}) => ({ parent_uid: parentUid, name_kor: '테스트', active, request_confirmed: confirmed, ...extra });
+
+  // 단원
+  add('N1 보호자가 자녀를 승인 대기로 등록', 'ALLOW', { uid: 'x1', method: 'create', docPath: g1('members/n1'),
+    data: child('x1', false, false), mocks: outsider });
+  add('N2 보호자가 자녀를 바로 활동 상태로 등록', 'DENY', { uid: 'x1', method: 'create', docPath: g1('members/n1'),
+    data: child('x1', true, true), mocks: outsider });
+  add('N3 남의 자녀로 등록', 'DENY', { uid: 'x1', method: 'create', docPath: g1('members/n1'),
+    data: child('p1', false, false), mocks: outsider });
+  add('N4 플래너가 단원 직접 추가', 'ALLOW', { uid: 'pl1', method: 'create', docPath: g1('members/n1'),
+    data: child('', true, true), mocks: planner });
+  add('N5 전입: 보내는 쪽 플래너가 승인 대기로 등록', 'ALLOW', { uid: 'spl', method: 'create', docPath: g1('members/n1'),
+    data: child('p9', false, false, { moved_from_sg_id: 'SG00002' }), mocks: sourcePlanner });
+  add('N6 전입인데 바로 활동 상태로', 'DENY', { uid: 'spl', method: 'create', docPath: g1('members/n1'),
+    data: child('p9', true, true, { moved_from_sg_id: 'SG00002' }), mocks: sourcePlanner });
+  add('N7 보호자가 자녀를 스스로 승인', 'DENY', { uid: 'p1', method: 'update', docPath: g1('members/m1'),
+    existing: child('p1', false, false), data: child('p1', true, true), mocks: parent });
+  add('N8 플래너가 단원 승인', 'ALLOW', { uid: 'pl1', method: 'update', docPath: g1('members/m1'),
+    existing: child('p1', false, false), data: child('p1', true, true), mocks: planner });
+  add('N9 전입 요청으로 활동 중인 단원을 덮어쓰기', 'DENY', { uid: 'spl', method: 'update', docPath: g1('members/m1'),
+    existing: child('p1', true, true), data: child('p1', false, false, { moved_from_sg_id: 'SG00002' }), mocks: sourcePlanner });
+  add('N10 보호자가 자기 대기 신청 취소', 'ALLOW', { uid: 'pp', method: 'delete', docPath: g1('members/m2'),
+    existing: child('pp', false, false), mocks: pendingParent });
+  add('N11 보호자가 활동 중인 자녀 문서 삭제', 'DENY', { uid: 'p1', method: 'delete', docPath: g1('members/m1'),
+    existing: child('p1', true, true), mocks: parent });
+  add('N12 관계없는 사용자가 단원 삭제', 'DENY', { uid: 'x1', method: 'delete', docPath: g1('members/m1'),
+    existing: child('p1', true, true), mocks: outsider });
+  add('N13 로그인 사용자의 단원 읽기(변경 없음)', 'ALLOW', { uid: 'p1', method: 'get', docPath: g1('members/m1'),
+    existing: child('p1', true, true) });
+  add('N14 비로그인 단원 읽기', 'DENY', { uid: null, method: 'get', docPath: g1('members/m1'),
+    existing: child('p1', true, true) });
+  add('N15 보호자가 휴지통 읽기', 'DENY', { uid: 'p1', method: 'get', docPath: g1('del_members/m9'),
+    existing: child('p9', false, true), mocks: parent });
+  add('N16 플래너가 휴지통으로 이동', 'ALLOW', { uid: 'pl1', method: 'create', docPath: g1('del_members/m9'),
+    data: child('p9', false, true), mocks: planner });
+
+  // 미사 일정·월 상태·프리셋·백업
+  const mass = { title: '주일 미사', event_date: '20261018', member_ids: [] };
+  add('E1 플래너가 미사 일정 수정', 'ALLOW', { uid: 'pl1', method: 'update', docPath: g1('mass_events/e1'),
+    existing: mass, data: { ...mass, member_ids: ['m1'] }, mocks: planner });
+  add('E2 보호자가 배정을 직접 수정', 'DENY', { uid: 'p1', method: 'update', docPath: g1('mass_events/e1'),
+    existing: mass, data: { ...mass, member_ids: ['m1'] }, mocks: parent });
+  add('E3 관계없는 사용자가 미사 일정 삭제', 'DENY', { uid: 'x1', method: 'delete', docPath: g1('mass_events/e1'),
+    existing: mass, mocks: outsider });
+  add('E4 다른 복사단 플래너가 미사 일정 생성', 'DENY', { uid: 'spl', method: 'create', docPath: g1('mass_events/e2'),
+    data: mass, mocks: sourcePlanner });
+  add('E5 로그인 사용자의 미사 일정 읽기(변경 없음)', 'ALLOW', { uid: 'p1', method: 'get', docPath: g1('mass_events/e1'), existing: mass });
+  add('E6 superadmin 이 미사 일정 수정', 'ALLOW', { uid: 'su1', method: 'update', docPath: g1('mass_events/e1'),
+    existing: mass, data: { ...mass, title: '변경' }, mocks: isSuper('su1') });
+  add('E7 보호자가 월 상태 변경', 'DENY', { uid: 'p1', method: 'update', docPath: g1('month_status/202610'),
+    existing: { status: 'MASS-CONFIRMED' }, data: { status: 'FINAL-CONFIRMED' }, mocks: parent });
+  add('E8 플래너가 월 상태 변경', 'ALLOW', { uid: 'pl1', method: 'update', docPath: g1('month_status/202610'),
+    existing: { status: 'MASS-CONFIRMED' }, data: { status: 'FINAL-CONFIRMED' }, mocks: planner });
+  add('E9 보호자가 프리셋 수정', 'DENY', { uid: 'p1', method: 'update', docPath: g1('mass_presets/default'),
+    existing: { a: 1 }, data: { a: 2 }, mocks: parent });
+  add('E10 플래너가 백업 생성', 'ALLOW', { uid: 'pl1', method: 'create', docPath: g1('mass_backups/b1'),
+    data: { events: [] }, mocks: planner });
+  add('E11 플래너가 AI 분석 결과를 직접 쓰기', 'DENY', { uid: 'pl1', method: 'create', docPath: g1('ai_insights/202610'),
+    data: { content: 'x' }, mocks: planner });
+
+  // 설문
+  const survey = (status, responses = {}) => ({ status, member_ids: ['m1', 'm2'], responses });
+  const myAnswer = { m1: { uid: 'm1', unavailable: ['e1'] } };
+  add('V1 활동 보호자가 열린 설문에 응답', 'ALLOW', { uid: 'p1', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('OPEN'), data: survey('OPEN', myAnswer), mocks: parent });
+  add('V2 보호자가 설문 상태를 바꿈', 'DENY', { uid: 'p1', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('CLOSED'), data: survey('OPEN'), mocks: parent });
+  add('V3 마감된 설문에 응답', 'DENY', { uid: 'p1', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('CLOSED'), data: survey('CLOSED', myAnswer), mocks: parent });
+  add('V4 승인 대기 보호자가 응답', 'DENY', { uid: 'pp', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('OPEN'), data: survey('OPEN', myAnswer), mocks: pendingParent });
+  add('V5 관계없는 사용자가 응답', 'DENY', { uid: 'x1', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('OPEN'), data: survey('OPEN', myAnswer), mocks: outsider });
+  add('V6 플래너가 설문 생성', 'ALLOW', { uid: 'pl1', method: 'create', docPath: g1('availability_surveys/202611'),
+    data: survey('OPEN'), mocks: planner });
+  add('V7 플래너가 설문 마감', 'ALLOW', { uid: 'pl1', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('OPEN', myAnswer), data: survey('CLOSED', myAnswer), mocks: planner });
+  add('V8 보호자가 설문 삭제', 'DENY', { uid: 'p1', method: 'delete', docPath: g1('availability_surveys/202611'),
+    existing: survey('OPEN'), mocks: parent });
+  add('V9 보호자가 대상자 목록까지 같이 바꿈', 'DENY', { uid: 'p1', method: 'update', docPath: g1('availability_surveys/202611'),
+    existing: survey('OPEN'), data: { ...survey('OPEN', myAnswer), member_ids: ['m1'] }, mocks: parent });
+
+  // 플래너 권한 신청
+  const req = (uid, status) => ({ uid, role: 'planner', status, user_name: '테스트' });
+  add('Q1 본인이 플래너 권한 신청', 'ALLOW', { uid: 'x1', method: 'create', docPath: g1('role_requests/x1'),
+    data: req('x1', 'pending'), mocks: outsider });
+  add('Q2 남의 이름으로 신청', 'DENY', { uid: 'x1', method: 'create', docPath: g1('role_requests/p1'),
+    data: req('p1', 'pending'), mocks: outsider });
+  add('Q3 처음부터 승인 상태로 신청', 'DENY', { uid: 'x1', method: 'create', docPath: g1('role_requests/x1'),
+    data: req('x1', 'approved'), mocks: outsider });
+  add('Q4 본인이 자기 신청을 승인', 'DENY', { uid: 'x1', method: 'update', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'pending'), data: req('x1', 'approved'), mocks: outsider });
+  add('Q5 어드민이 신청 승인', 'ALLOW', { uid: 'ad1', method: 'update', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'pending'), data: req('x1', 'approved'), mocks: admin });
+  add('Q6 플래너(어드민 아님)가 신청 승인', 'DENY', { uid: 'pl1', method: 'update', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'pending'), data: req('x1', 'approved'), mocks: planner });
+  add('Q7 반려된 뒤 본인이 재신청', 'ALLOW', { uid: 'x1', method: 'update', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'rejected'), data: req('x1', 'pending'), mocks: outsider });
+  add('Q8 본인이 신청 취소', 'ALLOW', { uid: 'x1', method: 'delete', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'pending'), mocks: outsider });
+  add('Q9 남의 신청 삭제', 'DENY', { uid: 'x1', method: 'delete', docPath: g1('role_requests/p1'),
+    existing: req('p1', 'pending'), mocks: outsider });
+  add('Q10 남의 신청 읽기', 'DENY', { uid: 'x1', method: 'get', docPath: g1('role_requests/p1'),
+    existing: req('p1', 'pending'), mocks: outsider });
+  add('Q11 본인 신청 읽기', 'ALLOW', { uid: 'x1', method: 'get', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'pending'), mocks: outsider });
+  add('Q12 어드민이 신청 읽기', 'ALLOW', { uid: 'ad1', method: 'get', docPath: g1('role_requests/x1'),
+    existing: req('x1', 'pending'), mocks: admin });
+
+  // 복사단 문서·카운터
+  const sgDoc = { name: '초등부 복사단', parish_code: 'P1', active: true };
+  add('G1 어드민이 복사단 설정 수정', 'ALLOW', { uid: 'ad1', method: 'update', docPath: 'app_datas/ordo-altar/server_groups/SG00001',
+    existing: sgDoc, data: { ...sgDoc, name: '새 이름' }, mocks: admin });
+  add('G2 플래너가 복사단 설정 수정', 'DENY', { uid: 'pl1', method: 'update', docPath: 'app_datas/ordo-altar/server_groups/SG00001',
+    existing: sgDoc, data: { ...sgDoc, name: '새 이름' }, mocks: planner });
+  add('G3 관계없는 사용자가 기존 복사단 덮어쓰기', 'DENY', { uid: 'x1', method: 'update', docPath: 'app_datas/ordo-altar/server_groups/SG00001',
+    existing: sgDoc, data: { name: '탈취', parish_code: 'P1', active: true }, mocks: outsider });
+  add('G4 새 복사단 생성', 'ALLOW', { uid: 'pl1', method: 'create', docPath: 'app_datas/ordo-altar/server_groups/SG00007',
+    data: sgDoc, mocks: [...notSuper('pl1')] });
+  add('G5 어드민이 복사단 삭제', 'DENY', { uid: 'ad1', method: 'delete', docPath: 'app_datas/ordo-altar/server_groups/SG00001',
+    existing: sgDoc, mocks: admin });
+  add('G6 로그인 사용자가 앱 카운터 수정', 'DENY', { uid: 'pl1', method: 'update', docPath: 'app_datas/ordo-altar/counters/c1',
+    existing: { seq: 1 }, data: { seq: 0 }, mocks: planner });
 }
 
 // 로그인된 firebase CLI 의 자체 인증으로 호출한다 (`firebase deploy --dry-run` 의 규칙 컴파일과 같은 API)
