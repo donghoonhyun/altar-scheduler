@@ -11,7 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
     collection, query, where, getDocs, getDoc, doc, writeBatch, serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import type { DocumentData, DocumentReference } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
+import { callNotificationApi } from '@/lib/notificationApi';
 import { toast } from 'sonner';
 import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { COLLECTIONS } from '@/lib/collections';
@@ -143,6 +145,18 @@ export default function MoveMembersDrawer({
         setActionType(type);
     };
 
+    // 규칙상 "없는 문서"는 읽을 수 있지만 남의 멤버십은 읽을 수 없으므로,
+    // permission-denied 는 문서가 이미 있다는 뜻으로 본다.
+    const readIfAllowed = async (ref: DocumentReference): Promise<{ exists: boolean; data?: DocumentData }> => {
+        try {
+            const snap = await getDoc(ref);
+            return { exists: snap.exists(), data: snap.data() };
+        } catch (e) {
+            if ((e as { code?: string }).code === 'permission-denied') return { exists: true };
+            throw e;
+        }
+    };
+
     const executeAction = async () => {
         if (!actionType) return;
         
@@ -155,15 +169,17 @@ export default function MoveMembersDrawer({
         try {
             const batch = writeBatch(db);
             let count = 0;
+            const requestedNames: string[] = []; // 받는 복사단에 승인 대기로 등록된 단원
+            const requestedMembershipUids = new Set<string>();
+            const removedMembershipUids = new Set<string>();
 
             // Process each selected member
             const selectedMembersList = members.filter(m => selectedIds.has(m.id));
 
             for (const member of selectedMembersList) {
                 const uid = member.id; // Firestore doc ID (auto-generated for child members)
-                // 부모가 자녀를 등록한 경우 membership uid는 parent_uid 사용
-                // 본인이 직접 등록한 경우는 member.uid 또는 doc ID 사용
-                const membershipUid = member.parent_uid || member.uid || member.id;
+                // 멤버십은 로그인 계정(보호자 또는 본인) 기준. 계정에 연결되지 않은 단원은 멤버십을 다루지 않는다.
+                const accountUid: string | undefined = member.parent_uid || member.uid;
 
                 // 1. Create new member doc in target SG
                 const targetMemberRef = doc(db, COLLECTIONS.SERVER_GROUPS, targetSgId, 'members', uid);
@@ -174,6 +190,9 @@ export default function MoveMembersDrawer({
                     ...member,
                     server_group_id: targetSgId, 
                     moved_from_sg_id: currentServerGroupId, // ✅ 어디서 왔는지 기록
+                    // 받는 복사단에는 승인 대기로 들어간다 (받는 쪽 플래너가 기존 승인 절차로 승인)
+                    active: false,
+                    request_confirmed: false,
                     updated_at: serverTimestamp(),
                 };
                 // Remove ID from data if it exists physically in object
@@ -182,15 +201,21 @@ export default function MoveMembersDrawer({
                 delete memberData.moved_at; 
                 delete memberData.moved_by_uid; 
                 delete memberData.moved_by_name; 
-                delete memberData.moved_to_sg_id; 
+                delete memberData.moved_to_sg_id;
+                delete memberData.copied_to_sg_id;
+                delete memberData.copied_at;
+                delete memberData.copied_by_uid;
+                delete memberData.copied_by_name; 
 
-                // If copy, ensure active is true (or keep original status?)
-                // Usually when moving/copying, we want them active in new place?
-                // Let's keep original active status unless we want to reset.
-                // Resetting to 'active: true' might be safer for 'copy' to new group. 
-                // But let's stick to original data + basic resets.
-                
-                batch.set(targetMemberRef, memberData);
+                // 이미 받는 복사단에서 활동 중이면(이전에 복제된 경우 등) 그 문서는 건드리지 않는다
+                const targetMember = await readIfAllowed(targetMemberRef);
+                const alreadyInTarget = targetMember.exists
+                    && (!targetMember.data || (targetMember.data.active === true && !targetMember.data.is_moved));
+
+                if (!alreadyInTarget) {
+                    batch.set(targetMemberRef, memberData);
+                    requestedNames.push(member.name_kor);
+                }
 
                 // 2. Handle Old Member based on Action Type
                 if (actionType === 'move') {
@@ -206,8 +231,21 @@ export default function MoveMembersDrawer({
                     });
 
                     // Remove old membership
-                    const oldMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${membershipUid}_${currentServerGroupId}`);
-                    batch.delete(oldMembershipRef);
+                    // 보호자의 다른 자녀가 이 복사단에 남아 있거나 복사 외 역할(플래너 등)이 있으면 멤버십은 유지한다
+                    if (accountUid && !removedMembershipUids.has(accountUid)) {
+                        const siblingsSnap = await getDocs(query(
+                            collection(db, COLLECTIONS.SERVER_GROUPS, currentServerGroupId, 'members'),
+                            where('parent_uid', '==', accountUid)
+                        ));
+                        const hasSiblingStaying = siblingsSnap.docs.some(d => !selectedIds.has(d.id) && !d.data().is_moved);
+                        const oldMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${accountUid}_${currentServerGroupId}`);
+                        const oldRoles = hasSiblingStaying ? null : (await readIfAllowed(oldMembershipRef)).data?.role;
+
+                        if (Array.isArray(oldRoles) && oldRoles.length === 1 && oldRoles[0] === 'server') {
+                            batch.delete(oldMembershipRef);
+                            removedMembershipUids.add(accountUid);
+                        }
+                    }
                 } else if (actionType === 'copy') {
                     // Update old member to record copy history
                     const oldMemberRef = doc(db, COLLECTIONS.SERVER_GROUPS, currentServerGroupId, 'members', uid);
@@ -223,13 +261,22 @@ export default function MoveMembersDrawer({
 
                 // 3. Create New Membership
                 // Membership ID는 실제 로그인 uid 기준으로 생성해야 session.ts에서 탐색 가능
-                const newMembershipRef = doc(db, COLLECTIONS.MEMBERSHIPS, `${membershipUid}_${targetSgId}`);
+                // 받는 복사단에 멤버십이 이미 있으면(다른 자녀·다른 역할) 역할과 상태를 건드리지 않는다
+                const newMembershipRef = accountUid
+                    ? doc(db, COLLECTIONS.MEMBERSHIPS, `${accountUid}_${targetSgId}`)
+                    : null;
+                const needsMembership = !!newMembershipRef
+                    && !alreadyInTarget
+                    && !requestedMembershipUids.has(accountUid!)
+                    && !(await readIfAllowed(newMembershipRef)).exists;
+                if (accountUid && !alreadyInTarget) requestedMembershipUids.add(accountUid);
 
-                batch.set(newMembershipRef, {
-                    uid: membershipUid,
+                if (needsMembership && newMembershipRef) batch.set(newMembershipRef, {
+                    uid: accountUid,
                     server_group_id: targetSgId,
                     role: ['server'], // Reset to basic server role
-                    active: member.active, // Maintain active status
+                    active: false, // 받는 복사단에서 승인하면 활성화된다
+                    moved_from_sg_id: currentServerGroupId,
                     created_at: serverTimestamp(),
                     updated_at: serverTimestamp(),
                     parish_code: member.parish_code || parishCode // Use member's parish_code if available, else fallback to current SG's parish_code
@@ -239,7 +286,25 @@ export default function MoveMembersDrawer({
             }
 
             await batch.commit();
-            toast.success(`총 ${count}명의 복사단원이 ${actionType === 'move' ? '이동' : '복제'}되었습니다.`);
+
+            // 가입 신청과 같은 절차를 타도록 받는 복사단의 플래너에게 승인 요청 알림을 보낸다
+            if (requestedNames.length > 0) {
+                try {
+                    await callNotificationApi(functions, {
+                        action: 'enqueue_member_requested',
+                        serverGroupId: targetSgId,
+                        memberName: requestedNames.length > 1
+                            ? `${requestedNames[0]} 외 ${requestedNames.length - 1}명`
+                            : requestedNames[0],
+                    });
+                } catch (notifyErr) {
+                    console.error('transfer notification enqueue failed:', notifyErr);
+                }
+            }
+
+            toast.success(`총 ${count}명의 복사단원이 ${actionType === 'move' ? '이동' : '복제'}되었습니다.`, {
+                description: '받는 복사단에서 승인하면 활동이 시작됩니다.',
+            });
             setActionType(null);
             onOpenChange(false);
 
@@ -263,6 +328,7 @@ export default function MoveMembersDrawer({
                         <DialogTitle>복사단 이동(복제)</DialogTitle>
                         <DialogDescription>
                             선택한 복사단원들을 같은 성당 내 다른 복사단으로 이동하거나 복제합니다.
+                            받는 복사단에는 승인 대기로 등록되며, 그쪽 플래너가 승인하면 활동이 시작됩니다.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -388,11 +454,11 @@ export default function MoveMembersDrawer({
                         {`선택한 ${selectedIds.size}명의 복사단원을\n[${serverGroups.find(g => g.id === targetSgId)?.name || targetSgId}] 복사단으로 ${actionType === 'move' ? '이동' : '복제'}하시겠습니까?\n\n`}
                         {actionType === 'move' ? (
                             <span className="text-red-500 font-bold block mt-2">
-                                ⚠️ 주의: 이동 후에는 현재 복사단 목록에서 제외됩니다.
+                                ⚠️ 주의: 이동 후에는 현재 복사단 목록에서 제외되고, 받는 복사단에서 승인해야 활동이 시작됩니다.
                             </span>
                         ) : (
                             <span className="text-blue-500 font-bold block mt-2">
-                                ℹ️ 안내: 현재 복사단 목록은 유지되며, 대상 복사단에 새로 추가됩니다.
+                                ℹ️ 안내: 현재 복사단 목록은 유지되며, 대상 복사단에는 승인 대기로 추가됩니다.
                             </span>
                         )}
                     </AlertDialogDescription>
