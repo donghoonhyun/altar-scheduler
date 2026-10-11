@@ -27,6 +27,7 @@
   "hosting": {
     "target": "ordo-altar",
     "public": "dist",
+    "appAssociation": "NONE",
     "ignore": [
       "firebase.json",
       "**/.*",
