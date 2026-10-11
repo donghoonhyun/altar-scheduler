@@ -18,14 +18,19 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      'fixed inset-0 z-40 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out',
-      className
-    )}
+    className={cn('ui-overlay fixed inset-0 z-40 bg-black/40', className)}
     {...props}
   />
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+
+// 기본 형태는 오른쪽 패널. className 으로 가운데·하단 배치로 바꾼 경우에는 그 배치에 맞게 등장한다.
+// (모션 클래스는 src/styles/globals.css)
+function dialogMotionClass(className?: string) {
+  if (className?.includes('bottom-0')) return 'ui-bottom-sheet';
+  if (className?.includes('left-[50%]')) return 'ui-pop';
+  return 'ui-slide-right';
+}
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
@@ -36,7 +41,8 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed right-0 top-0 z-50 h-full w-96 bg-white dark:bg-gray-800 p-6 shadow-2xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out overflow-visible rounded-l-[2rem]',
+        dialogMotionClass(className),
+        'fixed right-0 top-0 z-50 h-full w-96 bg-white dark:bg-gray-800 p-6 shadow-2xl outline-none overflow-visible rounded-l-[2rem]',
         className
       )}
       {...props}

@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-do
 import { useSession } from '../state/session';
 import Layout from '../pages/components/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 import Login from '../pages/Login';
 import SignUp from '../pages/SignUp';
@@ -42,7 +43,11 @@ export default function AppRoutes() {
 
   // 1) 세션 로딩 중
   if (session.loading) {
-    return <LoadingSpinner label="세션 초기화 중..." size="lg" />;
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <LoadingSpinner label="준비하고 있어요…" size="lg" />
+      </div>
+    );
   }
 
   // 2) 로그인 안됨
@@ -124,7 +129,7 @@ export default function AppRoutes() {
     const { serverGroupId } = useParams<{ serverGroupId: string }>();
 
     if (session.loading || !session.groupRolesLoaded) {
-      return <div className="p-4 text-gray-500">세션 동기화 중...</div>;
+      return <PageSkeleton />;
     }
 
     if (!serverGroupId) {

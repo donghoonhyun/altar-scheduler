@@ -54,11 +54,11 @@ export default function PremiumHeader({
         </Button>
         <div className="space-y-0 text-left z-10 w-full overflow-hidden">
           {subtitle && (
-            <div className="text-sm font-medium text-white/90 tracking-tight font-gamja mb-0.5 truncate">
+            <div className="text-sm font-medium text-white/90 font-display mb-0.5 truncate">
               {subtitle}
             </div>
           )}
-          <h1 className="text-2xl font-bold text-white tracking-tight font-gamja flex items-center gap-2 truncate">
+          <h1 className="text-2xl font-bold text-white font-display flex items-center gap-2 truncate">
             {icon && (
               <span className="text-white opacity-80 shrink-0">
                 {icon}

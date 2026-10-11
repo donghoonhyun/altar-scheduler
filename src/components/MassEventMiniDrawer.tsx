@@ -106,10 +106,10 @@ export default function MassEventMiniDrawer({
           >
             <Dialog.Panel className="w-full max-w-md rounded-t-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden flex flex-col max-h-[70vh]">
               <DrawerHeader onClose={onClose}>
-                <p className="text-[11px] text-slate-100/80 font-medium tracking-tight font-gamja">
+                <p className="text-[11px] text-slate-100/80 font-medium font-display">
                   {date.format('YYYY년 M월')}
                 </p>
-                <h2 className="text-xl font-bold text-white tracking-tight font-gamja">
+                <h2 className="text-xl font-bold text-white font-display">
                   {date.format('D일')} ({'일월화수목금토'[date.day()]})
                 </h2>
               </DrawerHeader>

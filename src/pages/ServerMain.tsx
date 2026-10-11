@@ -291,10 +291,10 @@ export default function ServerMain() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-emerald-200 dark:from-slate-950 dark:to-slate-900 pb-12 transition-colors duration-300">
-      <div className="max-w-lg md:max-w-6xl mx-auto px-4">
+      <div className="max-w-lg md:max-w-6xl mx-auto px-4 ui-stagger">
         {/* 👋 상단 인사말 */}
         <div className="mb-4 mt-1 px-1">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 font-gamja">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 font-display">
             <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
               {session.userInfo?.userName} {session.userInfo?.baptismalName && `${session.userInfo.baptismalName} `}
             </span>
@@ -335,7 +335,7 @@ export default function ServerMain() {
                   const targetId = checkedMemberIds[0];
                   navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}`);
               }}
-              className="mt-4 mb-2 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/20 transition shadow-sm fade-in"
+              className="mt-4 mb-2 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/20 active:scale-[0.98] transition shadow-sm"
             >
               <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-full text-yellow-600 dark:text-yellow-500">
                  <ClipboardCheck size={24} />
@@ -385,19 +385,22 @@ export default function ServerMain() {
                 {/* ✅ [수정] 세션 상태 업데이트 함수 사용 */}
                 <button 
                   onClick={() => session.setCurrentViewDate?.(currentMonth.subtract(1, 'month'))}
-                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-800 dark:text-gray-300"
+                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition active:scale-90 text-gray-800 dark:text-gray-300"
                   title="이전 달"
                 >
                   <ChevronLeft size={20} />
                 </button>
 
-                <span className="font-bold text-lg text-gray-800 dark:text-gray-100 tracking-tight">
+                <span
+                  key={currentMonth.format('YYYYMM')}
+                  className="font-display text-xl text-gray-800 dark:text-gray-100 ui-pop-once inline-block min-w-[2.5rem] text-center"
+                >
                   {currentMonth.format('M월')}
                 </span>
 
                 <button 
                   onClick={() => session.setCurrentViewDate?.(currentMonth.add(1, 'month'))}
-                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-800 dark:text-gray-300"
+                  className="p-1 hover:bg-emerald-100 dark:hover:bg-slate-800 rounded-full transition active:scale-90 text-gray-800 dark:text-gray-300"
                   title="다음 달"
                 >
                   <ChevronRight size={20} />
@@ -419,8 +422,12 @@ export default function ServerMain() {
               <StatusBadge status={monthStatus} />
             </div>
 
-            {/* 달력 */}
-            <div className="grid grid-cols-7 gap-1 text-sm mb-4">
+            {/* 달력 — 달이 바뀌면 다시 떠오르며 나타난다 */}
+            <div
+              key={currentMonth.format('YYYYMM')}
+              className="grid grid-cols-7 gap-1 text-sm mb-4"
+              style={{ animationDelay: '0ms' }}
+            >
               {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
                 <div key={d} className="text-center font-semibold text-gray-600 dark:text-gray-300 py-1">
                   {d}
@@ -450,7 +457,7 @@ export default function ServerMain() {
                     className={cn(
                       "h-14 md:h-36 flex flex-col items-center md:items-stretch justify-start pt-1 md:p-2 rounded transition border relative",
                       // 미확정(showDots=false)이면 클릭 비활성(cursor-default), 확정이면 pointer + hover효과
-                      !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/30",
+                      !showDots ? "cursor-default" : "cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/30 active:scale-95",
                       isToday ? "border-emerald-500 ring-1 ring-emerald-500 z-10 dark:border-emerald-500" : "border-transparent",
                       !showDots && mine && "bg-rose-600 text-white font-bold hover:bg-rose-700 dark:bg-rose-700",
                       !showDots && !mine && any && "bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600",

@@ -19,10 +19,7 @@ const SheetOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
-    className={cn(
-      'fixed inset-0 z-50 bg-black/30 backdrop-blur-[0.5px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-      className
-    )}
+    className={cn('ui-overlay fixed inset-0 z-50 bg-black/30 backdrop-blur-[0.5px]', className)}
     {...props}
     ref={ref}
   />
@@ -38,7 +35,7 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed z-50 gap-4 bg-white dark:bg-slate-800 border-l dark:border-slate-700 p-6 shadow-2xl transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500 inset-y-0 right-0 h-full w-[56%] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-[280px] rounded-l-2xl',
+        'ui-slide-right fixed z-50 gap-4 bg-white dark:bg-slate-800 border-l dark:border-slate-700 p-6 shadow-2xl inset-y-0 right-0 h-full w-[56%] sm:max-w-[280px] rounded-l-2xl',
         className
       )}
       {...props}

@@ -5,6 +5,7 @@ import ServerStats from './components/ServerStats';
 import NextMonthPlan from './components/NextMonthPlan';
 import MassCalendar from './components/MassCalendar';
 import RoleBadge from './components/RoleBadge';
+import PageSkeleton from '@/components/common/PageSkeleton';
 import { useMassEvents } from '@/hooks/useMassEvents';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
@@ -70,7 +71,7 @@ const Dashboard: React.FC = () => {
 
   const userName = session.user?.displayName || session.user?.email;
 
-  if (loading) return <div className="p-4">로딩 중...</div>;
+  if (loading) return <PageSkeleton />;
   if (error) return <div className="p-4 text-red-500">오류: {error}</div>;
 
   return (
@@ -100,7 +101,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* ✅ 주요 카드 */}
-        <div className="grid gap-6 md:grid-cols-2 mb-6">
+        <div className="grid gap-6 md:grid-cols-2 mb-6 ui-stagger">
           <Card className="fade-in">
             <NextMonthPlan serverGroupId={serverGroupId} />
           </Card>

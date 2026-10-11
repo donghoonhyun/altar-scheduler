@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useSession } from '../../state/session';
+import PageSkeleton from '../../components/common/PageSkeleton';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -55,7 +56,7 @@ export default function RoleGuard({ children, require }: RoleGuardProps) {
   const isCheckRequired = !!require;
 
   if (!isReady || (isCheckRequired && !checked)) {
-    return <div className="p-4 text-gray-500">세션 동기화 중...</div>;
+    return <PageSkeleton />;
   }
 
   // 2) 로그인 안 됨

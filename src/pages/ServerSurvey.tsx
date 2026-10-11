@@ -446,7 +446,7 @@ export default function ServerSurvey() {
             return null;
         })()}
 
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border dark:border-slate-800 p-4">
+        <div className="ui-rise bg-white dark:bg-slate-900 rounded-2xl shadow-sm border dark:border-slate-800 p-4">
             {/* 요일 헤더 */}
             <div className="grid grid-cols-7 mb-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">
                 <div className="text-red-500 dark:text-red-400">일</div>
@@ -475,7 +475,7 @@ export default function ServerSurvey() {
                         <div 
                             key={day} 
                             onClick={() => handleDayClick(day)}
-                            className="flex flex-col items-center md:items-stretch min-h-[60px] md:min-h-[100px] cursor-pointer active:bg-gray-100 dark:active:bg-slate-800 md:hover:bg-gray-50 md:dark:hover:bg-slate-800/50 rounded transition-colors md:p-1 relative border border-transparent md:border-gray-100 md:dark:border-slate-800"
+                            className="flex flex-col items-center md:items-stretch min-h-[60px] md:min-h-[100px] cursor-pointer active:bg-gray-100 dark:active:bg-slate-800 active:scale-95 md:hover:bg-gray-50 md:dark:hover:bg-slate-800/50 rounded-lg transition md:p-1 relative border border-transparent md:border-gray-100 md:dark:border-slate-800"
                         >
                             <span className={cn(
                                 "text-sm w-7 h-7 flex items-center justify-center rounded-full mb-1 dark:text-gray-200 md:self-start md:mb-0",
@@ -494,7 +494,7 @@ export default function ServerSurvey() {
                                         <div 
                                             key={ev.id}
                                             className={cn(
-                                                "w-1.5 h-1.5 rounded-full",
+                                                "w-1.5 h-1.5 rounded-full transition-colors duration-300",
                                                 isUnavailable ? "bg-red-300 dark:bg-red-500" : "bg-green-500"
                                             )}
                                         />
@@ -567,8 +567,8 @@ export default function ServerSurvey() {
             </Button>
             
             {submitted && (
-                <div className="text-center text-green-600 dark:text-green-400 text-sm font-medium animate-pulse">
-                    ✅ 제출되었습니다.
+                <div className="ui-pop-once mx-auto w-fit px-4 py-2 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 font-display text-base">
+                    ✅ 제출되었습니다
                 </div>
             )}
             <p className="text-center text-xs text-blue-600 dark:text-blue-400 font-semibold mt-2">

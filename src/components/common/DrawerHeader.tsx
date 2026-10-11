@@ -39,11 +39,11 @@ export default function DrawerHeader({
           children
         ) : (
           <>
-            <DialogTitle className="text-xl font-bold text-white tracking-tight flex items-center gap-2 font-gamja">
+            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2 font-display">
               {title}
             </DialogTitle>
             {subtitle && (
-              <DialogDescription className="text-[11px] text-slate-100/80 font-medium tracking-tight font-gamja">
+              <DialogDescription className="text-[11px] text-slate-100/80 font-medium font-display">
                 {subtitle}
               </DialogDescription>
             )}

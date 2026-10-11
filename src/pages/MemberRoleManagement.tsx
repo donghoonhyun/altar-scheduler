@@ -486,10 +486,10 @@ const MemberRoleManagement: React.FC = () => {
             onClose={() => setIsAddModalOpen(false)}
           >
             <div className="space-y-0 text-left pt-2 pb-1 text-white">
-              <p className="text-sm font-medium text-white/90 tracking-tight font-gamja mb-0.5 mt-2">
+              <p className="text-sm font-medium text-white/90 font-display mb-0.5 mt-2">
                 기존 가입 검색을 통해
               </p>
-              <DialogTitle className="text-2xl font-bold text-white tracking-tight font-gamja flex items-center gap-1.5 justify-start p-0 m-0">
+              <DialogTitle className="text-2xl font-bold text-white font-display flex items-center gap-1.5 justify-start p-0 m-0">
                 <User size={20} className="text-white opacity-80" />
                 새 멤버 추가하기
               </DialogTitle>

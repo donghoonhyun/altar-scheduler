@@ -1,5 +1,3 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-@import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,6 +42,7 @@ body,
 
 body {
   @apply font-sans bg-slate-50 text-slate-900 transition-colors duration-300 antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .dark body {
@@ -61,4 +60,112 @@ body {
 
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-200 dark:bg-slate-800 rounded-full hover:bg-slate-300 dark:hover:bg-slate-700;
+}
+
+/* ─────────────────────────────────────────────
+ * 글꼴 — 전례 스케줄러와 같은 구성
+ * 본문: Pretendard Variable / 제목·숫자: Jua (index.html 에서 로드)
+ * Jua 는 굵기가 하나뿐이라 font-bold 와 같이 써도 가짜 볼드가 생기지 않게 한다.
+ * ───────────────────────────────────────────── */
+@layer utilities {
+  .font-display {
+    font-family: 'Jua', 'Pretendard Variable', Pretendard, sans-serif;
+    font-synthesis: none;
+    letter-spacing: 0.01em;
+  }
+}
+
+/* ─────────────────────────────────────────────
+ * 모션
+ * translate/scale 개별 속성을 써서, 요소가 이미 transform(가운데 정렬 등)을 쓰고 있어도 함께 동작한다.
+ * ───────────────────────────────────────────── */
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+}
+@keyframes ui-fade-out {
+  to { opacity: 0; }
+}
+@keyframes ui-pop-in {
+  from { opacity: 0; scale: 0.96; translate: 0 10px; }
+}
+@keyframes ui-pop-out {
+  to { opacity: 0; scale: 0.98; translate: 0 6px; }
+}
+@keyframes ui-slide-right-in {
+  from { translate: 100% 0; }
+}
+@keyframes ui-slide-right-out {
+  to { translate: 100% 0; }
+}
+@keyframes ui-slide-up-in {
+  from { translate: 0 100%; }
+}
+@keyframes ui-slide-up-out {
+  to { translate: 0 100%; }
+}
+@keyframes ui-rise-in {
+  from { opacity: 0; translate: 0 12px; }
+}
+@keyframes ui-bounce-dot {
+  0%, 80%, 100% { translate: 0 0; opacity: 0.45; }
+  40% { translate: 0 -8px; opacity: 1; }
+}
+@keyframes ui-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Radix 오버레이: data-state 에 맞춰 열림/닫힘 (닫힘 애니메이션이 끝난 뒤 언마운트된다) */
+.ui-overlay[data-state='open'] { animation: ui-fade-in 200ms ease-out both; }
+.ui-overlay[data-state='closed'] { animation: ui-fade-out 160ms ease-in both; }
+
+.ui-pop[data-state='open'] { animation: ui-pop-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-pop[data-state='closed'] { animation: ui-pop-out 150ms ease-in both; }
+
+.ui-slide-right[data-state='open'] { animation: ui-slide-right-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-slide-right[data-state='closed'] { animation: ui-slide-right-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+.ui-slide-up[data-state='open'] { animation: ui-slide-up-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-slide-up[data-state='closed'] { animation: ui-slide-up-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+/* 모바일에서는 하단 시트, 넓은 화면에서는 가운데 팝업으로 뜨는 Dialog */
+.ui-bottom-sheet[data-state='open'] { animation: ui-slide-up-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-bottom-sheet[data-state='closed'] { animation: ui-slide-up-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+@media (min-width: 640px) {
+  .ui-bottom-sheet[data-state='open'] { animation: ui-pop-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ui-bottom-sheet[data-state='closed'] { animation: ui-pop-out 150ms ease-in both; }
+}
+
+/* 등장: 단일 요소 / 자식 순차 등장 (fade-in 은 기존 화면들이 써 오던 이름) */
+.ui-rise,
+.fade-in { animation: ui-rise-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-pop-once { animation: ui-pop-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-stagger > * { animation: ui-rise-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.ui-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.ui-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.ui-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.ui-stagger > *:nth-child(6) { animation-delay: 300ms; }
+.ui-stagger > *:nth-child(n + 7) { animation-delay: 360ms; }
+
+/* 로딩 */
+.ui-bounce-dot { animation: ui-bounce-dot 1.2s ease-in-out infinite; }
+.ui-skeleton {
+  background: linear-gradient(90deg, rgb(226 232 240 / 0.7) 25%, rgb(241 245 249) 37%, rgb(226 232 240 / 0.7) 63%);
+  background-size: 400% 100%;
+  animation: ui-shimmer 1.4s ease-in-out infinite;
+}
+.dark .ui-skeleton {
+  background-image: linear-gradient(90deg, rgb(30 41 59 / 0.7) 25%, rgb(51 65 85 / 0.7) 37%, rgb(30 41 59 / 0.7) 63%);
+}
+
+/* 움직임 줄이기 설정을 켠 사용자에게는 애니메이션을 사실상 끈다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

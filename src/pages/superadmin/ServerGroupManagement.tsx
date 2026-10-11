@@ -468,10 +468,10 @@ export default function ServerGroupManagement() {
                 <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
                 <div className="absolute top-4 left-6 right-6">
                     <div className="space-y-0 text-left">
-                        <p className="text-sm font-medium text-white/90 tracking-tight font-gamja mb-0.5">
+                        <p className="text-sm font-medium text-white/90 font-display mb-0.5">
                             새로운 관리를 위해
                         </p>
-                        <h1 className="text-2xl font-bold text-white tracking-tight font-gamja flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-white font-display flex items-center gap-1.5">
                             <Shield size={20} className="text-white opacity-80" />
                             새 복사단 생성
                         </h1>

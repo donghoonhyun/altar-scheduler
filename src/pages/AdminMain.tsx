@@ -87,7 +87,7 @@ const AdminMain: React.FC = () => {
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-8 ui-stagger">
           {adminActions.map((action, index) => (
             <Card
               key={index}

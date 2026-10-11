@@ -1,7 +1,7 @@
 import { useSession } from "../../state/session";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
-import { Outlet, useNavigate, useParams } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Church, LogOut, User as UserIcon, ShieldCheck, LayoutDashboard, Home, UserPlus, Settings, HelpCircle, Moon, Sun } from "lucide-react";
 import ServerGroupSelector from "./ServerGroupSelector";
 import AppSettingsDrawer from "../../components/common/AppSettingsDrawer";
@@ -15,7 +15,7 @@ import DrawerHeader from "@/components/common/DrawerHeader";
 import { useTheme } from "@/components/common/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import MyInfoDrawer from "../../components/common/MyInfoDrawer";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getAppIconPath, getAppTitleWithEnv } from "@/lib/env";
 import { useFcmToken } from "@/hooks/useFcmToken"; // ✅ FCM Hook
 
@@ -32,6 +32,22 @@ export default function Layout() {
   
   // ✅ PWA 진입 시 FCM 토큰 관리 (권한 요청 및 저장)
   useFcmToken();
+
+  // ✅ 화면이 바뀔 때 본문이 살짝 떠오르며 나타난다 (페이지를 다시 마운트하지 않고 본문 요소만 애니메이션)
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el || typeof el.animate !== 'function') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate(
+      [
+        { opacity: 0, translate: '0 10px' },
+        { opacity: 1, translate: '0 0' },
+      ],
+      { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  }, [pathname]);
 
   // ✅ 방문한 그룹 ID 기억하기 (SuperAdmin 등에서 복귀 시 사용)
   useEffect(() => {
@@ -115,13 +131,13 @@ export default function Layout() {
               <DrawerHeader onClose={() => setIsMenuOpen(false)}>
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-0.5">
-                    <SheetTitle className="text-xl font-bold text-white tracking-tight font-gamja flex items-center gap-1.5">
+                    <SheetTitle className="text-xl font-bold text-white font-display flex items-center gap-1.5">
                       {userInfo?.userName ?? ''}
                       {userInfo?.baptismalName && (
                         <span className="text-sm font-semibold text-purple-300">{userInfo.baptismalName}</span>
                       )}
                     </SheetTitle>
-                    <p className="text-[11px] text-slate-100/80 font-medium tracking-tight font-gamja">
+                    <p className="text-[11px] text-slate-100/80 font-medium font-display">
                       {user?.email}
                     </p>
                   </div>
@@ -276,7 +292,7 @@ export default function Layout() {
       </header>
 
       {/* 🔹본문 영역 */}
-      <main className="flex-1 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
 

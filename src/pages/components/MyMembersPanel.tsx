@@ -76,7 +76,7 @@ export default function MyMembersPanel({ members, checkedMemberIds, onToggle, se
                   key={m.memberId}
                   onClick={() => onToggle(m.memberId)}
                   className={cn(
-                    'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border',
+                    'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border active:scale-95',
                     checked
                       ? 'bg-blue-50 border-blue-500 border-[1.5px] font-bold text-blue-800 shadow-md dark:bg-blue-900/40 dark:border-blue-500 dark:text-blue-300'
                       : 'bg-green-50 border-green-200 text-gray-700 hover:bg-green-100 dark:bg-emerald-900/20 dark:border-emerald-900/40 dark:text-gray-300 dark:hover:bg-emerald-900/30'

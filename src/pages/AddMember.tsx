@@ -255,8 +255,8 @@ export default function AddMember() {
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
         <div className="absolute top-4 left-6 right-6">
             <div className="space-y-0">
-                <p className="text-sm font-medium text-white/90 tracking-tight font-gamja mb-0.5">복사단 활동을 위해</p>
-                <h1 className="text-2xl font-bold text-white tracking-tight font-gamja">복사 추가하기</h1>
+                <p className="text-sm font-medium text-white/90 font-display mb-0.5">복사단 활동을 위해</p>
+                <h1 className="text-2xl font-bold text-white font-display">복사 추가하기</h1>
             </div>
         </div>
       </div>
