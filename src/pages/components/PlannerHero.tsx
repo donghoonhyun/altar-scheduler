@@ -1,6 +1,6 @@
 // src/pages/components/PlannerHero.tsx
 import { Check, ChevronRight } from 'lucide-react';
-import { AltarServer, type ServerPose } from '@/components/characters/AltarServer';
+import { Teacher, type TeacherPose } from '@/components/characters/Staff';
 import type { MassStatus } from '@/types/firestore';
 import { cn } from '@/lib/utils';
 
@@ -11,8 +11,6 @@ interface PlannerHeroProps {
   /** 달력에서 보고 있는 달 (예: "10월") */
   monthLabel: string;
   status: MassStatus;
-  /** 캐릭터 얼굴을 정하는 값 (복사단마다 같은 얼굴) */
-  seed: string;
   onPrimary: () => void;
 }
 
@@ -21,14 +19,14 @@ const STEPS = ['일정 확정', '설문 마감', '배정', '최종 확정'];
 /** 상태별: 끝난 단계 수, 안내 문구, 캐릭터 */
 const GUIDE: Record<
   MassStatus,
-  { done: number; title: (m: string) => string; description: string; action: string; pose: ServerPose; tone: string }
+  { done: number; title: (m: string) => string; description: string; action: string; pose: TeacherPose; tone: string }
 > = {
   'MASS-NOTCONFIRMED': {
     done: 0,
     title: (m) => `${m} 미사 일정을 정해 주세요`,
     description: '프리셋으로 일정을 만들고 확정하면 설문을 보낼 수 있어요.',
     action: '미사 일정 계획하기',
-    pose: 'candle',
+    pose: 'plan',
     tone: 'from-violet-600 via-indigo-500 to-sky-500',
   },
   'MASS-CONFIRMED': {
@@ -36,7 +34,7 @@ const GUIDE: Record<
     title: (m) => `${m} 설문을 받아 주세요`,
     description: '설문을 보내고, 응답이 모이면 설문을 마감해 주세요.',
     action: '설문 보내러 가기',
-    pose: 'bell',
+    pose: 'announce',
     tone: 'from-sky-500 via-indigo-500 to-violet-600',
   },
   'SURVEY-CONFIRMED': {
@@ -44,7 +42,7 @@ const GUIDE: Record<
     title: (m) => `${m} 복사를 배정해 주세요`,
     description: '자동 배정으로 채운 뒤 살펴보고 최종 확정하면 돼요.',
     action: '배정하러 가기',
-    pose: 'pray',
+    pose: 'point',
     tone: 'from-amber-500 via-orange-400 to-rose-400',
   },
   'FINAL-CONFIRMED': {
@@ -58,7 +56,7 @@ const GUIDE: Record<
 };
 
 /**
- * 플래너 대시보드 상단 카드 — 보고 있는 달이 어느 단계인지와 다음에 할 일을 캐릭터가 알려 준다.
+ * 플래너 대시보드 상단 카드 — 보고 있는 달이 어느 단계인지와 다음에 할 일을 선생님 캐릭터가 알려 준다.
  */
 export default function PlannerHero({
   userName,
@@ -66,7 +64,6 @@ export default function PlannerHero({
   roleLabel,
   monthLabel,
   status,
-  seed,
   onPrimary,
 }: PlannerHeroProps) {
   const guide = GUIDE[status] ?? GUIDE['MASS-NOTCONFIRMED'];
@@ -104,7 +101,7 @@ export default function PlannerHero({
         </div>
 
         <div className="w-[88px] shrink-0 rounded-3xl bg-white/90 px-1.5 pt-2 shadow-inner dark:bg-white/85">
-          <AltarServer key={status} seed={seed} pose={guide.pose} />
+          <Teacher key={status} pose={guide.pose} />
         </div>
       </div>
 

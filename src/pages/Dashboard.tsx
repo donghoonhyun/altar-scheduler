@@ -87,7 +87,6 @@ const Dashboard: React.FC = () => {
           roleLabel={roleLabel}
           monthLabel={monthLabel}
           status={monthStatus}
-          seed={serverGroupId}
           onPrimary={() => navigate(`/server-groups/${serverGroupId}/mass-events`)}
         />
 

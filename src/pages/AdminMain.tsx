@@ -7,6 +7,7 @@ import { useSession } from '@/state/session';
 import { ChevronRight, Church, LayoutDashboard, Settings, UserPlus, Users } from 'lucide-react';
 import { COLLECTIONS } from '@/lib/collections';
 import ServerHero from './components/ServerHero';
+import { Manager } from '@/components/characters/Staff';
 import { cn } from '@/lib/utils';
 
 const AdminMain: React.FC = () => {
@@ -90,6 +91,8 @@ const AdminMain: React.FC = () => {
           userName={session.userInfo?.userName}
           baptismalName={session.userInfo?.baptismalName}
           roleLabel={roleLabel}
+          // 어드민 화면은 관리자 캐릭터가 안내한다 (신청이 있으면 신청서를 들고 알려 준다)
+          character={<Manager key={pendingCount > 0 ? 'alert' : 'key'} pose={pendingCount > 0 ? 'alert' : 'key'} />}
           state={
             pendingCount > 0
               ? {

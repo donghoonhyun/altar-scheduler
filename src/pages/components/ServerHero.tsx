@@ -33,6 +33,8 @@ interface ServerHeroProps {
   baptismalName?: string;
   roleLabel: string;
   state: ServerHeroState;
+  /** 복사 캐릭터 대신 보여 줄 캐릭터 (어드민 화면의 관리자 등) */
+  character?: ReactNode;
 }
 
 const TONES = {
@@ -52,7 +54,7 @@ function Stage({ children }: { children: ReactNode }) {
 /**
  * 복사 메인 상단 카드 — 인사말과 함께, 복사 캐릭터가 다음 배정이나 지금 상황을 알려 준다.
  */
-export default function ServerHero({ userName, baptismalName, roleLabel, state }: ServerHeroProps) {
+export default function ServerHero({ userName, baptismalName, roleLabel, state, character }: ServerHeroProps) {
   const tone = state.kind === 'next' ? 'violet' : (state.tone ?? 'violet');
   const clickable = state.kind === 'next' && !!state.onOpen;
 
@@ -110,10 +112,12 @@ export default function ServerHero({ userName, baptismalName, roleLabel, state }
         </div>
 
         <Stage>
-          <AltarServer
-            seed={state.seed}
-            pose={state.kind === 'next' ? (state.dday.startsWith('D-') ? 'candle' : 'cheer') : state.pose}
-          />
+          {character ?? (
+            <AltarServer
+              seed={state.seed}
+              pose={state.kind === 'next' ? (state.dday.startsWith('D-') ? 'candle' : 'cheer') : state.pose}
+            />
+          )}
         </Stage>
       </div>
     </section>
