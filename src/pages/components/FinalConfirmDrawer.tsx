@@ -9,6 +9,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/ko'; // ✅ Import Korean Locale
 import { MassEventCalendar } from '@/types/massEvent';
 import { COLLECTIONS } from '@/lib/collections';
+import { FINAL_CONFIRM_NOTI_TITLE } from '@/lib/notificationApi';
 
 interface FinalConfirmDrawerProps {
   open: boolean;
@@ -79,24 +80,38 @@ const FinalConfirmDrawer: React.FC<FinalConfirmDrawerProps> = ({
 
         // Simplified query - only use server_group_id to avoid composite index requirement
         // Filter month_id and trigger_status on client side
-        const q = query(
-            collection(db, 'system_notification_logs'),
-            where('server_group_id', '==', serverGroupId),
-            limit(50) // Get more to filter client-side
-        );
-        
-        const snap = await getDocs(q);
-        let logs = snap.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-        })) as MiniNotificationLog[];
-        
-        // Client-side filtering
-        logs = logs.filter(log => {
-            const data = log as any;
-            return data.month_id === monthKey && data.trigger_status === 'FINAL-CONFIRMED';
-        });
-        
+        let logs: MiniNotificationLog[] = [];
+        try {
+            const q = query(
+                collection(db, 'system_notification_logs'),
+                where('server_group_id', '==', serverGroupId),
+                limit(50) // Get more to filter client-side
+            );
+
+            const snap = await getDocs(q);
+            logs = snap.docs.map(d => ({
+                id: d.id,
+                ...d.data()
+            })) as MiniNotificationLog[];
+
+            // Client-side filtering
+            logs = logs.filter(log => {
+                const data = log as any;
+                return data.month_id === monthKey && data.trigger_status === 'FINAL-CONFIRMED';
+            });
+        } catch (legacyErr) {
+            // 예전 이력 컬렉션을 못 읽어도 아래의 현재 이력은 보여 준다
+            console.warn('Legacy notification logs unavailable', legacyErr);
+        }
+
+        // 지금의 알림 대기열은 발송 이력을 설문 문서의 notifications 배열에 남긴다
+        const surveySnap = await getDoc(doc(db, `${COLLECTIONS.SERVER_GROUPS}/${serverGroupId}/availability_surveys/${monthKey}`));
+        const surveyNotis: { title?: string; body?: string; sent_at?: unknown }[] =
+            surveySnap.exists() ? surveySnap.data()?.notifications || [] : [];
+        surveyNotis
+            .filter(n => n?.title === FINAL_CONFIRM_NOTI_TITLE)
+            .forEach((n, i) => logs.push({ id: `survey-${i}`, created_at: n.sent_at, title: n.title || '', body: n.body || '' }));
+
         // Sort DESC client-side
         logs.sort((a, b) => {
              const tA = a.created_at?.toDate ? a.created_at.toDate().getTime() : 0;

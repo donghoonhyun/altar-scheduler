@@ -162,9 +162,10 @@ export default function ServerMain() {
     return () => unsub();
   }, [serverGroupId, currentMonth.format('YYYYMM')]); // Stable Dependency
 
-  // 3.5) 설문 진행 중인 달 조회 (Survey Status='OPEN') - Realtime
+  // 3.5) 보고 있는 달의 설문 조회 - Realtime (진행 중이면 참여, 끝났으면 내 응답 보기)
   const [surveyInfo, setSurveyInfo] = useState<{
       month: string;
+      status: string;
       targetMemberIds: string[];
       startDate: any;
       endDate: any;
@@ -182,9 +183,10 @@ export default function ServerMain() {
     const surveyRef = doc(db, COLLECTIONS.SERVER_GROUPS, serverGroupId, 'availability_surveys', yyyymm);
 
     const unsub = onSnapshot(surveyRef, (snap) => {
-      if (snap.exists() && snap.data().status === 'OPEN') {
+      if (snap.exists()) {
         setSurveyInfo({
             month: yyyymm,
+            status: snap.data().status,
             targetMemberIds: snap.data().member_ids || [],
             startDate: snap.data().start_date,
             endDate: snap.data().end_date,
@@ -328,6 +330,7 @@ export default function ServerMain() {
     }
 
     if (monthStatus === 'FINAL-CONFIRMED') {
+      const confirmedLabel = `${monthLabel} 배정 최종 확정`;
       const today = dayjs().startOf('day');
       const myEvents = events
         .filter(isMyEvent)
@@ -348,6 +351,7 @@ export default function ServerMain() {
           monthCount: myEvents.length,
           monthLabel,
           onOpen: () => handleDayClick(date.date()),
+          confirmedLabel,
         };
       }
       if (myEvents.length > 0) {
@@ -357,6 +361,7 @@ export default function ServerMain() {
           pose: 'cheer',
           title: `${monthLabel} 복사를 모두 마쳤어요`,
           description: `${selected.name_kor} 복사가 ${myEvents.length}번 봉사했어요. 수고했어요!`,
+          confirmedLabel,
         };
       }
       return {
@@ -365,6 +370,7 @@ export default function ServerMain() {
         pose: 'pray',
         title: `${monthLabel}에는 배정이 없어요`,
         description: '다음 달 일정을 기다려 주세요.',
+        confirmedLabel,
       };
     }
 
@@ -419,6 +425,7 @@ export default function ServerMain() {
 
         {/* 2.5) 설문 알림 - 기간 체크 포함 */}
         {surveyInfo &&
+         surveyInfo.status === 'OPEN' &&
          checkedMemberIds.length === 1 &&
          surveyInfo.targetMemberIds.includes(checkedMemberIds[0]) &&
          serverGroupId &&
@@ -446,6 +453,48 @@ export default function ServerMain() {
                  </p>
               </div>
               <ChevronRight className="shrink-0" size={20} />
+            </div>
+          );
+        })()}
+
+        {/* 2.6) 끝난 설문(또는 기간이 지난 설문) — 내가 낸 응답 보기 */}
+        {surveyInfo &&
+         checkedMemberIds.length === 1 &&
+         surveyInfo.targetMemberIds.includes(checkedMemberIds[0]) &&
+         serverGroupId &&
+         (surveyInfo.status !== 'OPEN' ||
+           (!!surveyInfo.endDate && dayjs().isAfter(dayjs(surveyInfo.endDate.toDate()), 'day'))) && (() => {
+          const targetId = checkedMemberIds[0];
+          const response = surveyInfo.responses[targetId];
+          const unavailable = response?.unavailable;
+          const unavailableIds: string[] = Array.isArray(unavailable)
+            ? unavailable
+            : unavailable && typeof unavailable === 'object'
+            ? Object.keys(unavailable)
+            : [];
+          // 삭제된 미사는 세지 않는다
+          const unavailableCount = events.filter((ev) => unavailableIds.includes(ev.id)).length;
+          return (
+            <div
+              onClick={() => navigate(`/survey/${serverGroupId}/${surveyInfo.month}?memberId=${targetId}&view=1`)}
+              className="flex items-center gap-3 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-sm backdrop-blur cursor-pointer transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-900/90"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300">
+                <ClipboardCheck size={24} />
+              </span>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-display text-lg leading-snug text-gray-900 dark:text-gray-50">
+                  {dayjs(surveyInfo.month, 'YYYYMM').format('M월')} 설문 응답 보기
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {!response
+                    ? '응답하지 않았어요'
+                    : unavailableCount > 0
+                    ? `못 온다고 한 미사 ${unavailableCount}개`
+                    : '모든 미사에 참석 가능으로 응답했어요'}
+                </p>
+              </div>
+              <ChevronRight className="shrink-0 text-gray-400" size={20} />
             </div>
           );
         })()}

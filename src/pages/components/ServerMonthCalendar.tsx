@@ -132,7 +132,8 @@ export default function ServerMonthCalendar({
 
                 // 확정: 내 배정 / 그 외
                 showDots && !isSelected && mine && 'border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-900/20',
-                showDots && !isSelected && !mine && 'text-gray-700 dark:text-gray-300',
+                showDots && !isSelected && !mine && any && 'border-violet-200 bg-violet-100/70 text-gray-800 dark:border-violet-800/60 dark:bg-violet-900/30 dark:text-gray-100',
+                showDots && !isSelected && !mine && !any && 'text-gray-400 dark:text-slate-500',
 
                 // 선택한 날짜
                 isSelected && mine && 'z-20 border-amber-400 bg-rose-50 ring-2 ring-amber-400 dark:bg-rose-900/30',
@@ -142,6 +143,7 @@ export default function ServerMonthCalendar({
               <span
                 className={cn(
                   'text-sm leading-none',
+                  showDots && any && 'font-bold',
                   showDots && dow === 0 && 'text-rose-500',
                   showDots && dow === 6 && 'text-sky-500',
                   isToday && 'font-bold text-violet-600 dark:text-violet-300',
@@ -154,11 +156,11 @@ export default function ServerMonthCalendar({
               {showDots && (
                 <>
                   {/* 모바일: 내 배정일에는 얼굴, 그 외 미사는 점 */}
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-0.5 px-1 md:hidden">
+                  <div className="mt-1.5 flex flex-wrap items-center justify-center gap-[3px] px-1 md:hidden">
                     {mine ? (
                       <ServerAvatar seed={avatarSeed} size={24} />
                     ) : (
-                      evts.map((ev) => <div key={ev.id} className="h-1.5 w-1.5 rounded-full bg-gray-300 dark:bg-slate-600" />)
+                      evts.map((ev) => <div key={ev.id} className="h-2 w-2 rounded-full bg-violet-500 dark:bg-violet-400" />)
                     )}
                   </div>
 
@@ -175,10 +177,10 @@ export default function ServerMonthCalendar({
                               'flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium',
                               myEvent
                                 ? 'border border-rose-200 bg-rose-500/10 text-rose-700 dark:border-rose-900/50 dark:bg-rose-500/20 dark:text-rose-200'
-                                : 'border border-transparent bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400'
+                                : 'border border-transparent bg-white/80 text-gray-600 dark:bg-slate-800 dark:text-slate-300'
                             )}
                           >
-                            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', myEvent ? 'bg-rose-500' : 'bg-gray-300')} />
+                            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', myEvent ? 'bg-rose-500' : 'bg-violet-400')} />
                             {ev.title}
                           </div>
                         );
@@ -195,8 +197,8 @@ export default function ServerMonthCalendar({
         <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
           <ServerAvatar seed={avatarSeed} size={16} />
           내가 복사 서는 날
-          <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-gray-300" />
-          다른 미사
+          <span className="ml-2 inline-block h-2 w-2 rounded-full bg-violet-500 dark:bg-violet-400" />
+          미사 있는 날
         </p>
       )}
     </section>

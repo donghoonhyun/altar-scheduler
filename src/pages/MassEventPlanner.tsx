@@ -16,6 +16,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '@/lib/firebase';
 import { toast } from 'sonner';
+import { callNotificationApi, FINAL_CONFIRM_NOTI_TITLE } from '@/lib/notificationApi';
 
 import MassCalendar from './components/MassCalendar';
 import MassEventDrawer from './components/MassEventDrawer';
@@ -36,6 +37,7 @@ import { useSession } from '@/state/session';
 import timezone from 'dayjs/plugin/timezone';
 import { COLLECTIONS } from '@/lib/collections';
 import PremiumHeader from '@/components/common/PremiumHeader';
+import Fireworks from '@/components/common/Fireworks';
 
 dayjs.extend(weekOfYear);
 dayjs.extend(timezone);
@@ -90,6 +92,8 @@ const MassEventPlanner: React.FC = () => {
   const [finalConfirmDrawerOpen, setFinalConfirmDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  // 일정 확정·최종 확정 직후의 축하 폭죽
+  const [celebration, setCelebration] = useState<{ id: number; message: string; subMessage: string } | null>(null);
 
   // ✅ 실시간 설문 상태 감지 (버튼 라벨 변경용)
   useEffect(() => {
@@ -133,6 +137,11 @@ const MassEventPlanner: React.FC = () => {
   const handleConfirmMass = async () => {
     await updateStatus('MASS-CONFIRMED', session.user?.uid, session.user?.displayName || undefined);
     toast.success('📘 미사 일정이 확정되었습니다.');
+    setCelebration({
+      id: Date.now(),
+      message: `${currentMonth.format('M월')} 미사 일정 확정!`,
+      subMessage: '이제 복사들에게 설문을 보내 주세요',
+    });
   };
   const handleCloseSurvey = async () => {
     await updateStatus('SURVEY-CONFIRMED', session.user?.uid, session.user?.displayName || undefined);
@@ -167,7 +176,33 @@ const MassEventPlanner: React.FC = () => {
   };
   const handleFinalConfirm = async () => {
     await updateStatus('FINAL-CONFIRMED', session.user?.uid, session.user?.displayName || undefined);
-    toast.success('✅ 최종 확정되었습니다.');
+    // 확정은 이미 끝났으므로, 알림 발송이 실패해도 확정을 되돌리지 않고 알려만 준다
+    try {
+      const data = await callNotificationApi<{ success: boolean; message?: string; queued_count?: number }>(functions, {
+        action: 'enqueue_survey',
+        serverGroupId,
+        month: monthKey,
+        type: 'FINAL_CONFIRMED',
+        title: FINAL_CONFIRM_NOTI_TITLE,
+      });
+      if (data.success) {
+        toast.success('✅ 최종 확정되었습니다.', {
+          description: `복사 보호자 ${data.queued_count ?? 0}명에게 알림을 보냈어요.`,
+        });
+      } else {
+        toast.warning('최종 확정은 되었으나 알림을 보내지 못했습니다.', { description: data.message });
+      }
+    } catch (notiErr) {
+      console.error('Final confirm notification error:', notiErr);
+      toast.warning('최종 확정은 되었으나 알림 발송 중 오류가 발생했습니다.', {
+        description: notiErr instanceof Error ? notiErr.message : undefined,
+      });
+    }
+    setCelebration({
+      id: Date.now(),
+      message: `${currentMonth.format('M월')} 배정 최종 확정!`,
+      subMessage: '복사들이 자기 배정을 볼 수 있어요',
+    });
   };
 
   /** ✅ 툴바 버튼 활성화 조건 */
@@ -286,6 +321,15 @@ const MassEventPlanner: React.FC = () => {
           onClose={() => setMonthStatusDrawerOpen(false)}
           serverGroupId={serverGroupId!}
           currentMonth={currentMonth}
+        />
+      )}
+
+      {celebration && (
+        <Fireworks
+          key={celebration.id}
+          message={celebration.message}
+          subMessage={celebration.subMessage}
+          onDone={() => setCelebration(null)}
         />
       )}
 

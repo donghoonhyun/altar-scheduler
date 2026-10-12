@@ -1,5 +1,6 @@
 // src/pages/components/ServerHero.tsx
 import type { ReactNode } from 'react';
+import { BadgeCheck } from 'lucide-react';
 import { AltarServer, type ServerPose } from '@/components/characters/AltarServer';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,8 @@ export type ServerHeroState =
       monthCount: number;
       monthLabel: string;
       onOpen?: () => void;
+      /** 최종 확정된 달이면 카드 위쪽에 띄울 표시 (예: "10월 배정 최종 확정") */
+      confirmedLabel?: string;
     }
   /** 캐릭터가 지금 상황을 알려 준다 */
   | {
@@ -26,6 +29,7 @@ export type ServerHeroState =
       description: string;
       tone?: 'violet' | 'amber' | 'slate';
       action?: { label: string; onClick: () => void };
+      confirmedLabel?: string;
     };
 
 interface ServerHeroProps {
@@ -75,6 +79,19 @@ export default function ServerHero({ userName, baptismalName, roleLabel, state, 
         {baptismalName && <span className="ml-1 text-xs text-white/75">{baptismalName}</span>}
         <span className="ml-1">{roleLabel}님, 반가워요!</span>
       </p>
+
+      {state.confirmedLabel && (
+        <p className="relative mt-2.5">
+          <span
+            key={state.confirmedLabel}
+            className="ui-pop-once inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-1.5 pr-3 text-sm font-bold text-emerald-700 shadow-md shadow-indigo-900/20"
+          >
+            <BadgeCheck className="h-5 w-5 fill-emerald-500 text-white" />
+            {state.confirmedLabel}
+            <span className="ui-twinkle text-amber-400" aria-hidden>✦</span>
+          </span>
+        </p>
+      )}
 
       <div className="relative mt-2 flex items-end gap-3">
         <div className="min-w-0 flex-1">

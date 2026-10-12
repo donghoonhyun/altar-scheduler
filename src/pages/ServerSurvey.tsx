@@ -52,6 +52,8 @@ export default function ServerSurvey() {
   
   const [searchParams] = useSearchParams();
   const targetMemberId = searchParams.get('uid') || searchParams.get('memberId') || user?.uid;
+  // 복사 메인의 "설문 응답 보기"로 들어오면 설문 상태와 무관하게 보기 전용
+  const viewOnly = searchParams.get('view') === '1';
   const [targetMemberName, setTargetMemberName] = useState('');
   const [baptismalName, setBaptismalName] = useState('');
   const [surveyPeriod, setSurveyPeriod] = useState('');
@@ -61,6 +63,8 @@ export default function ServerSurvey() {
   const [unavailableIds, setUnavailableIds] = useState<string[]>([]);
   
   const [surveyClosed, setSurveyClosed] = useState(false);
+  const [surveyMissing, setSurveyMissing] = useState(false);
+  const [respondedAt, setRespondedAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [hasExistingResponse, setHasExistingResponse] = useState(false);
@@ -130,6 +134,7 @@ export default function ServerSurvey() {
 
         if (!surveySnap.exists()) {
            setSurveyClosed(true); // 문서가 없으면 로드 불가
+           setSurveyMissing(true);
            setLoading(false);
            return;
         }
@@ -191,6 +196,8 @@ export default function ServerSurvey() {
                 }
                 setUnavailableIds(ids);
                 setHasExistingResponse(true);
+                const updatedAt = targetResponse.updated_at?.toDate?.();
+                setRespondedAt(updatedAt ? dayjs(updatedAt).format('M월 D일') : '');
             } else {
                 // If no response, ensure unavailableIds is empty
                 setUnavailableIds([]);
@@ -380,11 +387,17 @@ export default function ServerSurvey() {
 
   // 6. 렌더링
   const unavailableCount = events.filter((e) => unavailableIds.includes(e.id)).length;
+  // 끝난 설문(또는 보기 전용 진입)은 내가 낸 응답을 확인만 할 수 있다
+  const readOnly = surveyClosed || viewOnly;
+  const noResponse = readOnly && !hasExistingResponse;
+  const unavailableEvents = events
+    .filter((e) => unavailableIds.includes(e.id))
+    .sort((a, b) => a.event_date.localeCompare(b.event_date) || a.title.localeCompare(b.title, 'ko'));
   const guidePose: ServerPose =
-    surveyClosed || accessDenied ? 'rest' : submitted ? 'cheer' : isAllAvailable ? 'wave' : 'pray';
+    accessDenied || surveyMissing || noResponse ? 'rest' : readOnly ? 'wave' : submitted ? 'cheer' : isAllAvailable ? 'wave' : 'pray';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-violet-50 via-sky-50 to-emerald-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-48 transition-colors duration-300">
+    <div className={cn("min-h-screen bg-gradient-to-b from-violet-50 via-sky-50 to-emerald-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 transition-colors duration-300", readOnly ? "pb-12" : "pb-48")}>
       {/* Header */}
       <PremiumHeader
         subtitle={
@@ -420,8 +433,12 @@ export default function ServerSurvey() {
             <p className="font-display text-xl leading-snug text-gray-900 dark:text-gray-50 break-keep">
               {accessDenied
                 ? '설문 대상이 아니에요'
-                : surveyClosed
-                ? '설문이 끝났어요'
+                : surveyMissing
+                ? '아직 설문이 없어요'
+                : noResponse
+                ? '설문에 응답하지 않았어요'
+                : readOnly
+                ? '내가 낸 설문이에요'
                 : submitted
                 ? '제출했어요, 고마워요!'
                 : '못 오는 날만 알려 주세요'}
@@ -429,8 +446,12 @@ export default function ServerSurvey() {
             <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400 break-keep">
               {accessDenied
                 ? '플래너에게 문의해 주세요.'
-                : surveyClosed
-                ? '더 이상 고칠 수 없어요.'
+                : surveyMissing
+                ? '설문이 열리면 여기에서 참여할 수 있어요.'
+                : readOnly
+                ? surveyClosed
+                  ? '설문이 끝나 고칠 수 없어요. 바꿀 내용은 선생님께 알려 주세요.'
+                  : '설문 기간이 지났어요. 바꿀 내용은 선생님께 알려 주세요.'
                 : '날짜를 눌러 참석할 수 없는 미사를 골라 주세요.'}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold">
@@ -439,16 +460,23 @@ export default function ServerSurvey() {
                   기간 {surveyPeriod}
                 </span>
               )}
-              {!accessDenied && (
+              {!accessDenied && !surveyMissing && (
                 <span
                   className={cn(
                     'rounded-full px-2.5 py-1',
-                    unavailableCount > 0
+                    noResponse
+                      ? 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400'
+                      : unavailableCount > 0
                       ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300'
                       : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                   )}
                 >
-                  {unavailableCount > 0 ? `못 오는 미사 ${unavailableCount}개` : '모두 참석 가능'}
+                  {noResponse ? '응답 없음' : unavailableCount > 0 ? `못 오는 미사 ${unavailableCount}개` : '모두 참석 가능'}
+                </span>
+              )}
+              {readOnly && respondedAt && (
+                <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                  {respondedAt} 제출
                 </span>
               )}
             </div>
@@ -460,7 +488,7 @@ export default function ServerSurvey() {
             const currentEventIds = new Set(events.map(e => e.id));
             const orphaned = unavailableIds.filter(id => !currentEventIds.has(id)).length;
 
-            if (orphaned > 0 && !surveyClosed) {
+            if (orphaned > 0 && !readOnly) {
                 return (
                     <div className="p-3 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-sm rounded-2xl border border-amber-200 dark:border-amber-800 flex items-start gap-2">
                         <span className="text-lg">📢</span>
@@ -511,6 +539,8 @@ export default function ServerSurvey() {
                                 "relative flex flex-col items-center md:items-stretch min-h-[60px] md:min-h-[100px] cursor-pointer rounded-2xl border pt-1.5 md:p-1.5 transition active:scale-95",
                                 dayEvents.length === 0
                                     ? "border-transparent"
+                                    : noResponse
+                                    ? "border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800/50"
                                     : dayUnavailable > 0
                                     ? "border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-900/20"
                                     : "border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-900/10"
@@ -540,10 +570,10 @@ export default function ServerSurvey() {
                                             key={ev.id}
                                             className={cn(
                                                 "flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold leading-none text-white transition-colors duration-300",
-                                                isUnavailable ? "bg-rose-400" : "bg-emerald-500"
+                                                noResponse ? "bg-gray-300 dark:bg-slate-600" : isUnavailable ? "bg-rose-400" : "bg-emerald-500"
                                             )}
                                         >
-                                            {isUnavailable ? '✕' : '○'}
+                                            {noResponse ? '' : isUnavailable ? '✕' : '○'}
                                         </div>
                                     );
                                 })}
@@ -560,12 +590,14 @@ export default function ServerSurvey() {
                                             key={ev.id}
                                             className={cn(
                                                 "text-[10px] px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-1",
-                                                isUnavailable
+                                                noResponse
+                                                    ? "bg-white text-gray-500 border border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700"
+                                                    : isUnavailable
                                                     ? "bg-white text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50"
                                                     : "bg-white text-green-700 border border-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50"
                                             )}
                                         >
-                                            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isUnavailable ? "bg-red-500" : "bg-green-500")}></span>
+                                            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", noResponse ? "bg-gray-300" : isUnavailable ? "bg-red-500" : "bg-green-500")}></span>
                                             {ev.title}
                                         </div>
                                     );
@@ -577,7 +609,7 @@ export default function ServerSurvey() {
             </div>
 
             {/* 범례 */}
-            <div className="mt-3 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-3">
+            <div className={cn("mt-3 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-3", noResponse && "hidden")}>
                 <div className="flex items-center gap-1.5">
                     <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">○</div>
                     <span>참석 가능</span>
@@ -588,9 +620,36 @@ export default function ServerSurvey() {
                 </div>
             </div>
         </section>
+
+        {/* 보기 전용: 못 온다고 응답한 미사 목록 */}
+        {readOnly && hasExistingResponse && !accessDenied && (
+          <section className="rounded-3xl border border-white/70 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+            <h3 className="font-display text-lg text-gray-900 dark:text-gray-50">
+              못 온다고 한 미사 <span className="text-rose-500">{unavailableEvents.length}</span>개
+            </h3>
+            {unavailableEvents.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">모든 미사에 참석할 수 있다고 응답했어요. 👍</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-gray-100 dark:divide-slate-800">
+                {unavailableEvents.map((ev) => {
+                  const d = dayjs(ev.event_date, 'YYYYMMDD');
+                  return (
+                    <li key={ev.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <span className="shrink-0 font-semibold text-gray-700 dark:text-gray-200">
+                        {d.format('M월 D일')} ({'일월화수목금토'[d.day()]})
+                      </span>
+                      <span className="truncate text-gray-600 dark:text-gray-300">{ev.title}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
       </div>
 
-      {/* 하단 고정 제출 영역 — 달력을 내려도 항상 보인다 */}
+      {/* 하단 고정 제출 영역 — 달력을 내려도 항상 보인다 (보기 전용일 때는 없다) */}
+      {!readOnly && (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/70 bg-white/95 px-4 pb-4 pt-3 shadow-[0_-10px_30px_-14px_rgba(76,29,149,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
         <div className="mx-auto max-w-md md:max-w-4xl space-y-2">
             <div className="flex items-center gap-2 px-1">
@@ -622,10 +681,11 @@ export default function ServerSurvey() {
             </Button>
 
             <p className="text-center text-[11px] text-gray-400">
-                {surveyClosed ? '바꿀 내용이 있으면 선생님께 알려 주세요.' : '설문이 끝날 때까지 몇 번이든 고칠 수 있어요.'}
+                설문이 끝날 때까지 몇 번이든 고칠 수 있어요.
             </p>
         </div>
       </div>
+      )}
 
       {/* Detail Drawer (Dialog as Bottom Sheet) */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
@@ -635,7 +695,13 @@ export default function ServerSurvey() {
                       {selectedDate?.format('M월 D일 (ddd)')} 미사
                   </DialogTitle>
                   <DialogDescription className="dark:text-gray-400">
-                      본인이 참석할 수 <span className="text-red-500 font-bold">없는</span> 미사만 체크 해제하세요.
+                      {noResponse ? (
+                          '이 설문에는 응답하지 않았어요.'
+                      ) : readOnly ? (
+                          '설문에 응답한 내용이에요.'
+                      ) : (
+                          <>본인이 참석할 수 <span className="text-red-500 font-bold">없는</span> 미사만 체크 해제하세요.</>
+                      )}
                   </DialogDescription>
               </DialogHeader>
 
@@ -666,20 +732,21 @@ export default function ServerSurvey() {
                               <div className="flex items-center gap-2">
                                   <span className={cn(
                                       "text-xs font-bold mr-2",
-                                      isUnavailable ? "text-red-500" : "text-green-600 dark:text-green-400"
+                                      noResponse ? "text-gray-400" : isUnavailable ? "text-red-500" : "text-green-600 dark:text-green-400"
                                   )}>
-                                      {isUnavailable ? "불가능" : "가능"}
+                                      {noResponse ? "응답 없음" : isUnavailable ? "불가능" : "가능"}
                                   </span>
                                   <Checkbox 
                                       checked={!isUnavailable} // Checked = Available
                                       onCheckedChange={(checked) => toggleAvailability(ev.id, checked as boolean)}
-                                      className="w-6 h-6 border-2 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500 dark:border-gray-500"
+                                      disabled={readOnly}
+                                      className={cn("w-6 h-6 border-2 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500 dark:border-gray-500", noResponse && "hidden")}
                                   />
                               </div>
                           </div>
                           
                           {/* Bulk Option: Only show if currently unavailable */}
-                          {isUnavailable && matchingEvents.length > 1 && (
+                          {!readOnly && isUnavailable && matchingEvents.length > 1 && (
                               <div className="flex items-center gap-2 px-2 py-1.5 bg-red-50 dark:bg-red-900/10 rounded border border-red-100 dark:border-red-900/30">
                                   <Checkbox 
                                       id={`bulk-${ev.id}`}
@@ -697,15 +764,17 @@ export default function ServerSurvey() {
                   })}
               </div>
 
+              {!readOnly && (
               <div className="mt-2">
                   <p className="text-xs text-center text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-900/20 py-2 rounded-md">
                       ⚠️ 선택 후에 화면 하단의 [제출] 버튼을 눌러야 반영됩니다
                   </p>
               </div>
+              )}
 
               <DialogFooter className="sm:justify-center">
                   <Button variant="primary" onClick={() => setDetailOpen(false)} className="w-full">
-                      선택
+                      {readOnly ? '닫기' : '선택'}
                   </Button>
               </DialogFooter>
           </DialogContent>
