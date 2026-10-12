@@ -34,6 +34,7 @@ import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import PremiumHeader from '@/components/common/PremiumHeader';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS } from '@/lib/collections';
+import { AltarServer, type ServerPose } from '@/components/characters/AltarServer';
 
 interface MassEventDoc {
   id: string;
@@ -373,13 +374,17 @@ export default function ServerSurvey() {
       return [...list].sort((a, b) => a.title.localeCompare(b.title, 'ko'));
   }, [selectedDate, eventsByDate]);
 
-  if (loading || loadingUser) return <LoadingSpinner label="로딩 중..." />;
+  if (loading || loadingUser) return <LoadingSpinner label="설문을 불러오고 있어요…" />;
 
 
 
   // 6. 렌더링
+  const unavailableCount = events.filter((e) => unavailableIds.includes(e.id)).length;
+  const guidePose: ServerPose =
+    surveyClosed || accessDenied ? 'rest' : submitted ? 'cheer' : isAllAvailable ? 'wave' : 'pray';
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20 transition-colors duration-300">
+    <div className="min-h-screen bg-gradient-to-b from-violet-50 via-sky-50 to-emerald-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-48 transition-colors duration-300">
       {/* Header */}
       <PremiumHeader
         subtitle={
@@ -403,35 +408,61 @@ export default function ServerSurvey() {
             navigate(-1);
           }
         }}
-        className="sticky top-0 z-10"
       />
 
-      <div className="max-w-md md:max-w-4xl mx-auto p-4">
-        {surveyPeriod && (
-          <div className="mb-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-            설문 기간: {surveyPeriod}
+      <div className="max-w-md md:max-w-4xl mx-auto p-4 space-y-3 ui-stagger">
+        {/* 안내 카드 — 복사 캐릭터가 지금 할 일을 알려 준다 */}
+        <section className="flex items-center gap-3 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="w-16 shrink-0">
+            <AltarServer key={guidePose} seed={targetMemberId || 'altar'} pose={guidePose} />
           </div>
-        )}
-        {surveyClosed && !accessDenied && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-sm rounded border border-red-200 dark:border-red-900">
-                🚫 설문이 종료되었습니다.
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-xl leading-snug text-gray-900 dark:text-gray-50 break-keep">
+              {accessDenied
+                ? '설문 대상이 아니에요'
+                : surveyClosed
+                ? '설문이 끝났어요'
+                : submitted
+                ? '제출했어요, 고마워요!'
+                : '못 오는 날만 알려 주세요'}
+            </p>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400 break-keep">
+              {accessDenied
+                ? '플래너에게 문의해 주세요.'
+                : surveyClosed
+                ? '더 이상 고칠 수 없어요.'
+                : '날짜를 눌러 참석할 수 없는 미사를 골라 주세요.'}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold">
+              {surveyPeriod && (
+                <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                  기간 {surveyPeriod}
+                </span>
+              )}
+              {!accessDenied && (
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-1',
+                    unavailableCount > 0
+                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300'
+                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                  )}
+                >
+                  {unavailableCount > 0 ? `못 오는 미사 ${unavailableCount}개` : '모두 참석 가능'}
+                </span>
+              )}
             </div>
-        )}
-        
-        {accessDenied && (
-             <div className="mb-4 p-3 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 text-sm rounded border border-orange-200 dark:border-orange-900">
-                ⚠️ 설문 대상자가 아닙니다.
-            </div>
-        )}
+          </div>
+        </section>
 
         {/* Orphaned Events Warning */}
         {(() => {
             const currentEventIds = new Set(events.map(e => e.id));
             const orphaned = unavailableIds.filter(id => !currentEventIds.has(id)).length;
-            
+
             if (orphaned > 0 && !surveyClosed) {
                 return (
-                    <div className="mb-4 p-3 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-sm rounded border border-amber-200 dark:border-amber-800 flex items-start gap-2">
+                    <div className="p-3 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-sm rounded-2xl border border-amber-200 dark:border-amber-800 flex items-start gap-2">
                         <span className="text-lg">📢</span>
                         <div>
                             <strong>일정 변경 알림</strong>
@@ -446,20 +477,20 @@ export default function ServerSurvey() {
             return null;
         })()}
 
-        <div className="ui-rise bg-white dark:bg-slate-900 rounded-2xl shadow-sm border dark:border-slate-800 p-4">
+        <section className="rounded-3xl border border-white/70 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
             {/* 요일 헤더 */}
             <div className="grid grid-cols-7 mb-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">
-                <div className="text-red-500 dark:text-red-400">일</div>
-                <div className="dark:text-gray-300">월</div>
-                <div className="dark:text-gray-300">화</div>
-                <div className="dark:text-gray-300">수</div>
-                <div className="dark:text-gray-300">목</div>
-                <div className="dark:text-gray-300">금</div>
-                <div className="text-blue-500 dark:text-blue-400">토</div>
+                <div className="text-rose-500">일</div>
+                <div>월</div>
+                <div>화</div>
+                <div>수</div>
+                <div>목</div>
+                <div>금</div>
+                <div className="text-sky-500">토</div>
             </div>
 
             {/* 달력 그리드 */}
-            <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+            <div className="grid grid-cols-7 gap-1">
                 {/* Empty Cells */}
                 {Array.from({ length: startDayOfWeek }).map((_, i) => (
                     <div key={`empty-${i}`} />
@@ -469,35 +500,51 @@ export default function ServerSurvey() {
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
                     const dayEvents = eventsByDate[day] || [];
-                    const isToday = false; // 필요시 구현
-                    
+                    const dayUnavailable = dayEvents.filter((ev) => unavailableIds.includes(ev.id)).length;
+                    const dow = (startDayOfWeek + i) % 7;
+
                     return (
-                        <div 
-                            key={day} 
+                        <div
+                            key={day}
                             onClick={() => handleDayClick(day)}
-                            className="flex flex-col items-center md:items-stretch min-h-[60px] md:min-h-[100px] cursor-pointer active:bg-gray-100 dark:active:bg-slate-800 active:scale-95 md:hover:bg-gray-50 md:dark:hover:bg-slate-800/50 rounded-lg transition md:p-1 relative border border-transparent md:border-gray-100 md:dark:border-slate-800"
+                            className={cn(
+                                "relative flex flex-col items-center md:items-stretch min-h-[60px] md:min-h-[100px] cursor-pointer rounded-2xl border pt-1.5 md:p-1.5 transition active:scale-95",
+                                dayEvents.length === 0
+                                    ? "border-transparent"
+                                    : dayUnavailable > 0
+                                    ? "border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-900/20"
+                                    : "border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-900/10"
+                            )}
                         >
                             <span className={cn(
-                                "text-sm w-7 h-7 flex items-center justify-center rounded-full mb-1 dark:text-gray-200 md:self-start md:mb-0",
-                                // 날짜 스타일 (오늘 등)
+                                "text-sm leading-none mb-1.5 md:self-start",
+                                dayEvents.length === 0
+                                    ? "text-gray-300 dark:text-slate-600"
+                                    : dow === 0
+                                    ? "text-rose-500"
+                                    : dow === 6
+                                    ? "text-sky-500"
+                                    : "text-gray-700 dark:text-gray-200"
                             )}>
                                 {day}
                             </span>
-                            
+
                             {/* Dots Container (Mobile) */}
-                            <div className="flex gap-0.5 flex-wrap justify-center px-1 md:hidden">
+                            <div className="flex gap-1 flex-wrap justify-center px-1 md:hidden">
                                 {[...dayEvents]
                                     .sort((a, b) => a.title.localeCompare(b.title, 'ko'))
                                     .map(ev => {
                                     const isUnavailable = unavailableIds.includes(ev.id);
                                     return (
-                                        <div 
+                                        <div
                                             key={ev.id}
                                             className={cn(
-                                                "w-1.5 h-1.5 rounded-full transition-colors duration-300",
-                                                isUnavailable ? "bg-red-300 dark:bg-red-500" : "bg-green-500"
+                                                "flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold leading-none text-white transition-colors duration-300",
+                                                isUnavailable ? "bg-rose-400" : "bg-emerald-500"
                                             )}
-                                        />
+                                        >
+                                            {isUnavailable ? '✕' : '○'}
+                                        </div>
                                     );
                                 })}
                             </div>
@@ -509,13 +556,13 @@ export default function ServerSurvey() {
                                     .map(ev => {
                                     const isUnavailable = unavailableIds.includes(ev.id);
                                     return (
-                                        <div 
+                                        <div
                                             key={ev.id}
                                             className={cn(
                                                 "text-[10px] px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-1",
-                                                isUnavailable 
-                                                    ? "bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50" 
-                                                    : "bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50"
+                                                isUnavailable
+                                                    ? "bg-white text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50"
+                                                    : "bg-white text-green-700 border border-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50"
                                             )}
                                         >
                                             <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isUnavailable ? "bg-red-500" : "bg-green-500")}></span>
@@ -530,53 +577,53 @@ export default function ServerSurvey() {
             </div>
 
             {/* 범례 */}
-            <div className="mt-4 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-800 pt-3">
+            <div className="mt-3 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-3">
                 <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>가능</span>
+                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">○</div>
+                    <span>참석 가능</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-red-300 dark:bg-red-500" />
-                    <span>불가능</span>
+                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-400 text-[9px] font-bold text-white">✕</div>
+                    <span>못 가요</span>
                 </div>
             </div>
-        </div>
-        
-        {/* Footer Actions */}
-        <div className="mt-8 space-y-4">
-            <div className="flex items-center gap-2 p-3 bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-lg">
-                <Checkbox 
-                    id="all-ok" 
-                    checked={isAllAvailable} 
+        </section>
+      </div>
+
+      {/* 하단 고정 제출 영역 — 달력을 내려도 항상 보인다 */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/70 bg-white/95 px-4 pb-4 pt-3 shadow-[0_-10px_30px_-14px_rgba(76,29,149,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+        <div className="mx-auto max-w-md md:max-w-4xl space-y-2">
+            <div className="flex items-center gap-2 px-1">
+                <Checkbox
+                    id="all-ok"
+                    checked={isAllAvailable}
                     onCheckedChange={handleAllAvailableCheck}
-                    className="border-gray-300 dark:border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 dark:data-[state=checked]:bg-blue-500 dark:data-[state=checked]:border-blue-500"
+                    disabled={surveyClosed}
+                    className="border-gray-300 dark:border-gray-600 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                 />
                 <label htmlFor="all-ok" className="text-sm font-medium cursor-pointer flex-1 dark:text-gray-200">
-                    모든 일정에 참석 가능합니다
+                    모든 일정에 참석할 수 있어요
                 </label>
+                {submitted && (
+                    <span className="ui-pop-once rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        ✅ 제출됨
+                    </span>
+                )}
             </div>
-            
-            <Button 
+
+            <Button
                 variant="primary"
-                onClick={handlePreSubmit} 
+                onClick={handlePreSubmit}
                 disabled={isSubmitting || surveyClosed}
-                className="w-full text-lg h-12 font-bold shadow-lg shadow-blue-500/20"
+                className="w-full h-12 rounded-2xl bg-violet-600 hover:bg-violet-700 font-display text-lg font-normal shadow-lg shadow-violet-500/30"
                 size="lg"
             >
-                {isSubmitting ? '저장 중...' : (hasExistingResponse ? '수정 제출' : '확정 제출')}
+                {isSubmitting ? '저장 중...' : surveyClosed ? '설문이 끝났어요' : (hasExistingResponse ? '수정해서 제출하기' : '제출하기')}
             </Button>
-            
-            {submitted && (
-                <div className="ui-pop-once mx-auto w-fit px-4 py-2 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 font-display text-base">
-                    ✅ 제출되었습니다
-                </div>
-            )}
-            <p className="text-center text-xs text-blue-600 dark:text-blue-400 font-semibold mt-2">
-                설문이 종료될 때까지 수정할 수 있습니다.
-            </p>
 
-            
-            
+            <p className="text-center text-[11px] text-gray-400">
+                {surveyClosed ? '바꿀 내용이 있으면 선생님께 알려 주세요.' : '설문이 끝날 때까지 몇 번이든 고칠 수 있어요.'}
+            </p>
         </div>
       </div>
 

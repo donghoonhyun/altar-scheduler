@@ -39,7 +39,7 @@ export default function PremiumHeader({
 
   return (
     <div className={cn(
-      "relative h-20 bg-gradient-to-br from-[#1E40AF] via-[#2563EB] to-[#3B82F6] dark:from-blue-900 dark:via-blue-950 dark:to-slate-900 rounded-b-[32px] shadow-lg overflow-hidden shrink-0",
+      "relative h-20 bg-gradient-to-br from-violet-600 via-indigo-500 to-sky-500 dark:from-violet-950 dark:via-indigo-950 dark:to-slate-900 rounded-b-[32px] shadow-lg overflow-hidden shrink-0",
       className
     )}>
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />

@@ -177,8 +177,8 @@ const MassEventPlanner: React.FC = () => {
   if (statusLoading) return <LoadingSpinner label="월 상태 로딩 중..." />;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300">
-      <div className="mb-4">
+    <div className="min-h-screen bg-gradient-to-b from-violet-50 via-sky-50 to-blue-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 transition-colors duration-300">
+      <div className="mb-3">
         <PremiumHeader
           title="미사 일정 관리"
           subtitle={`${currentMonth.format('YYYY년 M월')} 기준 일정/배정 관리`}
@@ -187,7 +187,7 @@ const MassEventPlanner: React.FC = () => {
         />
       </div>
 
-      <div className="px-4 pb-4">
+      <div className="max-w-5xl mx-auto px-4 pb-8 ui-stagger">
         {/* ✅ Toolbar */}
         <MassEventToolbar
           monthStatus={monthStatus}
