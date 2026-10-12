@@ -24,9 +24,6 @@
     "migrate:run": "cross-env DRY_RUN=false npx tsx scripts/migration/run_migration.ts"
   },
   "dependencies": {
-    "@capacitor/android": "^8.0.0",
-    "@capacitor/cli": "^8.0.0",
-    "@capacitor/core": "^8.0.0",
     "@headlessui/react": "^2.2.9",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",

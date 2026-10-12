@@ -171,9 +171,9 @@ Radix UI primitives + Shadcn-style components live in `src/components/ui/`. Shar
 
 `@/` maps to `src/` in both TypeScript and Vite config.
 
-### Mobile (Capacitor)
+### Mobile
 
-Capacitor config (`capacitor.config.ts`) targets Android in `android/`. Build with Vite then sync to Capacitor for native builds.
+이 저장소에는 네이티브 앱 프로젝트가 없다 (Capacitor `android/` 는 출시 없이 2026-10 에 제거). 안드로이드 배포는 Ordo 저장소의 TWA(`../Ordo/twa`)가 맡고, `ordo-altar.web.app` 을 신뢰 출처로 포함한다.
 
 ## Recent Updates
 
